@@ -1,139 +1,161 @@
-# 🌿 Resilience Guardian
+# 🌿 Resilience Guardian — ጠባቂ ጥንካሬ
 
 <div align="center">
 
 **AI-Powered Crop Disease Advisor for Ethiopian Smallholder Farmers**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-resilienceguardian.onrender.com-2D6A0A?style=for-the-badge&logo=google-chrome&logoColor=white)](https://resilienceguardian.onrender.com)
-[![GitHub](https://img.shields.io/badge/GitHub-guleaada-181717?style=for-the-badge&logo=github)](https://github.com/guleaada/ResilienceGuardian)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-[![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?style=for-the-badge)](https://resilienceguardian.onrender.com)
+[![Live App](https://img.shields.io/badge/🌐%20Live%20App-resilienceguardian.onrender.com-2D6A0A?style=for-the-badge)](https://resilienceguardian.onrender.com)
+[![PWA](https://img.shields.io/badge/📱%20PWA-Installable%20Offline-5A0FC8?style=for-the-badge)](https://resilienceguardian.onrender.com)
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-red?style=for-the-badge)](LICENSE)
+[![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20አማርኛ%20%7C%20Oromiffa%20%7C%20ትግርኛ-blue?style=for-the-badge)](#)
 
-*"Empowering those who feed the nation."*
+<br>
+
+> *"Empowering those who feed the nation."* — ሀገሪቱን የሚመግቡትን ማብቃት
+
+<br>
+
+**Creator & Developer:** [Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)](https://github.com/guleaada)<br>
+Ethiopian AI Developer & Entrepreneur
 
 </div>
 
 ---
 
-## 📖 About the Project
+## 📖 What Is Resilience Guardian?
 
-**Resilience Guardian** is an offline-first, multilingual AI web application that helps Ethiopian smallholder farmers diagnose crop diseases — in their own language, using research from their own country, even without internet access.
+Resilience Guardian is an **offline-first, multilingual AI web application** that helps Ethiopian smallholder farmers identify and manage crop diseases — in their own language, using research from their own institutions, even without internet access.
 
-It was built to fill a critical gap: no AI tool existed that spoke Amharic, Oromiffa, or Tigrinya; used research from Ethiopian institutions like EIAR, Jimma University, and Werabe ARC; or gave advice specific to Ethiopian crops, zones, and farming conditions.
+Ethiopia is among the world's top agricultural nations, with over 15 million smallholder farming families producing 95% of the country's food. Yet crop diseases destroy up to 40–80% of yields annually — and most farmers have no access to professional agronomic advice in their language.
 
-> **Built by [Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)](https://github.com/guleaada)** — Ethiopian AI Developer & Entrepreneur.
+**Resilience Guardian bridges that gap.**
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-### 🌱 Crop Coverage — 8 Ethiopian Crops
-
-| Crop | Local Name | Primary Diseases Covered |
+### 🤖 AI Engine — Triple Fallback Architecture
+| Provider | Model | Role |
 |---|---|---|
-| Enset | እንሰት | Bacterial Wilt (Xcm), Root Mealybug |
-| Teff | ጤፍ | Leaf Rust, Head Smudge |
-| Wheat | ስንዴ | Stripe Rust, Stem Rust Ug99, Leaf Rust |
-| Maize | በቆሎ | Northern Leaf Blight, Common Rust |
-| Coffee | ቡና | Coffee Berry Disease, Coffee Wilt (CWD) |
-| Potato | ድንች | Late Blight, Bacterial Wilt |
-| Barley | ገብስ | Scald, Net Blotch |
-| Sorghum | ማሽላ | Anthracnose, Grain Mold |
+| **Groq** | Llama 4 Scout 17B Vision | Primary — fastest, 14,400 req/day free |
+| **OpenRouter** | Llama 3.2 11B Vision | Secondary fallback |
+| **Google Gemini** | 2.0 Flash / 1.5 Flash | Tertiary fallback |
 
-### 🤖 AI Capabilities
-- **Visual Disease Detection** — upload photos of leaf, stem, root, or whole plant
-- **Multi-Image Analysis** — analyze multiple plant parts simultaneously
-- **Symptom-Based Diagnosis** — crop-specific symptom checklists
-- **Severity Estimation** — score 0–100 with yield loss % if untreated
-- **Treatment Cost Calculator** — estimated cost in Ethiopian Birr (ETB)
-- **Offline Fallback** — local disease database works without internet
+- **Visual disease detection** — AI analyzes uploaded plant photos directly
+- **Multi-image upload** — leaf, stem, root, whole plant, fruit
+- **Explicit image instruction** — AI is told to examine the photo, not just read symptoms
+- **Automatic failover** — if one provider fails, next is tried instantly
+
+### 🌱 8 Ethiopian Crops — 32+ Diseases
+| Crop | Local Name | Diseases in Database |
+|---|---|---|
+| Enset | እንሰት | Bacterial Wilt (Xcm), Root Mealybug, Early Xcm, Kocho Failure |
+| Teff | ጤፍ | Leaf Rust, Head Smudge, Shoot Fly, Blister Blight |
+| Wheat | ስንዴ | Stripe Rust, Stem Rust Ug99, Fusarium Scab, Septoria Blotch, Loose Smut |
+| Maize | በቆሎ | Northern Leaf Blight, Fall Armyworm, Common Rust, Streak Virus, Aflatoxin |
+| Coffee | ቡና | Berry Disease (CBD), Wilt (CWD), Leaf Rust, Berry Borer |
+| Potato | ድንች | Late Blight, Bacterial Wilt, Early Blight, Potato Virus Y |
+| Barley | ገብስ | Scald, Net Blotch, Covered Smut, Stem Rust |
+| Sorghum | ማሽላ | Anthracnose, Grain Mold, Head Smut, Shoot Fly, Striga |
 
 ### 🌍 Language & Accessibility
-- **4 Languages:** English, አማርኛ (Amharic), Afaan Oromo, ትግርኛ (Tigrinya)
-- **Voice Input** — speak symptoms in your language
-- **Full UI Translation** — every button, label, and result translates instantly
-- **Google Translate** — auto-translates long-form modal content
+- **4 full languages:** English, አማርኛ (Amharic), Afaan Oromo, ትግርኛ (Tigrinya)
+- Every button, label, result, and action translates instantly
+- **Voice input** — speak symptoms in your language (toggle start/stop)
+- **Voice output** — tap to hear the full diagnosis read aloud, with iOS keep-alive fix
+- Offline results **auto-translate** to selected language when internet is available
 
-### 🌤️ Weather & Risk Intelligence
-- Real-time 7-day forecast via Open-Meteo (free, no API key needed)
-- Disease risk alerts (Low / Moderate / High) based on humidity and rainfall
-- Covers 7 Ethiopian regions + GPS location detection
+### 📴 Offline / Online Mode
+- **Professional mode selector** — farmer can manually choose Online AI or Offline DB
+- **Smart symptom matching** — fuzzy keyword scoring ranks best disease match
+- **Always gives an answer** — if no symptom match, shows all diseases for that crop
+- **Disease list** — tap any disease card to see full treatment details
+- **Auto-translation** — offline English results translated by AI when reconnected
+
+### 📊 Diagnosis Output
+- Disease name + confidence % + severity (High / Medium / Low)
+- Estimated yield loss % if untreated
+- Numbered immediate action steps
+- Preventive measures
+- **Treatment cost calculator** in Ethiopian Birr (ETB) — based on farm size
+- Research source citation (which Ethiopian institution)
+- Follow-up conversation chat (4 quick questions + free text + voice)
+
+### 🌤️ Weather Intelligence
+- Real-time 7-day forecast via Open-Meteo (no API key needed)
+- Disease risk alerts: Low / Moderate / High based on humidity + rainfall
+- 7 Ethiopian regions + GPS location
+
+### 📞 All 17 Ethiopian Agricultural Research Centers
+Every center with verified phone numbers, tap-to-call, crop specialty noted:
+Ambo, Assosa, Bako, Chiro, Debre Zeit, Fogera, Holeta, Jimma, Kulumsa, Melkassa, Mehony, Pawe, Sebeta, Tepi, Wereillu, Werer, Wondo Genet
 
 ### 📱 Progressive Web App (PWA)
-- Installable on **Android, iPhone, iPad, Mac, and Desktop**
-- Works **offline** — core features available without internet
-- App icons and splash screens for all device sizes
+- Installable on Android, iPhone, iPad, Mac, Desktop
+- Offline-first architecture
+- Service Worker v4 — caches full app
+- iOS splash screens for 5 iPhone sizes
 - Background sync — queues analyses offline, sends when reconnected
+- Auto-detects new version with refresh button
 
-### 🔬 Research Foundation — 8 Peer-Reviewed Papers
-
-| Paper | Institution | Year |
-|---|---|---|
-| Integrated Management of Enset Bacterial Wilt | Bonga University | 2023 |
-| Community-Based EBW Management | Werabe ARC / Central Ethiopia ARI | 2023 |
-| Enset Disease & Pest ID Using CNN (98.87% accuracy) | Jimma University | 2021 |
-| McKnight-CCRP Integrated Management Report | McKnight Foundation | — |
-| Major Tef Diseases in Ethiopia | EIAR Debre Zeit ARC | 2021 |
-| Distribution of Tef Diseases in Central Highland | Int. J. Applied Agricultural Sciences | 2021 |
-| Early Warning System for Wheat Rust | Cambridge / CIMMYT / EIAR | 2019 |
-| Ethiopian Maize Disease & Management | MoA / FAO Ethiopia | — |
-
-### 📞 Direct Farmer Support
-Tap-to-call links to 6 agricultural extension offices — EIAR, TARI (Tigray), Kulumsa (Oromia), ARARI (Amhara), SNNPR, and Ministry of Agriculture hotline.
+### 🔬 Research Foundation — 8 Ethiopian Peer-Reviewed Papers
+| Research | Institution |
+|---|---|
+| Integrated Management of Enset Bacterial Wilt | Bonga University (2023) |
+| Community-Based EBW Management | Werabe ARC / Central Ethiopia ARI (2023) |
+| Enset Disease Detection CNN (98.87% accuracy) | Jimma University (2021) |
+| McKnight-CCRP Integrated Management | McKnight Foundation |
+| Major Tef Diseases in Ethiopia | EIAR Debre Zeit ARC (2021) |
+| Tef Disease Distribution Central Highland | Int. J. Applied Agricultural Sciences (2021) |
+| Early Warning System for Wheat Rust | Cambridge / CIMMYT / EIAR (2019) |
+| Ethiopian Maize Disease & Management | MoA / FAO Ethiopia |
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Technology Stack
 
-### 1. Clone the Repository
+| Layer | Technology |
+|---|---|
+| Frontend | HTML5, CSS3, Vanilla JavaScript (no framework) |
+| AI Primary | Groq — Llama 4 Scout 17B Vision |
+| AI Fallback | OpenRouter, Google Gemini 2.0 Flash |
+| Backend | Node.js + Express |
+| Offline Storage | IndexedDB (history, profile, sync queue) |
+| Weather | Open-Meteo (free, no key) |
+| Voice | Web Speech API (SpeechRecognition + SpeechSynthesis) |
+| PWA | Service Worker v4 |
+| Hosting | Render.com (free tier) + GitHub |
+| Uptime | cron-job.org (pings server every 10 min) |
+
+---
+
+## 🚀 Local Development
+
+### Requirements
+- Node.js 18+
+- A Groq API key (free at [console.groq.com](https://console.groq.com))
+
+### Setup
+
 ```bash
 git clone https://github.com/guleaada/ResilienceGuardian.git
 cd ResilienceGuardian
-```
-
-### 2. Install Dependencies
-```bash
 npm install
-```
-
-### 3. Setup Environment
-```bash
 cp .env.example .env
 ```
 
 Edit `.env`:
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+GROQ_API_KEY=your_groq_key_here
+GEMINI_API_KEY=your_gemini_key_here        # optional fallback
+OpenRouter_API_KEY=your_openrouter_key     # optional fallback
 PORT=3000
 ```
 
-Get a free Gemini API key at: [aistudio.google.com](https://aistudio.google.com)
-
-### 4. Run the Application
 ```bash
-# Development
-npm run dev
-
-# Production
-npm start
+node server.js
+# Open: http://localhost:3000
 ```
-
-Open: `http://localhost:3000`
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Frontend | HTML5, CSS3, Vanilla JavaScript | UI, translations, offline logic |
-| AI Engine | Google Gemini 2.0 Flash | Disease diagnosis, multilingual response |
-| Backend | Node.js + Express | Secure API proxy, rate limiting |
-| Offline DB | IndexedDB | History, queued analyses, farmer profile |
-| Weather | Open-Meteo API | Free real-time weather + disease risk |
-| PWA | Service Worker v3 | Offline caching, background sync |
-| Image | Client-side Canvas API | Photo compression before upload |
-| Future | TensorFlow.js | Fully offline local AI model |
 
 ---
 
@@ -142,16 +164,13 @@ Open: `http://localhost:3000`
 ```
 ResilienceGuardian/
 ├── public/
-│   ├── index.html              # Full application
-│   ├── manifest.json           # PWA manifest
-│   ├── service-worker.js       # Offline caching
-│   └── icons/
-│       ├── apple-touch-icon.png  # iPhone icon (180x180)
-│       ├── icon-72/96/128/192/512.png
-│       └── splash-*.png        # iOS splash screens (5 sizes)
-├── server.js                   # Express backend
+│   ├── index.html              ← Full app (single file, ~860KB)
+│   ├── manifest.json           ← PWA manifest
+│   ├── service-worker.js       ← Offline caching v4
+│   └── icons/                  ← App icons + iOS splash screens
+├── server.js                   ← Express + triple AI fallback
 ├── package.json
-├── .env                        # API key (not committed)
+├── .env                        ← API keys (never committed)
 ├── .env.example
 ├── README.md
 ├── RESEARCH.md
@@ -160,87 +179,89 @@ ResilienceGuardian/
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Try It Live
 
-**Try it now:** [resilienceguardian.onrender.com](https://resilienceguardian.onrender.com)
+👉 **[resilienceguardian.onrender.com](https://resilienceguardian.onrender.com)**
 
-> Note: Free tier may take 30–50 seconds to wake up after inactivity.
+> Free tier may take 30–50 seconds to wake up on first visit. cron-job.org keeps it warm every 10 minutes.
 
 **Install as an app:**
-- **Android:** Open in Chrome → tap the install banner
-- **iPhone:** Open in Safari → Share → Add to Home Screen
-- **Desktop:** Open in Chrome/Edge → click install icon (⊕) in address bar
+- **Android** → Chrome → tap install banner
+- **iPhone / iPad** → Safari → Share → Add to Home Screen
+- **Desktop** → Chrome/Edge → click ⊕ in address bar
 
 ---
 
-## 🔮 Roadmap
+## 🗺️ Roadmap
 
 - [x] 8 crops with real photos
 - [x] 4-language full translation
-- [x] AI diagnosis via Gemini 2.0 Flash
-- [x] Offline disease database (16 diseases)
+- [x] Triple AI fallback (Groq → OpenRouter → Gemini)
+- [x] Offline disease database — 32 diseases
+- [x] Smart symptom matching with fuzzy scoring
+- [x] Professional offline/online mode selector
+- [x] Auto-translation of offline results
+- [x] Visual AI diagnosis (actual image analysis)
 - [x] Weather + disease risk widget
-- [x] PWA — installable on all devices
-- [x] Multi-image upload with plant part selection
+- [x] PWA — installable all devices
 - [x] Severity + yield loss estimator
 - [x] Treatment cost calculator in ETB
-- [x] Farmer profile (persistent)
-- [x] Tap-to-call agricultural offices
-- [ ] TensorFlow.js fully offline AI model
+- [x] Voice input + voice read-aloud
+- [x] All 17 Ethiopian ARC phone numbers
+- [x] Follow-up conversation chat
 - [ ] WhatsApp share for diagnosis results
-- [ ] PDF download of diagnosis report
-- [ ] Farmer feedback and rating system
+- [ ] PDF diagnosis report download
+- [ ] Farmer feedback + rating system
 - [ ] Seasonal disease risk alerts by region
 - [ ] SMS-based diagnosis for feature phones
-- [ ] Android APK via React Native
+- [ ] Fully offline TensorFlow.js AI model
 
 ---
 
-## 🤝 Contributing
+## ⚖️ License & Intellectual Property
 
-Contributions are welcome — especially from agronomists, translators, and Ethiopian developers.
+This project is licensed under the **Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License (CC BY-NC-ND 4.0)**.
 
-1. Fork the repository
-2. Create your branch: `git checkout -b feature/YourFeature`
-3. Commit: `git commit -m 'Add YourFeature'`
-4. Push: `git push origin feature/YourFeature`
-5. Open a Pull Request
+**You may:**
+- View and study this code for personal learning
+- Share it with attribution
 
-**Especially needed:**
-- Oromiffa and Tigrinya translation improvements
-- Disease data for additional Ethiopian crops
-- Field testing feedback from real farmers
+**You may NOT:**
+- Use this code or concept commercially without written permission
+- Create derivative apps or products based on this work without permission
+- Distribute modified versions
 
----
+**Original creator and sole owner:**
+**Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)**
+All rights reserved. For licensing inquiries, contact via GitHub.
 
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE).
-
-Original creator: **Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)** — credit required in any derivative work.
+> This project was created independently as an original work. Unauthorized reproduction or commercial use will be pursued under applicable intellectual property law.
 
 ---
 
 ## 🙏 Acknowledgments
 
 - Ethiopian farmers and Development Agents (DAs) across all regions
-- Researchers at EIAR, Jimma University, Werabe ARC, Bonga University, and all Regional Agricultural Research Institutes
-- Google for Gemini API access
+- EIAR, Jimma University, Werabe ARC, Bonga University, and all Ethiopian Regional Agricultural Research Institutes
+- Groq, Google (Gemini), and OpenRouter for AI API access
 - Open-Meteo for free weather data
-- The global open-source community
+- The Ethiopian agricultural research community whose published work forms the knowledge base of this tool
 
 ---
 
 <div align="center">
 
-**Built for Ethiopia 🇪🇹 — With Love 🌍**
+**Built for Ethiopia 🇪🇹 — With Purpose 🌍**
 
-Developer: **Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)**
-
+**Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)**<br>
 Ethiopian AI Developer & Entrepreneur
 
 [GitHub](https://github.com/guleaada) · [Live App](https://resilienceguardian.onrender.com)
 
 *"Empowering those who feed the nation."*
+
+---
+
+© 2025 Gulilat Kasiye Worku. All rights reserved.
 
 </div>
