@@ -12,10 +12,22 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ResGuardian">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Resilience Guardian">
+
+<!-- iOS App Icon (180x180 required for iPhone) -->
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+
+<!-- iOS Splash Screens -->
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)" href="/icons/splash-750x1334.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2)" href="/icons/splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3)" href="/icons/splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)" href="/icons/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)" href="/icons/splash-1290x2796.png">
+
+<!-- Favicons -->
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 
@@ -2323,10 +2335,29 @@ function renderWeather(data, name) {
 }
 
 function getUserLocation() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(pos => {
-    getWeather(pos.coords.latitude, pos.coords.longitude, 'Your Location');
-  });
+  if (!navigator.geolocation) {
+    alert('Location not supported in this browser.');
+    return;
+  }
+  const btn = document.querySelector('.weather-loc-btn');
+  if (btn) { btn.textContent = '📍 Getting location...'; btn.disabled = true; }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      if (btn) { btn.textContent = '📍 Use My Location'; btn.disabled = false; }
+      getWeather(pos.coords.latitude, pos.coords.longitude, '📍 Your Location');
+    },
+    function(err) {
+      if (btn) { btn.textContent = '📍 Use My Location'; btn.disabled = false; }
+      const msgs = {
+        1: 'Location access denied. Please allow location in your browser settings.',
+        2: 'Location unavailable. Please select a region manually.',
+        3: 'Location request timed out. Please try again.'
+      };
+      alert(msgs[err.code] || 'Could not get location. Please select a region manually.');
+    },
+    { timeout: 10000, enableHighAccuracy: false }
+  );
 }
 
 function loadSelectedRegion() {
@@ -2447,6 +2478,11 @@ const INPUT_PRICES_ETB = {
   labour:     { name: 'Labour (rouging/removal)', price: 180, unit: 'day', perHa: 2 },
   seedClean:  { name: 'Certified clean seed', price: 85, unit: 'kg', perHa: 25 },
 };
+
+// Alias so renderResult can call either name
+function calculateTreatmentCost(cropId) {
+  return calcTreatmentCost('default', cropId);
+}
 
 function calcTreatmentCost(diseaseKey, cropId) {
   const farmHa = farmerProfile.farm || 0.5;
@@ -3026,6 +3062,12 @@ async function getHistory() {
 
 // ==================== ANALYZE ====================
 async function analyze() {
+  // ── Validate before running ──
+  if (!currentCrop) {
+    alert('Please select a crop first.');
+    return;
+  }
+
   const btn = document.getElementById('abtn');
   const loading = document.getElementById('lcrd');
   const result = document.getElementById('rcrd');
@@ -3161,7 +3203,7 @@ Respond ONLY with this JSON (no markdown):
     renderResult(parsed);
 
   } catch (err) {
-    console.log('Offline or error:', err);
+    console.error('Analyze error:', err);
 
     await saveToQueue({
       crop: currentCrop,
@@ -3261,9 +3303,14 @@ const EXTENSION_OFFICES = {
 // ==================== RENDER RESULT ====================
 function renderResult(r) {
   const div = document.getElementById('rcrd');
+  if (!div) { console.error('rcrd not found'); return; }
   const t   = T[currentLang] || T.en;
-  const sev  = getSeverityAndYield(currentCrop, Array.from(selectedSymptoms || []), r.diagnosis || '');
-  const cost = calculateTreatmentCost(currentCrop);
+
+  // Safe calls with fallbacks
+  let sev = { severity: 'medium', score: 50, yieldLossPercent: 20 };
+  let cost = { total: 0, rows: '', totalETB: 0 };
+  try { sev  = getSeverityAndYield(currentCrop, Array.from(selectedSymptoms || []), r.diagnosis || ''); } catch(e) { console.warn('severity error', e); }
+  try { cost = calculateTreatmentCost(currentCrop); } catch(e) { console.warn('cost error', e); }
   const sevColor = sev.severity === 'high' ? '#B83010' : sev.severity === 'medium' ? '#D4A017' : '#3A9E4A';
   const sevBar   = sev.severity === 'high' ? '#ff6b6b'  : sev.severity === 'medium' ? '#ffd93d'  : '#6EE37A';
   const sevIcon  = sev.severity === 'high' ? '🔴'       : sev.severity === 'medium' ? '🟡'       : '🟢';
@@ -3316,13 +3363,13 @@ function renderResult(r) {
         <p>${r.diagnosis || r.disease_name || ''}</p>
       </div>
 
-      ${r.immediate_actions && r.immediate_actions.length > 0 ? `
+      ${(Array.isArray(r.immediate_actions) && r.immediate_actions.length > 0) ? `
       <div class="result-section">
         <h4 data-i18n="resImmediateActions">${t.resImmediateActions || 'Immediate Actions'}</h4>
         <ul class="action-list">${r.immediate_actions.map(a => `<li>${a}</li>`).join('')}</ul>
       </div>` : ''}
 
-      ${r.preventive_measures && r.preventive_measures.length > 0 ? `
+      ${(Array.isArray(r.preventive_measures) && r.preventive_measures.length > 0) ? `
       <div class="result-section">
         <h4 data-i18n="resPreventive">${t.resPreventive || 'Preventive Measures'}</h4>
         <ul class="action-list">${r.preventive_measures.map(p => `<li>${p}</li>`).join('')}</ul>
