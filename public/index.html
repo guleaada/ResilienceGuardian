@@ -1337,6 +1337,58 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   margin-top: 14px;
 }
 
+
+/* ─── REFRESH BUTTON ──────────────────────────────────── */
+.refresh-btn {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+.refresh-btn:hover {
+  background: rgba(255,255,255,0.25);
+  transform: rotate(180deg);
+}
+.refresh-btn.spinning {
+  animation: spin 0.7s linear;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.update-toast {
+  display: none;
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--leaf);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  animation: fadeInDown 0.3s ease;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 </style>
 </head>
 <body>
@@ -1357,6 +1409,12 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     </div>
   </div>
 </header>
+
+<!-- Update toast notification -->
+<div id="update-toast" class="update-toast">✅ App updated to latest version!</div>
+
+<!-- Refresh button -->
+<button class="refresh-btn" onclick="refreshApp()" title="Check for updates">🔄</button>
 
 
 <main class="main">
@@ -2607,6 +2665,38 @@ function updateImgPart(id, part) { const img = multiImages.find(i => i.id === id
 function updateImagePart(i, part) { if(multiImages[i]) multiImages[i].part = part; }
 function toggleMultiUpload() {}
 
+
+// ==================== REFRESH & UPDATE ====================
+function refreshApp() {
+  const btn = document.querySelector('.refresh-btn');
+  if (btn) btn.classList.add('spinning');
+
+  // If SW available, force update check
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg) {
+        reg.update().then(() => {
+          // If no new SW found, just reload
+          setTimeout(() => {
+            window.location.reload(true);
+          }, 800);
+        });
+      } else {
+        window.location.reload(true);
+      }
+    });
+  } else {
+    setTimeout(() => window.location.reload(true), 400);
+  }
+}
+
+function showUpdateToast() {
+  const toast = document.getElementById('update-toast');
+  if (!toast) return;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+
 // ==================== TRANSLATION CACHE & HELPER ====================
 const _txCache = {};
 
@@ -2674,6 +2764,7 @@ async function translateModals(lang) {
 
 function setLanguage(lang) {
   currentLang = lang;
+  localStorage.setItem('rg_lang', lang);
   document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === lang);
   });
@@ -3544,6 +3635,9 @@ window.onload = () => {
   checkNetwork();
   const defaultCard = document.querySelector('.crop-card.selected');
   if (defaultCard) selectCrop(defaultCard);
+  // Restore last selected language
+  const savedLang = localStorage.getItem('rg_lang') || 'en';
+  setLanguage(savedLang);
 };
 
 
@@ -3573,13 +3667,17 @@ function switchTab(tab) {
   document.body.style.overflow = '';
 
   if (tab === 'advisor') {
-    // Just show main content - do nothing
+    // Re-apply language to ensure all advisor tab elements are translated
+    setLanguage(currentLang);
   } else if (tab === 'howto') {
     showHowTo();
+    setLanguage(currentLang);  // Re-apply translation to modal
   } else if (tab === 'research') {
     showResearch();
+    setLanguage(currentLang);
   } else if (tab === 'about') {
     showAbout();
+    setLanguage(currentLang);
   }
 }
 </script>
@@ -3754,8 +3852,10 @@ if ('serviceWorker' in navigator) {
       // Listen for SW_UPDATED message from new service worker
       navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'SW_UPDATED') {
-          console.log('[App] SW updated to', event.data.version, '— reloading...');
-          window.location.reload();
+          console.log('[App] SW updated to', event.data.version);
+          // Show toast then reload
+          showUpdateToast();
+          setTimeout(() => window.location.reload(true), 2000);
         }
       });
     });
