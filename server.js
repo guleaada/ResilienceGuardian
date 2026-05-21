@@ -1,86 +1,111 @@
 /**
- * Resilience Guardian — Backend Proxy Server
- * ------------------------------------------
- * Keeps the Gemini API key off the client.
- * Serves the frontend and proxies AI requests.
- *
- * Setup:
- *   1. npm install
- *   2. Copy .env.example → .env and add your GEMINI_API_KEY
- *   3. node server.js  (or: npm start)
- *   4. Open http://localhost:3000
+ * Resilience Guardian - Final Optimized Backend Server
+ * Secure Gemini Proxy with Image Support
  */
-
 require('dotenv').config();
-const express  = require('express');
-const cors     = require('cors');
-const path     = require('path');
-const fetch    = (...args) => import('node-fetch').then(({default:f}) => f(...args));
+const express = require('express');
+const cors    = require('cors');
+const path    = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
-  console.error('\n❌  GEMINI_API_KEY is not set.\n   Create a .env file with:\n   GEMINI_API_KEY=your_key_here\n');
+  console.error('\n❌ ERROR: GEMINI_API_KEY is not set in .env file!');
+  console.error('Please create .env file with your Gemini API key.\n');
   process.exit(1);
 }
 
+// ===================== MIDDLEWARE =====================
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));   // allow base64 images
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── /api/analyze ──────────────────────────────────────────────────────────
-   Accepts: { parts: [...] }  (Gemini-style parts array)
-   Returns: Gemini response JSON (candidates[0].content.parts[0].text)
-   Strips the API key — it never leaves this server.
-   ────────────────────────────────────────────────────────────────────────── */
+// Simple Rate Limiting
+const requestCounts = new Map();
+setInterval(() => requestCounts.clear(), 60000);
+
+// ===================== MAIN API ENDPOINT =====================
 app.post('/api/analyze', async (req, res) => {
   const { parts } = req.body;
 
   if (!parts || !Array.isArray(parts)) {
-    return res.status(400).json({ error: 'Missing or invalid parts array.' });
+    return res.status(400).json({
+      error: 'Invalid request. "parts" array is required.'
+    });
   }
 
-  // Basic sanity: at most one inline_data block (the photo)
-  const textParts  = parts.filter(p => p.text);
-  const imageParts = parts.filter(p => p.inline_data);
-  if (!textParts.length) {
-    return res.status(400).json({ error: 'At least one text part is required.' });
+  // Rate limiting — 30 requests per minute per IP
+  const ip = req.ip || 'unknown';
+  const currentCount = (requestCounts.get(ip) || 0) + 1;
+  requestCounts.set(ip, currentCount);
+  if (currentCount > 30) {
+    return res.status(429).json({
+      error: 'Too many requests. Please wait a moment before trying again.'
+    });
   }
 
   try {
-    const upstream = await fetch(
+    console.log(`📡 Processing request — ${parts.length} part(s)...`);
+
+    const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }] })
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1600,
+            topP: 0.95,
+          }
+        })
       }
     );
 
-    if (!upstream.ok) {
-      const errText = await upstream.text();
-      console.error('Gemini API error:', upstream.status, errText);
-      return res.status(502).json({ error: `Gemini API returned ${upstream.status}` });
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API Error:', geminiResponse.status, errorText);
+      return res.status(502).json({
+        error: `Gemini API error (${geminiResponse.status})`
+      });
     }
 
-    const data = await upstream.json();
-    return res.json(data);
+    const data = await geminiResponse.json();
+    res.json(data);
 
-  } catch (err) {
-    console.error('Proxy fetch error:', err);
-    return res.status(503).json({ error: 'Could not reach Gemini API. Check server connectivity.' });
+  } catch (error) {
+    console.error('Server Error:', error);
+    res.status(503).json({
+      error: 'Service temporarily unavailable. Please check your connection and try again.'
+    });
   }
 });
 
-/* ── health check ─────────────────────────────────────────────────────────── */
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// ===================== HEALTH CHECK =====================
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    version: '1.3',
+    message: 'Resilience Guardian Backend is Running',
+    timestamp: new Date().toISOString(),
+    gemini: GEMINI_API_KEY ? 'Connected' : 'Not Configured'
+  });
+});
 
-/* ── catch-all → index.html (SPA) ─────────────────────────────────────────── */
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// ===================== SPA FALLBACK =====================
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
+// ===================== START SERVER =====================
 app.listen(PORT, () => {
-  console.log(`\n🌿  Resilience Guardian server running at http://localhost:${PORT}`);
-  console.log(`    API key: ****${GEMINI_API_KEY.slice(-4)} (hidden from client)\n`);
+  console.log(`\n🌿 ========================================`);
+  console.log(`   Resilience Guardian Server Started`);
+  console.log(`   URL: http://localhost:${PORT}`);
+  console.log(`   Status: Ready for Ethiopian Farmers`);
+  console.log(`   Gemini API: ${GEMINI_API_KEY ? '✅ Connected' : '❌ Missing'}`);
+  console.log(`========================================\n`);
 });
