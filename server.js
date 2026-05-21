@@ -17,9 +17,10 @@ const reqCounts = new Map();
 setInterval(() => reqCounts.clear(), 60000);
 
 const MODELS = [
-  { name: 'gemini-1.5-flash',      api: 'v1' },
-  { name: 'gemini-1.5-flash-8b',   api: 'v1' },
+  { name: 'gemini-2.0-flash-lite', api: 'v1beta' },
   { name: 'gemini-2.0-flash',      api: 'v1beta' },
+  { name: 'gemini-1.5-flash',      api: 'v1beta' },
+  { name: 'gemini-1.5-flash-8b',   api: 'v1beta' },
 ];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -38,7 +39,7 @@ app.post('/api/analyze', async (req, res) => {
 
   for (let i = 0; i < MODELS.length; i++) {
     const model = MODELS[i];
-    if (i > 0) await sleep(2000); // 2s delay between retries
+    if (i > 0) await sleep(3000);
 
     try {
       const url = `https://generativelanguage.googleapis.com/${model.api}/models/${model.name}:generateContent?key=${KEY}`;
@@ -81,7 +82,7 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.6', timestamp: new Date().toISOString(), gemini: KEY ? 'Connected' : 'Missing' });
+  res.json({ status: 'ok', version: '1.7', timestamp: new Date().toISOString(), gemini: KEY ? 'Connected' : 'Missing' });
 });
 
 app.get('*', (req, res) => {
@@ -89,7 +90,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🌿 Resilience Guardian v1.6`);
+  console.log(`\n🌿 Resilience Guardian v1.7`);
   console.log(`   URL: http://localhost:${PORT}`);
   console.log(`   Gemini: ${KEY ? '✅ Connected' : '❌ Missing'}`);
   console.log(`   Models: ${MODELS.map(m => m.name).join(', ')}\n`);
