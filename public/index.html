@@ -1084,6 +1084,134 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   margin-top: 6px;
 }
 
+
+/* ─── FARMER PROFILE ─────────────────────────────────── */
+.profile-fab {
+  position: fixed;
+  bottom: 146px;
+  right: 16px;
+  width: 46px;
+  height: 46px;
+  background: #7B5EA7;
+  border-radius: 50%;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  transition: all 0.2s ease;
+}
+.profile-fab:hover { background: #6a4f92; transform: scale(1.08); }
+
+/* ─── SEVERITY + YIELD CARD ──────────────────────────── */
+.severity-yield-card {
+  background: white;
+  border: 1px solid #EAE4DC;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.yield-bar-wrap { background: #F0EBE0; border-radius: 20px; height: 10px; margin: 8px 0; overflow: hidden; }
+.yield-bar { height: 100%; border-radius: 20px; transition: width 0.8s ease; }
+
+/* ─── COST CALCULATOR ─────────────────────────────────── */
+.cost-card {
+  background: #F0F7E8;
+  border: 1px solid #B8DC7A;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid #D8E8C0;
+}
+.cost-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--leaf);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+/* ─── MULTI IMAGE UPLOAD ──────────────────────────────── */
+.multi-img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.multi-img-item {
+  background: var(--mist);
+  border: 1px solid var(--sprout);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+.multi-img-item img {
+  width: 100%;
+  height: 70px;
+  object-fit: cover;
+  display: block;
+}
+.multi-img-item select {
+  width: 100%;
+  font-size: 10px;
+  padding: 3px;
+  border: none;
+  background: var(--mist);
+  color: var(--soil);
+}
+.multi-img-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── PROFILE FORM ────────────────────────────────────── */
+.profile-field {
+  margin-bottom: 12px;
+}
+.profile-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+}
+.profile-field input, .profile-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #D8D0C4;
+  border-radius: 10px;
+  font-size: 14px;
+  background: white;
+  color: var(--soil);
+  box-sizing: border-box;
+}
+
 </style>
 </head>
 <body>
@@ -1193,6 +1321,21 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </div>
 
   
+  
+  <!-- Multi-Image Upload Section -->
+  <div style="margin:12px 0;">
+    <button onclick="toggleMultiUpload()" style="background:transparent;border:1px dashed var(--sprout);color:var(--leaf);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">
+      📸 + Add More Photos (leaf, stem, root)
+    </button>
+    <div id="multi-upload-area" style="display:none;margin-top:10px;">
+      <input type="file" id="multi-photo-input" accept="image/*" multiple style="display:none;" onchange="handleMultiImages(event)">
+      <button onclick="document.getElementById('multi-photo-input').click()" style="background:var(--mist);border:1px solid var(--sprout);color:var(--leaf);border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;width:100%;margin-bottom:8px;">
+        📁 Select Multiple Photos
+      </button>
+      <div id="multi-img-grid" class="multi-img-grid"></div>
+    </div>
+  </div>
+
   <p class="slabel" id="label-symptoms">Visible Symptoms</p>
   <div class="sym-grid" id="symgrid"></div>
 
@@ -2083,6 +2226,246 @@ function loadSelectedRegion() {
   getWeather(parseFloat(lat), parseFloat(lon), name);
 }
 
+
+// ==================== FARMER PROFILE ====================
+let farmerProfile = {
+  name: "Smallholder Farmer",
+  region: "",
+  woreda: "",
+  farm: 0.5,
+  farmSizeHa: 0.5
+};
+
+function loadProfile() {
+  const saved = localStorage.getItem('farmerProfile');
+  if (saved) {
+    farmerProfile = JSON.parse(saved);
+    farmerProfile.farmSizeHa = farmerProfile.farm || 0.5;
+  }
+}
+
+function showProfile() {
+  // Load saved profile
+  if (farmerProfile.name)   document.getElementById('prof-name').value   = farmerProfile.name;
+  if (farmerProfile.region) document.getElementById('prof-region').value = farmerProfile.region;
+  if (farmerProfile.woreda) document.getElementById('prof-woreda').value = farmerProfile.woreda;
+  if (farmerProfile.farm)   document.getElementById('prof-farm').value   = farmerProfile.farm;
+  if (farmerProfile.crops)  document.getElementById('prof-crops').value  = farmerProfile.crops;
+  if (farmerProfile.phone)  document.getElementById('prof-phone').value  = farmerProfile.phone;
+  document.getElementById('profileModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProfile() {
+  document.getElementById('profileModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleProfileModalClick(e) {
+  if (e.target === document.getElementById('profileModal')) closeProfile();
+}
+
+function saveProfile() {
+  farmerProfile.name    = document.getElementById('prof-name').value.trim() || 'Smallholder Farmer';
+  farmerProfile.region  = document.getElementById('prof-region').value;
+  farmerProfile.woreda  = document.getElementById('prof-woreda').value.trim();
+  farmerProfile.farm    = parseFloat(document.getElementById('prof-farm').value) || 0.5;
+  farmerProfile.farmSizeHa = farmerProfile.farm;
+  farmerProfile.crops   = document.getElementById('prof-crops').value;
+  farmerProfile.phone   = document.getElementById('prof-phone').value;
+  localStorage.setItem('farmerProfile', JSON.stringify(farmerProfile));
+  const msg = currentLang === 'am' ? '✅ መገለጫ ተቀመጠ' : currentLang === 'om' ? '✅ Profaayiliin kuufame' : currentLang === 'ti' ? '✅ ፕሮፋይል ተዓቂቡ' : '✅ Profile Saved';
+  closeProfile();
+  const fab = document.querySelector('.profile-fab');
+  if (fab) { fab.textContent = '✅'; setTimeout(() => fab.textContent = '👤', 1500); }
+  alert(msg);
+}
+
+// ==================== SEVERITY ESTIMATOR ====================
+function getSeverityAndYield(crop, symptoms, diagnosisText) {
+  const scores = {
+    'heart-leaf wilting': 55, 'bacterial ooze': 50, 'root rot': 60,
+    'black streaks': 45, 'yellow leaves': 30, 'orange pustules': 35,
+    'head smudge': 30, 'stem lesions': 40, 'stripe rust': 50,
+    'stem rust': 65, 'leaf rust': 40, 'powdery mildew': 25,
+    'northern leaf blight': 45, 'common rust': 35, 'stalk rot': 55,
+    'late blight': 70, 'wilting': 50, 'scald': 35, 'net blotch': 40,
+    'anthracnose': 50, 'grain mold': 30
+  };
+
+  let score = 0;
+  symptoms.forEach(sym => {
+    const key = sym.toLowerCase();
+    const matched = Object.keys(scores).find(k => key.includes(k));
+    score += matched ? scores[matched] : 20;
+  });
+
+  if (diagnosisText) {
+    const lower = diagnosisText.toLowerCase();
+    if (lower.includes('severe') || lower.includes('advanced') || lower.includes('critical')) score += 25;
+    if (lower.includes('moderate') || lower.includes('manageable')) score += 10;
+  }
+
+  score = Math.min(100, score);
+  const level = score > 65 ? 'High' : score > 35 ? 'Medium' : 'Low';
+
+  const yieldLoss = {
+    enset:   { high: 80, medium: 40, low: 15 },
+    teff:    { high: 41, medium: 22, low: 8  },
+    wheat:   { high: 70, medium: 35, low: 12 },
+    maize:   { high: 55, medium: 28, low: 10 },
+    coffee:  { high: 49, medium: 25, low: 8  },
+    potato:  { high: 75, medium: 40, low: 15 },
+    barley:  { high: 67, medium: 30, low: 10 },
+    sorghum: { high: 60, medium: 30, low: 10 },
+  };
+
+  const loss = yieldLoss[cropId]?.[level] ?? 20;
+  const barColor = level === 'High' ? '#ff6b6b' : level === 'Medium' ? '#ffd93d' : '#6bcb77';
+
+  return { severity: level, score: Math.min(100, score), yieldLossPercent: loss };
+}
+
+// ==================== COST CALCULATOR ====================
+const INPUT_PRICES_ETB = {
+  fungicide:  { name: 'Fungicide (mancozeb/propiconazole)', price: 280, unit: '500ml', perHa: 1.5 },
+  neem:       { name: 'Neem extract (local)', price: 45,  unit: 'liter', perHa: 3 },
+  copper:     { name: 'Copper-oxychloride', price: 320, unit: '500g', perHa: 1 },
+  compost:    { name: 'Organic compost', price: 65, unit: '50kg', perHa: 4 },
+  labour:     { name: 'Labour (rouging/removal)', price: 180, unit: 'day', perHa: 2 },
+  seedClean:  { name: 'Certified clean seed', price: 85, unit: 'kg', perHa: 25 },
+};
+
+function calcTreatmentCost(diseaseKey, cropId) {
+  const farmHa = farmerProfile.farm || 0.5;
+
+  // Map disease types to inputs needed
+  const treatmentMap = {
+    rust:      ['fungicide','labour'],
+    blight:    ['fungicide','copper','labour'],
+    wilt:      ['labour','compost'],
+    bacterial: ['labour','compost'],
+    mold:      ['fungicide','labour'],
+    default:   ['neem','labour'],
+  };
+
+  let key = 'default';
+  if (diseaseKey.includes('rust')) key = 'rust';
+  else if (diseaseKey.includes('blight')) key = 'blight';
+  else if (diseaseKey.includes('wilt')) key = 'wilt';
+  else if (diseaseKey.includes('bacterial')) key = 'bacterial';
+  else if (diseaseKey.includes('mold') || diseaseKey.includes('smut')) key = 'mold';
+
+  const inputs = treatmentMap[key];
+  let total = 0, rows = '';
+
+  inputs.forEach(inp => {
+    const item = INPUT_PRICES_ETB[inp];
+    const qty = (item.perHa * farmHa).toFixed(1);
+    const cost = Math.round(item.price * item.perHa * farmHa);
+    total += cost;
+    rows += `<div class="cost-row">
+      <span>${item.name}</span>
+      <span>${qty} ${item.unit} = <strong>${cost} ETB</strong></span>
+    </div>`;
+  });
+
+  return { total: Math.round(total), rows, farmHa };
+}
+
+function renderSeverityAndCost(result) {
+  const symptoms = Array.from(selectedSymptoms);
+  const diagText = result.diagnosis || '';
+  const sevData = getSeverityAndYield(currentCrop, symptoms, diagText);
+  const { severity: level, score, yieldLossPercent: loss } = sevData;
+  const barColor = level === 'high' ? '#ff6b6b' : level === 'medium' ? '#ffd93d' : '#6bcb77';
+
+  const diseaseName = (result.disease_name || '').toLowerCase();
+  const { total, rows, farmHa } = calcTreatmentCost(diseaseName, currentCrop);
+
+  const levelIcon = level === 'high' ? '🔴' : level === 'medium' ? '🟡' : '🟢';
+  const organic = Math.round(total * 0.6);
+
+  return `
+    <div class="severity-yield-card">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--bark);margin-bottom:10px;">📊 Severity & Yield Impact</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:14px;font-weight:600;">${levelIcon} ${level} Severity (${score}/100)</span>
+        <span style="font-size:13px;color:#c0392b;font-weight:600;">⚠️ ${loss}% yield loss if untreated</span>
+      </div>
+      <div class="yield-bar-wrap"><div class="yield-bar" style="width:${score}%;background:${barColor};"></div></div>
+      <p style="font-size:12px;color:var(--bark);margin-top:8px;">
+        ${level === 'High' ? '🚨 Immediate action required — contact your Development Agent within 24-48 hours.' :
+          level === 'Medium' ? '⚡ Manageable with prompt treatment this week.' :
+          '✅ Caught early — treat now to prevent spread.'}
+      </p>
+    </div>
+
+    <div class="cost-card">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--leaf);margin-bottom:10px;">💰 Estimated Treatment Cost (${farmHa} ha farm)</div>
+      ${rows}
+      <div class="cost-total">
+        <span>Total Estimated Cost</span>
+        <span>${total} ETB</span>
+      </div>
+      <p style="font-size:11px;color:var(--bark);margin-top:8px;">💡 Using organic alternatives (neem, wood ash) could reduce cost to ~${organic} ETB</p>
+    </div>`;
+}
+
+// ==================== MULTI IMAGE UPLOAD ====================
+let multiImages = [];
+
+function toggleMultiUpload() {
+  const area = document.getElementById('multi-upload-area');
+  if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function handleMultiImages(e) {
+  handleImageUpload(e.target.files);
+}
+
+function handleImageUpload(files) {
+  Array.from(files).forEach((file, index) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const id = Date.now() + index + Math.random();
+      multiImages.push({ id, base64: ev.target.result.split(',')[1], part: 'leaf', name: file.name });
+      renderMultiGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderMultiGrid() {
+  const grid = document.getElementById('multi-img-grid');
+  if (!grid) return;
+  grid.innerHTML = multiImages.map((img, i) => `
+    <div class="multi-img-item">
+      <img src="data:image/jpeg;base64,${img.base64}" alt="photo ${i+1}">
+      <button class="multi-img-remove" onclick="removeMultiImage(${i})">✕</button>
+      <select onchange="updateImagePart(${i}, this.value)">
+        <option value="leaf">🍃 Leaf</option>
+        <option value="stem">🌿 Stem</option>
+        <option value="root">🌱 Root</option>
+        <option value="whole">🌾 Whole</option>
+        <option value="fruit">🍎 Fruit</option>
+      </select>
+    </div>`).join('');
+}
+
+function removeMultiImage(index) {
+  multiImages.splice(index, 1);
+  renderMultiGrid();
+}
+
+function updateImagePart(index, part) {
+  if (multiImages[index]) multiImages[index].part = part;
+}
+
+function removeMultiImg(id) { removeMultiImage(multiImages.findIndex(i => i.id === id)); }
+function updateImgPart(id, part) { const img = multiImages.find(i => i.id === id); if(img) img.part = part; }
+
 // ==================== TRANSLATION CACHE & HELPER ====================
 const _txCache = {};
 
@@ -2595,6 +2978,7 @@ MANAGEMENT: Resistant varieties are most effective — EIAR releases new rust-re
     const promptText = `You are an expert Ethiopian agricultural plant pathologist advising smallholder farmers.
 
 CROP: ${currentCrop.toUpperCase()}
+FARMER: ${farmerProfile.name || 'Unknown'} | Region: ${farmerProfile.region || 'Unknown'} | Woreda: ${farmerProfile.woreda || 'Unknown'} | Farm: ${farmerProfile.farm || 0.5} ha
 SYMPTOMS OBSERVED: ${symptomsList}
 FARMER NOTES: ${context || 'None'}
 RESPONSE LANGUAGE: ${currentLang === 'am' ? 'AMHARIC (አማርኛ)' : currentLang === 'om' ? 'AFAAN OROMO (Oromiffa)' : currentLang === 'ti' ? 'TIGRINYA (ትግርኛ)' : 'ENGLISH'}
@@ -2625,8 +3009,14 @@ Respond ONLY with this JSON (no markdown):
 }`;
 
     const parts = [{ text: promptText }];
-    if (photoBase64) {
-      parts.push({ inline_data: { mime_type: photoMimeType, data: photoBase64 } });
+    // Add images — multi-image takes priority over single
+    if (multiImages.length > 0) {
+      multiImages.forEach((img, i) => {
+        parts[0].text += `\nImage ${i+1} - Plant Part: ${img.part.toUpperCase()}`;
+        parts.push({ inline_data: { mime_type: 'image/jpeg', data: img.base64 } });
+      });
+    } else if (photoBase64) {
+      parts.push({ inline_data: { mime_type: photoMimeType || 'image/jpeg', data: photoBase64 } });
     }
 
     const response = await fetch('/api/analyze', {
@@ -2843,6 +3233,9 @@ function renderResult(r) {
 
       <div class="divider"></div>
 
+      <!-- SEVERITY + COST -->
+      ${renderSeverityAndCost(r)}
+
       <!-- NEAREST HELP -->
       <div class="result-section">
         <h4>${t.resNearestHelp}</h4>
@@ -2972,6 +3365,7 @@ function handleHowToModalClick(e) {
 
 
 window.onload = () => {
+  loadProfile();
   renderSymptoms();
   initVoice();
   checkNetwork();
@@ -3016,6 +3410,50 @@ function switchTab(tab) {
   }
 }
 </script>
+
+
+<!-- Farmer Profile Modal -->
+<div id="profileModal" class="modal-overlay" onclick="handleProfileModalClick(event)">
+  <div class="modal-box">
+    <div class="modal-header" style="background:linear-gradient(135deg,#4a2d7a,#7B5EA7);">
+      <h2>👤 Farmer Profile</h2>
+      <p>Your info helps personalise diagnosis and cost estimates.</p>
+    </div>
+    <div class="modal-body">
+      <div class="profile-field">
+        <label>Full Name</label>
+        <input id="prof-name" type="text" placeholder="e.g. Abebe Girma">
+      </div>
+      <div class="profile-field">
+        <label>Region</label>
+        <select id="prof-region">
+          <option value="">Select Region</option>
+          <option>Oromia</option><option>Amhara</option><option>SNNPR</option>
+          <option>Tigray</option><option>Sidama</option><option>Afar</option>
+          <option>Somali</option><option>Addis Ababa</option><option>Other</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <label>Woreda / District</label>
+        <input id="prof-woreda" type="text" placeholder="e.g. Cheha, Gurage">
+      </div>
+      <div class="profile-field">
+        <label>Farm Size (hectares)</label>
+        <input id="prof-farm" type="number" placeholder="e.g. 0.5" step="0.1" min="0.1">
+      </div>
+      <div class="profile-field">
+        <label>Primary Crops</label>
+        <input id="prof-crops" type="text" placeholder="e.g. Enset, Teff, Wheat">
+      </div>
+      <div class="profile-field">
+        <label>Phone Number (optional)</label>
+        <input id="prof-phone" type="tel" placeholder="+251...">
+      </div>
+      <button class="modal-close" style="background:var(--leaf);" onclick="saveProfile()">💾 Save Profile</button>
+      <button class="modal-close" style="background:#888;margin-top:8px;" onclick="closeProfile()">✕ Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- Help / Call Modal -->
 <div id="help-modal" class="modal-overlay" onclick="handleHelpModalClick(event)">
@@ -3065,11 +3503,15 @@ function switchTab(tab) {
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(function(reg) { console.log('SW registered:', reg.scope); })
-      .catch(function(err) { console.log('SW failed:', err); });
-  });
+  // Only register SW on real server (not local file or preview)
+  const isRealServer = location.protocol === 'https:' && !location.hostname.includes('claudeusercontent');
+  if (isRealServer) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(function(reg) { console.log('SW registered:', reg.scope); })
+        .catch(function(err) { console.log('SW registration skipped:', err.message); });
+    });
+  }
 }
 var deferredPrompt;
 window.addEventListener('beforeinstallprompt', function(e) {
