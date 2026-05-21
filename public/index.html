@@ -1477,6 +1477,32 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 }
 .chat-send-btn:hover { background: var(--sprout); }
 .chat-send-btn:disabled { background: #ccc; cursor: not-allowed; }
+.chat-mic-btn {
+  background: var(--leaf);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-mic-btn.listening { background: #e53935; animation: pulse 1s infinite; }
+.chat-speaker-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  opacity: 0.7;
+  vertical-align: middle;
+}
+.chat-speaker-btn:hover { opacity: 1; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
 .quick-questions {
   display: flex;
   flex-wrap: wrap;
@@ -1543,6 +1569,24 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   
   <div class="offline-banner" id="offlineBanner">
     <span id="offline-text">📡 No internet — analyses will sync automatically when reconnected</span>
+  </div>
+
+  <!-- Mode Indicator -->
+  <div id="mode-indicator" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;background:#f8fdf2;border-bottom:1px solid #e0eecc;font-size:12px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div id="mode-dot" style="width:8px;height:8px;border-radius:50%;background:#4caf50;animation:pulse 2s infinite;"></div>
+      <span id="mode-text" style="color:#2D6A0A;font-weight:600;">🤖 AI Online Mode — Full image analysis active</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button id="mode-btn-online" onclick="setAnalysisMode('online')"
+        style="padding:3px 10px;border-radius:20px;border:1.5px solid #2D6A0A;background:#2D6A0A;color:white;font-size:11px;cursor:pointer;font-weight:600;">
+        🌐 Online
+      </button>
+      <button id="mode-btn-offline" onclick="setAnalysisMode('offline')"
+        style="padding:3px 10px;border-radius:20px;border:1.5px solid #aaa;background:white;color:#666;font-size:11px;cursor:pointer;">
+        📴 Offline DB
+      </button>
+    </div>
   </div>
 
   
@@ -2414,36 +2458,669 @@ const T = {
 // ==================== LOCAL DISEASE DATABASE ====================
 const LOCAL_DISEASES = {
   "enset": [
-    { name: "Bacterial Wilt (Xcm)", symptoms: "wilting heart leaf ooze yellow streak", treatment: "Uproot and bury infected plant. Never compost.", prevention: "Use clean suckers, sterilize tools with fire or bleach between plants.", severity: "Very High" },
-    { name: "Root Mealybug", symptoms: "stunted yellow white roots", treatment: "Remove infected corms, apply wood ash.", prevention: "Use healthy suckers, inspect before planting.", severity: "Medium" }
+    {
+      name: "Bacterial Wilt (Xcm)", severity: "Very High", confidence: 88,
+      keywords: ["wilting","wilt","heart","leaf","ooze","yellow","streak","brown","collapse","smell"],
+      diagnosis: "Xanthomonas campestris pv. musacearum (Xcm) — the most devastating enset disease in Ethiopia. Infection spreads through tools, soil, and insects. Internal vascular tissue turns brown-yellow with bacterial ooze when cut.",
+      immediate_actions: [
+        "Immediately uproot the entire plant including corm and roots",
+        "Bury the infected plant in a deep pit far from the field (do NOT compost)",
+        "Sterilize all cutting tools with fire or 10% bleach solution before moving to next plant",
+        "Mark the infected area and do not plant enset there for 2+ years",
+        "Inform your neighbors — this disease spreads rapidly between farms"
+      ],
+      preventive_measures: [
+        "Only use clean suckers from certified disease-free mother plants",
+        "Never share tools between farms without sterilizing them",
+        "Control insect vectors (aphids) using neem extract spray",
+        "Inspect suckers carefully before transplanting — reject any with discoloration",
+        "Contact Areka Agricultural Research Center for resistant varieties"
+      ],
+      local_treatment: "No chemical cure exists. Immediate uprooting is the ONLY management option.",
+      source: "Areka ARC / Ethiopian Institute of Agricultural Research (EIAR)"
+    },
+    {
+      name: "Root Mealybug", severity: "Medium", confidence: 75,
+      keywords: ["stunted","yellow","white","roots","corm","slow","growth","waxy","cottony"],
+      diagnosis: "Pseudococcus sp. mealybugs attack enset roots and corm, causing nutrient deficiency symptoms. Plants grow slowly and leaves turn pale yellow.",
+      immediate_actions: [
+        "Carefully dig and remove infected corms and inspect roots",
+        "Apply wood ash generously around the base of affected plants",
+        "Spray neem oil solution (50ml/L water) on corm area",
+        "Remove severely infected plants and dispose far from field"
+      ],
+      preventive_measures: [
+        "Use healthy suckers from inspected mother plants",
+        "Maintain proper drainage — mealybugs thrive in waterlogged soil",
+        "Apply wood ash as preventive soil treatment during transplanting",
+        "Inspect roots every 3 months during the growing season"
+      ],
+      local_treatment: "Wood ash application + neem oil spray every 2 weeks for 6 weeks.",
+      source: "Areka ARC Research Bulletin"
+    },
+    {
+      name: "Enset Xanthomonas Wilt (Early Stage)", severity: "High", confidence: 80,
+      keywords: ["yellowing","pale","leaf edge","early","slight wilt","marginal necrosis"],
+      diagnosis: "Early-stage Xcm infection. Symptoms appear first on leaf margins as yellowing or necrosis before full wilting occurs. Immediate action can save surrounding plants.",
+      immediate_actions: [
+        "Isolate the plant immediately — create a buffer zone around it",
+        "Do not harvest or move any plant parts from this area",
+        "Remove and bury all suspicious plants within 2 meters",
+        "Sterilize all tools with fire between each plant"
+      ],
+      preventive_measures: [
+        "Regular field scouting every 2 weeks during rainy season",
+        "Remove and burn all plant debris after harvest",
+        "Avoid working in the field when plants are wet"
+      ],
+      local_treatment: "Removal and burial of affected plants. No chemical treatment effective.",
+      source: "EIAR / Jimma University Cooperative"
+    },
+    {
+      name: "Kocho Fermentation Failure", severity: "Low", confidence: 65,
+      keywords: ["smell","fermentation","dark","bad","processing","kocho","storage"],
+      diagnosis: "Not a plant disease but a post-harvest management issue. Poor fermentation of enset pulp leads to spoilage. Often caused by contamination or insufficient fermentation time.",
+      immediate_actions: [
+        "Discard spoiled kocho — do not consume or feed to animals",
+        "Clean fermentation containers with hot water and sun-dry them",
+        "Ensure fermentation pit is properly lined and sealed"
+      ],
+      preventive_measures: [
+        "Ferment for minimum 3-6 months for safe kocho",
+        "Keep fermentation pit sealed and away from water runoff",
+        "Use clean tools for processing — boil wooden tools regularly"
+      ],
+      local_treatment: "Prevention through proper fermentation technique.",
+      source: "Hawassa University Research"
+    }
   ],
   "teff": [
-    { name: "Leaf Rust", symptoms: "orange rust pustules leaf", treatment: "Propiconazole or mancozeb fungicide at first sign.", prevention: "Use resistant varieties, proper spacing for airflow.", severity: "High" },
-    { name: "Head Smudge", symptoms: "dark smudge head grain", treatment: "Mancozeb fungicide at heading stage.", prevention: "Certified seed, crop rotation.", severity: "Medium" }
+    {
+      name: "Leaf Rust (Puccinia striiformis)", severity: "High", confidence: 85,
+      keywords: ["orange","rust","pustules","leaf","yellow","powder","stripe","spots"],
+      diagnosis: "Puccinia rust fungus attacking teff leaves. Orange-yellow pustules appear on leaf surface. Severely reduces grain yield (up to 50% loss) under humid conditions. Common in highland areas 1800-2500m altitude.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC at 0.5L/ha at FIRST sign of pustules",
+        "Alternatively use Mancozeb 80WP at 2kg/ha",
+        "Spray in early morning or late afternoon — not in midday heat",
+        "Repeat spray after 14 days if rain occurs",
+        "Do not harvest until 14 days after last fungicide application"
+      ],
+      preventive_measures: [
+        "Use rust-resistant teff varieties: Quncho (DZ-Cr-387), Magna, Tsedey",
+        "Plant at recommended spacing (20x20cm) to allow good airflow",
+        "Avoid planting in low-lying areas with poor air drainage",
+        "Rotate with legumes (lentils, faba bean) every 2-3 seasons",
+        "Destroy infected crop residue after harvest — do not leave on field"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha) OR Mancozeb 80WP (2kg/ha). Cost: ~200-400 ETB/ha.",
+      source: "Debre Zeit Agricultural Research Center (DZARC)"
+    },
+    {
+      name: "Head Smudge (Helminthosporium)", severity: "Medium", confidence: 78,
+      keywords: ["dark","smudge","head","grain","black","discolor","dirty","tip"],
+      diagnosis: "Helminthosporium spp. fungal infection occurring at heading/grain-fill stage. Dark sooty smudge appears on grain heads. Reduces grain quality and market value significantly.",
+      immediate_actions: [
+        "Apply Mancozeb 80WP (2kg/ha) at heading stage immediately",
+        "Remove and burn severely infected heads to reduce spore spread",
+        "Improve field drainage if waterlogged"
+      ],
+      preventive_measures: [
+        "Use certified seed treated with Thiram or Metalaxyl",
+        "Plant early in the season to avoid heading during heavy rains",
+        "Use improved varieties from Debre Zeit ARC",
+        "Practice 2-year crop rotation"
+      ],
+      local_treatment: "Mancozeb 80WP at 2kg/ha at heading. Cost: ~150-250 ETB/ha.",
+      source: "DZARC Teff Research Program"
+    },
+    {
+      name: "Teff Shoot Fly (Atherigona)", severity: "High", confidence: 80,
+      keywords: ["dead heart","shoot","dying","center","shoot dead","tip dead","dry center"],
+      diagnosis: "Atherigona spp. fly larvae bore into teff shoots causing characteristic 'dead heart' symptom — the central shoot dies while outer leaves remain green. Worst during early seedling stage.",
+      immediate_actions: [
+        "Remove and destroy dead-heart tillers immediately",
+        "Apply Dimethoate 40EC (1L/ha) if infestation is severe (>10% dead hearts)",
+        "Increase plant population by thicker seeding to compensate losses"
+      ],
+      preventive_measures: [
+        "Plant early in the season (June-July) to escape peak fly emergence",
+        "Use higher seeding rates (25-30kg/ha) to compensate for losses",
+        "Intercrop with lentils or chickpeas to repel flies"
+      ],
+      local_treatment: "Dimethoate 40EC (1L/ha). Early planting is the most effective prevention.",
+      source: "EIAR Melkassa Agricultural Research Center"
+    },
+    {
+      name: "Teff Blister Blight", severity: "Medium", confidence: 72,
+      keywords: ["blister","white","bubble","leaf","water soak","wet patch"],
+      diagnosis: "Fungal disease causing water-soaked blisters on teff leaves during wet seasons. Reduces photosynthetic area but rarely causes complete crop failure.",
+      immediate_actions: [
+        "Apply copper-based fungicide (Kocide 2000 at 2kg/ha)",
+        "Improve field drainage by creating drainage channels",
+        "Avoid overhead irrigation if using irrigation"
+      ],
+      preventive_measures: [
+        "Proper field drainage before planting",
+        "Avoid planting in flood-prone low areas",
+        "Use wider spacing in high-rainfall areas"
+      ],
+      local_treatment: "Copper oxychloride spray at 2kg/ha. Focus on drainage improvement.",
+      source: "Holeta Agricultural Research Center"
+    }
   ],
   "wheat": [
-    { name: "Stripe Rust", symptoms: "yellow stripe rust pustules", treatment: "Tebuconazole or propiconazole at first sign.", prevention: "Resistant varieties, early planting before rust season.", severity: "Very High" },
-    { name: "Stem Rust Ug99", symptoms: "stem rust red brick pustules", treatment: "Propiconazole fungicide immediately.", prevention: "Use Ug99-resistant varieties from EIAR.", severity: "Very High" }
+    {
+      name: "Stripe Rust (Yellow Rust)", severity: "Very High", confidence: 90,
+      keywords: ["yellow","stripe","rust","stripe","line","pustule","powder","orange-yellow"],
+      diagnosis: "Puccinia striiformis — the #1 wheat disease in Ethiopian highlands. Yellow-orange pustules arranged in stripes along leaf veins. Can destroy entire crop within 2-3 weeks under cool, humid conditions (15-20°C). URGENT treatment needed.",
+      immediate_actions: [
+        "Apply Tebuconazole 250EC (0.5L/ha) OR Propiconazole 250EC (0.5L/ha) IMMEDIATELY",
+        "Spray the entire field — do not spot-treat only visible patches",
+        "Repeat spray after 14 days if weather remains humid and cool",
+        "Alert neighboring farmers — stripe rust spreads very rapidly by wind"
+      ],
+      preventive_measures: [
+        "Plant Ug99-resistant varieties: Kakaba, Danda'a, Ogolcho, Shorima",
+        "Plant at recommended time (October-November in highland areas)",
+        "Avoid dense planting — maintain 20cm row spacing for airflow",
+        "Monitor fields weekly from tillering to grain fill stage",
+        "Contact EIAR/MoA extension agent if stripe rust confirmed"
+      ],
+      local_treatment: "Tebuconazole 250EC (0.5L/ha) — most effective. Cost: ~350-500 ETB/ha. Apply within 48 hours of first symptoms.",
+      source: "EIAR Holeta Wheat Research / CIMMYT Ethiopia"
+    },
+    {
+      name: "Stem Rust (Ug99)", severity: "Very High", confidence: 88,
+      keywords: ["stem","brick","red","rust","stalk","brown","brick-red","stem lesion"],
+      diagnosis: "Puccinia graminis race Ug99 — extremely virulent stem rust that can cause 100% yield loss. Brick-red oval pustules on stems and leaf sheaths. Ethiopia is in the primary spread zone of Ug99.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC (0.5L/ha) IMMEDIATELY — do not delay",
+        "Contact your nearest Agricultural Research Center urgently",
+        "Report outbreak to local MoA office — this is a national emergency disease",
+        "Do not move infected plant material between fields"
+      ],
+      preventive_measures: [
+        "ONLY plant Ug99-resistant varieties approved by EIAR",
+        "Varieties: Kakaba, Danda'a, Tsehay, Hidasie are resistant to Ug99",
+        "Early planting to escape epidemic risk period",
+        "Never save seed from infected fields"
+      ],
+      local_treatment: "Propiconazole 250EC immediately. This is a national-priority disease.",
+      source: "EIAR / Cornell University / CIMMYT Ug99 Monitoring Program"
+    },
+    {
+      name: "Fusarium Head Blight (Scab)", severity: "High", confidence: 82,
+      keywords: ["pink","head","grain","scab","bleach","white head","pink powder","grain rot"],
+      diagnosis: "Fusarium graminearum infects wheat heads at flowering stage. Bleached or pink-orange spikelets on the head. Produces mycotoxins (DON) making grain unsafe for human and animal consumption.",
+      immediate_actions: [
+        "Apply Tebuconazole 250EC (0.5L/ha) at flowering stage",
+        "Do not use infected grain for food or seed",
+        "Harvest early and dry grain quickly below 12% moisture",
+        "Consult extension agent before selling potentially contaminated grain"
+      ],
+      preventive_measures: [
+        "Plant at recommended time to avoid flowering during rainy period",
+        "Use Fusarium-tolerant varieties from EIAR",
+        "Practice crop rotation — avoid wheat after maize",
+        "Avoid excessive nitrogen fertilizer which promotes disease"
+      ],
+      local_treatment: "Tebuconazole at flowering + quick drying after harvest. Do not consume infected grain.",
+      source: "EIAR Kulumsa Agricultural Research Center"
+    },
+    {
+      name: "Septoria Leaf Blotch", severity: "Medium", confidence: 75,
+      keywords: ["tan","blotch","lesion","brown","lower leaf","pycnidia","dots","water soak"],
+      diagnosis: "Septoria tritici causing tan-brown irregular blotches on lower leaves with tiny black dots (pycnidia) visible inside lesions. Spreads upward during rainy weather.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC or Mancozeb at first sign on lower leaves",
+        "Remove heavily infected lower leaves to reduce spore source"
+      ],
+      preventive_measures: [
+        "Resistant varieties from Holeta ARC",
+        "Avoid dense planting and excessive nitrogen",
+        "Crop rotation with non-grass crops"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha). Focus on preventing upward spread.",
+      source: "Holeta Agricultural Research Center"
+    },
+    {
+      name: "Loose Smut", severity: "Medium", confidence: 78,
+      keywords: ["black","smut","head","powder","sooty","grain replaced"],
+      diagnosis: "Ustilago tritici — entire wheat head replaced by black smut mass. Spreads through infected seed. Severely reduces yield and is seed-borne.",
+      immediate_actions: [
+        "Remove smutted heads immediately and burn — do not let spores spread",
+        "Do NOT use grain from infected field as seed",
+        "Report to extension agent for next season seed replacement"
+      ],
+      preventive_measures: [
+        "Treat seed with Carboxin+Thiram (Vitavax 200) before planting",
+        "Use certified disease-free seed from MoA/EIAR",
+        "Never save seed from a field with smut"
+      ],
+      local_treatment: "Seed treatment with Vitavax 200 (Carboxin+Thiram) prevents next season infection.",
+      source: "EIAR Plant Pathology Division"
+    }
   ],
   "maize": [
-    { name: "Northern Leaf Blight", symptoms: "gray long cigar lesion leaf", treatment: "Propiconazole at first sign. Remove residue.", prevention: "BH-540 or BH-543 resistant varieties, crop rotation.", severity: "High" },
-    { name: "Common Rust", symptoms: "orange red rust pustules both sides", treatment: "Neem extract spray, propiconazole.", prevention: "Crop rotation, resistant varieties.", severity: "Medium" }
+    {
+      name: "Northern Leaf Blight (NLB)", severity: "High", confidence: 85,
+      keywords: ["gray","long","cigar","lesion","leaf","blight","tan","elongated","elliptical"],
+      diagnosis: "Exserohilum turcicum causing large gray-tan elliptical lesions (2-15cm) on maize leaves, resembling cigar shapes. Can cause 30-50% yield loss in susceptible varieties. Common during cool, humid highland conditions.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC (0.5L/ha) at first sign of lesions",
+        "Remove and burn heavily infected lower leaves",
+        "Improve spacing if crop is very dense",
+        "Do not work in the field when leaves are wet — spreads fungal spores"
+      ],
+      preventive_measures: [
+        "Plant NLB-resistant varieties: BH-540, BH-543, BH-661, BHQPY-545",
+        "Practice 2-year crop rotation with legumes (soybean, haricot bean)",
+        "Destroy maize crop residue after harvest — do not leave stalks in field",
+        "Avoid planting in same field consecutively for more than 2 years"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha). Cost: ~350 ETB/ha. Resistant varieties are the best long-term solution.",
+      source: "Melkassa Agricultural Research Center (MARC)"
+    },
+    {
+      name: "Fall Armyworm (FAW)", severity: "Very High", confidence: 90,
+      keywords: ["worm","caterpillar","hole","eat","frass","heart","larva","feeding","bore","damage"],
+      diagnosis: "Spodoptera frugiperda — most destructive maize pest in Ethiopia since 2018. Larvae feed on young leaves leaving characteristic 'shot-hole' pattern and brown frass (excrement) in the whorl. Can cause 20-100% yield loss if untreated.",
+      immediate_actions: [
+        "Apply Emamectin benzoate 1.9EC (0.4L/ha) into the whorl IMMEDIATELY",
+        "Alternatively use Lambda-cyhalothrin (0.5L/ha) for cheaper option",
+        "Apply in early morning or late evening when larvae are active",
+        "Target the whorl (heart) of the plant — not the leaves",
+        "Check field every 3-4 days and reapply if new larvae found"
+      ],
+      preventive_measures: [
+        "Scout fields from germination — look for eggs and young larvae weekly",
+        "Apply Beauveria bassiana (biological control) as preventive spray",
+        "Use sand+ash mixture in whorl as early low-cost deterrent",
+        "Intercrop maize with legumes (soybean) to confuse pest",
+        "Early planting reduces vulnerability during critical whorl stage"
+      ],
+      local_treatment: "Emamectin benzoate 1.9EC (0.4L/ha) — most effective. Cost: ~400-600 ETB/ha. Apply directly to whorl.",
+      source: "MoA Ethiopia FAW Emergency Response Program / FAO"
+    },
+    {
+      name: "Common Rust", severity: "Medium", confidence: 78,
+      keywords: ["orange","red","rust","pustule","both sides","powder","circle","round spots"],
+      diagnosis: "Puccinia sorghi causing circular orange-red pustules on both surfaces of maize leaves. Less severe than NLB but can reduce photosynthesis and yield by 15-30% in severe cases.",
+      immediate_actions: [
+        "Apply Neem extract spray (5% concentration) as organic option",
+        "For severe cases: Propiconazole 250EC at 0.5L/ha",
+        "Remove heavily infected leaves at base of plant"
+      ],
+      preventive_measures: [
+        "Plant rust-tolerant maize varieties from MARC",
+        "Crop rotation every 2 years",
+        "Proper spacing for air circulation"
+      ],
+      local_treatment: "Neem spray for mild cases. Propiconazole for severe infection.",
+      source: "Melkassa ARC Maize Research"
+    },
+    {
+      name: "Maize Streak Virus (MSV)", severity: "High", confidence: 80,
+      keywords: ["streak","yellow stripe","narrow yellow","pale stripe","mosaic","virus"],
+      diagnosis: "Maize Streak Virus transmitted by leafhoppers. Narrow yellow-white streaks run parallel along the leaf veins. Young plants are most severely affected. No chemical cure.",
+      immediate_actions: [
+        "Remove and destroy severely infected plants",
+        "Control leafhopper vectors with Dimethoate 40EC (1L/ha)",
+        "Do not use infected plants as seed or feed"
+      ],
+      preventive_measures: [
+        "Plant MSV-resistant varieties: BHQPY-545, Pioneer hybrids",
+        "Plant early to reduce leafhopper vector pressure",
+        "Control weeds around field that harbour leafhoppers",
+        "Avoid planting near sorghum fields (alternate host)"
+      ],
+      local_treatment: "No cure. Control leafhoppers + plant resistant varieties next season.",
+      source: "MARC / CIMMYT East Africa"
+    },
+    {
+      name: "Aflatoxin (Aspergillus ear rot)", severity: "Very High", confidence: 85,
+      keywords: ["grain","mold","pink","green","fuzzy","ear","rotten","storage","discolor"],
+      diagnosis: "Aspergillus flavus producing aflatoxin on maize grain. Green-yellow fuzzy mold on ears and grain. Aflatoxin is HIGHLY toxic to humans and animals — do not consume or feed affected grain. Common in lowland areas during drought stress.",
+      immediate_actions: [
+        "IMMEDIATELY separate and destroy visibly moldy grain — burn or bury deep",
+        "Do NOT sell or eat suspected grain without testing",
+        "Dry remaining grain below 12% moisture immediately",
+        "Test grain using aflatoxin test strips before selling"
+      ],
+      preventive_measures: [
+        "Harvest at physiological maturity (35-40% moisture) — do not leave in field",
+        "Dry grain to below 12% moisture before storage",
+        "Store in clean, dry, ventilated structures — use hermetic bags",
+        "Apply Aflasafe biocontrol product at flowering stage to displace toxic strains",
+        "Control stem borers which create entry points for the fungus"
+      ],
+      local_treatment: "Prevention ONLY — there is no treatment for aflatoxin-contaminated grain. Dry grain quickly.",
+      source: "IITA Aflasafe Program / MARC Ethiopia"
+    }
   ],
   "coffee": [
-    { name: "Coffee Berry Disease", symptoms: "dark lesion green berry black", treatment: "Mancozeb or copper-oxychloride at small-berry stage.", prevention: "Spray from small-berry stage, maintain shade cover.", severity: "Very High" },
-    { name: "Coffee Wilt (CWD)", symptoms: "wilt brown vascular sudden death", treatment: "No chemical cure. Uproot and burn. Never compost.", prevention: "Do not replant coffee in same spot for 3+ years.", severity: "Very High" }
+    {
+      name: "Coffee Berry Disease (CBD)", severity: "Very High", confidence: 90,
+      keywords: ["dark","lesion","green","berry","black","brown","spot","berry rot","mummy"],
+      diagnosis: "Colletotrichum kahawae — the most economically important coffee disease in Ethiopia. Dark brown-black lesions on green berries causing them to mummify. Can destroy 50-80% of coffee yield in wet years. Ethiopian coffeelands are origin center of this disease.",
+      immediate_actions: [
+        "Apply Mancozeb 80WP (2.5kg/ha) OR Copper oxychloride (3kg/ha) IMMEDIATELY",
+        "Spray begins at small-berry stage (June) regardless of whether CBD is visible",
+        "Repeat spray every 14 days during the rainy season",
+        "Remove and bury mummified berries (do not compost)"
+      ],
+      preventive_measures: [
+        "Spray preventively from June through October every 14 days",
+        "Maintain shade cover — avoid over-exposure to sun which stresses plants",
+        "Prune coffee to allow air circulation through canopy",
+        "Plant CBD-resistant varieties from Jimma ARC (Varieties 74110, 74112, 74158)",
+        "Remove all crop residue and mummies after harvest"
+      ],
+      local_treatment: "Mancozeb 80WP (2.5kg/ha) every 14 days from June-October. Cost: ~500-800 ETB/ha per spray.",
+      source: "Jimma University College of Agriculture / Jimma ARC"
+    },
+    {
+      name: "Coffee Wilt Disease (CWD / Gibberella)", severity: "Very High", confidence: 88,
+      keywords: ["wilt","sudden","brown","vascular","death","dry","branch","die","twig"],
+      diagnosis: "Gibberella xylarioides (Fusarium xylarioides) — second most devastating coffee disease in Ethiopia. Causes sudden wilting and death of branches or entire trees. Vascular tissue turns brown when cut. No effective chemical treatment.",
+      immediate_actions: [
+        "Immediately uproot and BURN entire infected tree — do not compost",
+        "Sterilize all cutting tools with bleach (10%) between each tree",
+        "Do not replant coffee in the same hole for minimum 3 years",
+        "Mark and record affected tree locations for monitoring"
+      ],
+      preventive_measures: [
+        "Plant resistant varieties from Jimma ARC — varieties 74110, 74112",
+        "Do not replant in areas where CWD occurred for 3+ years",
+        "Maintain proper shade management and soil health",
+        "Report any CWD outbreak to Jimma ARC immediately"
+      ],
+      local_treatment: "NO chemical treatment effective. Uprooting and burning is the ONLY option.",
+      source: "Jimma University / EIAR CWD Management Program"
+    },
+    {
+      name: "Coffee Leaf Rust (CLR)", severity: "High", confidence: 85,
+      keywords: ["orange","rust","leaf","powder","yellow","spore","rust patch","underside"],
+      diagnosis: "Hemileia vastatrix — coffee leaf rust causing orange-yellow powdery patches on the underside of coffee leaves. Causes premature leaf drop, reducing photosynthesis and yield. Spreading in Ethiopia due to climate change.",
+      immediate_actions: [
+        "Apply Copper oxychloride (3kg/ha) or Mancozeb (2.5kg/ha) immediately",
+        "Remove and burn heavily infected leaves",
+        "Reduce shade to improve air circulation",
+        "Spray underside of leaves thoroughly — rust spores are there"
+      ],
+      preventive_measures: [
+        "Preventive copper sprays from April every 21 days",
+        "Plant CLR-tolerant varieties from Jimma ARC",
+        "Maintain balanced shade — neither too dense nor too open",
+        "Good nutrition (especially potassium) improves plant resistance"
+      ],
+      local_treatment: "Copper oxychloride (3kg/ha). Cost: ~300-500 ETB/ha per spray.",
+      source: "Jimma University Coffee Research Program"
+    },
+    {
+      name: "Coffee Berry Borer (CBB)", severity: "High", confidence: 82,
+      keywords: ["hole","berry","bore","insect","tiny hole","black","entry","pest","beetle"],
+      diagnosis: "Hypothenemus hampei — tiny beetle boring tiny holes in coffee berries. Female beetle bores into berry to lay eggs. Larvae feed inside reducing bean quality to zero. Detected by small round entry hole at berry tip.",
+      immediate_actions: [
+        "Collect and destroy all fallen and overripe berries immediately",
+        "Apply Beauveria bassiana (biological control) spray on berries",
+        "For severe cases: Chlorpyrifos 48EC (2L/ha) but observe pre-harvest interval"
+      ],
+      preventive_measures: [
+        "Harvest all ripe berries promptly — never leave ripe berries on tree",
+        "Collect and destroy all fallen berries from ground weekly",
+        "Apply Beauveria bassiana preventively during berry development",
+        "Use berry traps (methanol+ethanol) to monitor population"
+      ],
+      local_treatment: "Beauveria bassiana biological spray + prompt complete harvesting. Chemical: Chlorpyrifos 48EC.",
+      source: "Jimma ARC / CABI CBB Management Guide"
+    }
   ],
   "potato": [
-    { name: "Late Blight", symptoms: "dark water lesion white mold leaf", treatment: "Metalaxyl+mancozeb every 7-10 days in wet season.", prevention: "Resistant varieties (Gudene, Belete), certified seed.", severity: "Very High" },
-    { name: "Bacterial Wilt", symptoms: "wilt brown vascular ooze cut stem", treatment: "No cure. Rogue and bury. Never compost.", prevention: "Certified seed tubers, 3-year rotation, clean tools.", severity: "Very High" }
+    {
+      name: "Late Blight (Phytophthora infestans)", severity: "Very High", confidence: 90,
+      keywords: ["dark","water","lesion","white","mold","leaf","wet","brown","soft","rot"],
+      diagnosis: "Phytophthora infestans — the most destructive potato disease worldwide and in Ethiopia. Water-soaked dark lesions on leaves with white fuzzy mold on underside in wet weather. Can destroy entire crop within 7-10 days under cool, wet conditions (15-18°C). EMERGENCY action needed.",
+      immediate_actions: [
+        "Apply Metalaxyl+Mancozeb (Ridomil Gold MZ) at 2.5kg/ha IMMEDIATELY",
+        "Alternatively use Cymoxanil+Mancozeb (Curzate) at 2kg/ha",
+        "Spray every 5-7 days during wet weather — do not skip sprays",
+        "Remove and bury (not compost) all infected plant material",
+        "Avoid working in the field when leaves are wet — you spread the disease"
+      ],
+      preventive_measures: [
+        "Plant resistant varieties: Gudene, Belete, Bubu, Jalenie (all HARC-released)",
+        "Use certified disease-free seed tubers from HARC or MoA",
+        "Start preventive Mancozeb sprays at planting — don't wait for symptoms",
+        "Plant on ridges/raised beds to improve drainage",
+        "3-year crop rotation — never plant potato after potato or tomato"
+      ],
+      local_treatment: "Ridomil Gold MZ (Metalaxyl+Mancozeb) at 2.5kg/ha every 7 days. Cost: ~600-900 ETB/ha per spray. This is the most critical disease requiring emergency treatment.",
+      source: "Holeta Agricultural Research Center (HARC) / CIP Ethiopia"
+    },
+    {
+      name: "Bacterial Wilt (Ralstonia solanacearum)", severity: "Very High", confidence: 88,
+      keywords: ["wilt","brown","vascular","ooze","cut","stem","sudden","bacterial","thread"],
+      diagnosis: "Ralstonia solanacearum causing rapid wilting and death. When infected stem is cut and placed in water, white bacterial strands ooze from vascular tissue. Survives in soil for 10+ years. No chemical treatment.",
+      immediate_actions: [
+        "Uproot infected plants entirely including all tubers",
+        "Bury infected material deep (50cm+) — do NOT compost",
+        "Do NOT plant potatoes or tomatoes in that location for 3+ years",
+        "Sterilize all tools with bleach (10%) after working in infected area",
+        "Do not irrigate from water sources near infected fields"
+      ],
+      preventive_measures: [
+        "Use only certified seed tubers from MoA/HARC",
+        "3-year rotation with cereals (teff, wheat, barley) — not tomato or pepper",
+        "Improve field drainage — bacterial wilt is worse in waterlogged soils",
+        "Remove volunteer potato plants between seasons",
+        "Avoid soil movement from infected to clean fields"
+      ],
+      local_treatment: "NO chemical treatment. Prevention through certified seed and rotation is the ONLY strategy.",
+      source: "Holeta ARC / CIP (International Potato Center)"
+    },
+    {
+      name: "Early Blight (Alternaria solani)", severity: "Medium", confidence: 80,
+      keywords: ["target","ring","brown","spots","older leaf","concentric","target spot","dry"],
+      diagnosis: "Alternaria solani causing brown lesions with concentric target-ring pattern on older leaves. Less devastating than late blight but can cause 20-30% yield loss. Common during alternating wet/dry weather.",
+      immediate_actions: [
+        "Apply Mancozeb 80WP (2kg/ha) or Chlorothalonil (1.5L/ha)",
+        "Remove heavily infected lower leaves before spraying",
+        "Ensure adequate potassium fertilizer — deficiency increases susceptibility"
+      ],
+      preventive_measures: [
+        "Balanced fertilization especially potassium (KCl at 60kg/ha)",
+        "Avoid excessive nitrogen which promotes lush growth that is more susceptible",
+        "Destroy crop residue after harvest",
+        "Crop rotation with cereals"
+      ],
+      local_treatment: "Mancozeb 80WP (2kg/ha). Focus on potassium nutrition for resistance.",
+      source: "Holeta ARC Potato Research Program"
+    },
+    {
+      name: "Potato Virus Y (PVY) and Mosaic", severity: "Medium", confidence: 75,
+      keywords: ["mosaic","mottled","crinkle","mosaic pattern","curl","distort","stunted","yellow mottled"],
+      diagnosis: "Potato Virus Y (PVY) or Potato Leaf Roll Virus (PLRV) spread by aphids. Symptoms include mosaic pattern, leaf crinkle, distortion and stunting. Severely reduces tuber yield and quality.",
+      immediate_actions: [
+        "Remove and destroy virus-infected plants",
+        "Control aphid vectors with Imidacloprid (0.25L/ha)",
+        "Do NOT use tubers from infected plants as seed"
+      ],
+      preventive_measures: [
+        "Use certified virus-free seed tubers only",
+        "Control aphids from crop establishment with systemic insecticide",
+        "Remove weed hosts around the field",
+        "Replace planting material with certified seed every 2-3 seasons"
+      ],
+      local_treatment: "No cure for virus. Control aphid vectors + use certified seed.",
+      source: "CIP / HARC Seed Potato Program"
+    }
   ],
   "barley": [
-    { name: "Scald", symptoms: "water blotch tan brown leaf wet", treatment: "Propiconazole or mancozeb at first sign.", prevention: "Resistant varieties, seed dressing (Thiram).", severity: "High" },
-    { name: "Net Blotch", symptoms: "net pattern brown lesion leaf", treatment: "Rescue 430SC fungicide at 0.5L/ha.", prevention: "Adet ARC improved seed, crop rotation with pulses.", severity: "High" }
+    {
+      name: "Scald (Rhynchosporium secalis)", severity: "High", confidence: 85,
+      keywords: ["water","blotch","tan","brown","leaf","wet","oval","irregular","pale"],
+      diagnosis: "Rhynchosporium secalis causing water-soaked oval blotches that turn tan-brown on barley leaves. Very common in Ethiopian highland barley areas during cool, wet weather. Can cause 40-50% yield loss in susceptible varieties.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC (0.5L/ha) at FIRST appearance of symptoms",
+        "Alternatively use Mancozeb 80WP (2kg/ha)",
+        "Repeat spray after 14 days if rain continues",
+        "Improve field drainage if waterlogged"
+      ],
+      preventive_measures: [
+        "Plant scald-resistant varieties from Adet ARC: IBON 174/03, Traveller",
+        "Seed treatment with Thiram 75WS (3g/kg seed) before planting",
+        "Crop rotation with non-grass crops (legumes, root crops)",
+        "Avoid excessive nitrogen fertilizer",
+        "Destroy barley stubble after harvest"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha). Cost: ~350 ETB/ha. Resistant varieties from Adet ARC are most effective.",
+      source: "Adet Agricultural Research Center (ARC) / ICARDA"
+    },
+    {
+      name: "Net Blotch (Pyrenophora teres)", severity: "High", confidence: 83,
+      keywords: ["net","pattern","brown","lesion","leaf","network","net pattern","stripe net"],
+      diagnosis: "Pyrenophora teres causing distinctive net-like brown lesion pattern on barley leaves. One of the most common barley diseases in highland Ethiopia. Reduces yield by 10-40%.",
+      immediate_actions: [
+        "Apply Rescue 430SC (Propiconazole+Tebuconazole) at 0.5L/ha",
+        "Alternatively Mancozeb 80WP (2kg/ha)",
+        "Remove and burn heavily infected plant material"
+      ],
+      preventive_measures: [
+        "Use resistant varieties from Adet ARC",
+        "Treat seed with Carboxin+Thiram (Vitavax 200) before planting",
+        "Practice crop rotation with legumes",
+        "Destroy infected stubble — net blotch overwinters on residue"
+      ],
+      local_treatment: "Rescue 430SC (0.5L/ha) is most effective. Available at Adet ARC.",
+      source: "Adet ARC Barley Research Program / ICARDA"
+    },
+    {
+      name: "Covered Smut (Ustilago hordei)", severity: "Medium", confidence: 80,
+      keywords: ["smut","black","covered","grain","replace","powder","membrane","covered"],
+      diagnosis: "Ustilago hordei causing grain heads to be replaced by masses of black spores enclosed in a membrane. Seed-borne disease. Severely reduces harvest and contaminates grain.",
+      immediate_actions: [
+        "Remove infected heads immediately before membrane breaks",
+        "Do NOT use grain from infected field as seed next season",
+        "Report to extension agent for certified seed replacement"
+      ],
+      preventive_measures: [
+        "Seed treatment with Carboxin (Vitavax) eliminates smut completely",
+        "Use certified smut-free seed from Adet ARC",
+        "Hot water seed treatment (50°C for 10 minutes) as low-cost alternative"
+      ],
+      local_treatment: "Vitavax seed treatment (Carboxin 2g/kg seed) completely prevents covered smut.",
+      source: "Adet ARC / ICARDA Barley Disease Management"
+    },
+    {
+      name: "Barley Stem Rust", severity: "High", confidence: 78,
+      keywords: ["stem","rust","brick","red","stalk","brown","stem lesion","pustule stem"],
+      diagnosis: "Puccinia graminis f.sp. hordei causing brick-red oval pustules on barley stems and leaf sheaths. Can severely weaken stems causing lodging (falling over) and yield losses of 20-40%.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC (0.5L/ha) immediately",
+        "Support lodged plants if possible with bamboo stakes",
+        "Harvest as soon as grain reaches physiological maturity"
+      ],
+      preventive_measures: [
+        "Plant resistant varieties from Adet ARC",
+        "Balanced fertilization — avoid excessive nitrogen",
+        "Early planting to escape peak rust season"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha). Harvest early to minimize lodging losses.",
+      source: "Adet ARC / EIAR Highland Cereals Program"
+    }
   ],
   "sorghum": [
-    { name: "Anthracnose", symptoms: "red orange lesion stalk leaf wet", treatment: "Remove infected debris, Propiconazole if severe.", prevention: "Resistant varieties from Kulumsa ARC, crop rotation.", severity: "High" },
-    { name: "Grain Mold", symptoms: "pink grey black grain head discolor", treatment: "Adjust planting date to avoid wet grain-fill period.", prevention: "Early planting, resistant varieties.", severity: "Medium" }
+    {
+      name: "Anthracnose (Colletotrichum)", severity: "High", confidence: 85,
+      keywords: ["red","orange","lesion","stalk","leaf","wet","spot","reddish","glume","rot"],
+      diagnosis: "Colletotrichum sublineolum causing red-orange lesions on sorghum leaves, stalks, and grain heads. Very common in humid highland areas. Can cause stalk rotting and significant yield losses.",
+      immediate_actions: [
+        "Apply Propiconazole 250EC (0.5L/ha) at first sign of lesions",
+        "Remove and destroy infected plant debris",
+        "Improve field drainage if waterlogged"
+      ],
+      preventive_measures: [
+        "Plant resistant varieties from Melkassa ARC or Jimma ARC: Gambella-1107, Teshale",
+        "Crop rotation with legumes (haricot bean, soybean)",
+        "Destroy sorghum residue after harvest — anthracnose survives on debris",
+        "Avoid dense planting — maintain 60-70cm between rows"
+      ],
+      local_treatment: "Propiconazole 250EC (0.5L/ha). Resistant varieties from Melkassa ARC are long-term solution.",
+      source: "Melkassa ARC / Jimma ARC Sorghum Research"
+    },
+    {
+      name: "Grain Mold Complex", severity: "Medium", confidence: 80,
+      keywords: ["pink","grey","black","grain","head","discolor","mold","fluffy","head rot"],
+      diagnosis: "Multiple fungi (Fusarium, Curvularia, Alternaria) causing pink, grey, or black mold on sorghum grain heads during grain fill. Worse during wet years. Reduces grain quality and market value.",
+      immediate_actions: [
+        "Adjust harvest timing — harvest as soon as grain reaches dough stage",
+        "Do not leave sorghum in field past maturity in rainy weather",
+        "Dry harvested grain quickly to below 12% moisture"
+      ],
+      preventive_measures: [
+        "Plant early to ensure grain fill occurs before heavy September rains",
+        "Plant mold-resistant varieties with tight glumes",
+        "Quick-harvest and dry grain properly",
+        "Crop rotation improves soil health and reduces pathogen load"
+      ],
+      local_treatment: "Timing management — early planting + quick harvest. No effective chemical post-infection.",
+      source: "Melkassa ARC Sorghum Program"
+    },
+    {
+      name: "Head Smut (Sporisorium reilianum)", severity: "High", confidence: 82,
+      keywords: ["smut","head","black","replace","powder","complete head","soot"],
+      diagnosis: "Entire sorghum head or panicle replaced by black smut mass. Seed-borne and soil-borne. Severely affects yield.",
+      immediate_actions: [
+        "Remove smutted heads BEFORE spores are released — bag and burn",
+        "Do NOT thrash infected heads — spores will contaminate soil",
+        "Do not use grain from infected field as seed"
+      ],
+      preventive_measures: [
+        "Seed treatment with Thiram 75WS (3g/kg) or Carboxin+Thiram",
+        "Crop rotation — smut can survive in soil for several years",
+        "Use certified seed from Melkassa ARC"
+      ],
+      local_treatment: "Thiram seed treatment (3g/kg) prevents head smut. Rotation for soil-borne strains.",
+      source: "Melkassa ARC / EIAR Sorghum Disease Management"
+    },
+    {
+      name: "Sorghum Shoot Fly (Atherigona soccata)", severity: "High", confidence: 80,
+      keywords: ["dead heart","shoot","center","dry","tip","dead","whorl","seedling"],
+      diagnosis: "Atherigona soccata maggots bore into sorghum shoots causing characteristic dead heart — the central shoot dies while outer leaves remain green. Worst during early seedling stage.",
+      immediate_actions: [
+        "Remove and destroy dead-heart tillers",
+        "Apply Carbofuran 3G (10-15kg/ha) in soil at planting in high-risk areas",
+        "For standing crop: Dimethoate 40EC (1L/ha) spray if severe"
+      ],
+      preventive_measures: [
+        "Plant early — timing planting to avoid peak fly emergence (June-July)",
+        "Use higher seeding rates to compensate for losses",
+        "Plant tolerant varieties from Melkassa ARC",
+        "Intercrop sorghum with cowpea to repel shoot fly"
+      ],
+      local_treatment: "Early planting is most effective. Dimethoate 40EC for standing crop treatment.",
+      source: "Melkassa ARC / ICRISAT Sorghum Protection"
+    },
+    {
+      name: "Striga (Witchweed)", severity: "Very High", confidence: 88,
+      keywords: ["striga","weed","parasitic","yellow","small flowers","purple flower","soil","nutrient rob"],
+      diagnosis: "Striga hermonthica — parasitic weed that attaches to sorghum roots underground, robbing water and nutrients. Purple/yellow small flowers emerge from soil. Can destroy 50-100% of yield. Seed persists in soil 20+ years.",
+      immediate_actions: [
+        "Hand-pull all visible Striga plants BEFORE they flower and set seed",
+        "Use Imazapyr-coated seed (IR technology) for immediate suppression",
+        "Apply nitrogen fertilizer to boost sorghum competitiveness"
+      ],
+      preventive_measures: [
+        "Intercrop with Desmodium (a legume that exudes anti-Striga chemicals)",
+        "Use Striga-resistant varieties from ICRISAT: SRN-39, Gambella 1107",
+        "Avoid spreading soil from Striga-infested areas",
+        "Push-pull intercropping system (sorghum + Desmodium + Napier grass)"
+      ],
+      local_treatment: "Imazapyr-coated seed + Desmodium intercrop. Contact Melkassa ARC for Striga-resistant seed.",
+      source: "ICRISAT / Melkassa ARC Striga Management Program"
+    }
   ]
 };
 
@@ -2451,10 +3128,25 @@ function searchLocalDisease(crop, symptoms) {
   if (!symptoms || !crop) return [];
   const diseases = LOCAL_DISEASES[crop] || [];
   const lower = symptoms.toLowerCase();
-  return diseases.filter(d =>
-    d.symptoms.split(' ').some(kw => lower.includes(kw))
-  );
+  const words = lower.split(/[,\s]+/).filter(w => w.length > 2);
+
+  // Score each disease by keyword matches
+  const scored = diseases.map(d => {
+    const keys = d.keywords || d.symptoms.split(' ');
+    let score = 0;
+    words.forEach(w => {
+      keys.forEach(k => {
+        if (k.includes(w) || w.includes(k)) score += 2;
+        else if (k.substring(0,3) === w.substring(0,3)) score += 1;
+      });
+    });
+    return { d, score };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+
+  return scored.map(x => x.d);
 }
+
+// searchLocalDisease defined above with smart scoring
 
 // ==================== WEATHER ====================
 async function getWeather(lat, lon, regionName) {
@@ -3327,28 +4019,58 @@ async function analyze() {
     done();
   }
 
-  // OFFLINE
-  if (!navigator.onLine) {
+  // OFFLINE (either no internet OR user chose offline mode)
+  if (!navigator.onLine || forceOfflineMode) {
     showOfflineBanner();
     var local = searchLocalDisease(currentCrop, symptoms);
     var d = local && local[0];
-    renderResult(d ? {
-      disease_name: d.name,
-      severity: d.severity === 'Very High' ? 'high' : 'medium',
-      confidence: 60,
-      diagnosis: d.symptoms,
-      immediate_actions: [d.treatment],
-      preventive_measures: [d.prevention],
-      local_summary: currentLang === 'am' ? 'ያለ ኢንተርኔት ከዳታቤዝ። AI ለሙሉ ምርመራ ኢንተርኔት ያስፈልጋል።'
-        : 'Offline result. Connect to internet for AI diagnosis.'
-    } : {
-      disease_name: 'Offline Mode',
-      severity: 'medium', confidence: null,
-      diagnosis: currentLang === 'am' ? 'ኢንተርኔት የለም። ምልክቶቹን ምረጥ።' : 'No internet. Select symptoms for local database lookup.',
-      immediate_actions: ['Sterilize tools with fire or bleach', 'Remove infected plant parts', 'Isolate affected plants'],
-      preventive_measures: ['Use certified seed', 'Practice crop rotation'],
-      local_summary: ''
-    });
+    if (d) {
+      var sevMap = { 'Very High': 'high', 'High': 'high', 'Medium': 'medium', 'Low': 'low' };
+      renderResult({
+        disease_name: d.name,
+        severity: sevMap[d.severity] || 'medium',
+        confidence: d.confidence || 72,
+        diagnosis: d.diagnosis || d.symptoms,
+        immediate_actions: d.immediate_actions || [d.treatment],
+        preventive_measures: d.preventive_measures || [d.prevention],
+        local_summary: (currentLang === 'am'
+          ? '📴 ያለ ኢንተርኔት ውጤት — ' + d.name + ' ተገኝቷል። ሙሉ AI ምርመራ ለማግኘት ኢንተርኔት ያስፈልጋል።'
+          : '📴 Offline result from local disease database. Source: ' + (d.source || 'Ethiopian ARC Research')) + ' — Connect to internet for full AI analysis with image recognition.',
+        _offline: true,
+        _source: d.source,
+        _localTreatment: d.local_treatment
+      });
+    } else {
+      // No match found — show professional no-match screen
+      var result2 = document.getElementById('rcrd');
+      loading.style.display = 'none';
+      result2.style.display = 'block';
+      result2.innerHTML = `
+        <div style="background:linear-gradient(135deg,#f0f7e8,#e8f4e0);border-radius:18px;padding:24px;text-align:center;border:2px solid #B8DC7A;">
+          <div style="font-size:40px;margin-bottom:12px;">📴</div>
+          <div style="font-weight:700;font-size:18px;color:#2D6A0A;margin-bottom:8px;">${currentLang === 'am' ? 'ኦፍላይን ሁነታ' : 'Offline Mode'}</div>
+          <div style="font-size:14px;color:#4A3728;margin-bottom:16px;line-height:1.6;">
+            ${currentLang === 'am' ? 'ምልክቶቹ ከዳታቤዙ ጋር አልተዛመዱም። ሙሉ AI ምርመራ ለማግኘት ኢንተርኔት ያስፈልጋል።' : 'No matching disease found in offline database for the selected symptoms. Connect to internet for full AI-powered diagnosis.'}
+          </div>
+          <div style="background:white;border-radius:12px;padding:16px;text-align:left;margin-bottom:16px;">
+            <div style="font-weight:600;color:#2D6A0A;margin-bottom:8px;">💊 ${currentLang === 'am' ? 'አጠቃላይ ምክር' : 'General Advice While Offline'}</div>
+            <ul style="margin:0;padding-left:20px;color:#4A3728;font-size:13px;line-height:2;">
+              <li>${currentLang === 'am' ? 'ቅርፁን ቆርጠህ ስርጭቱን ለማስቆም ሞክር' : 'Isolate affected plants to prevent spread'}</li>
+              <li>${currentLang === 'am' ? 'መሳሪያዎቹን በእሳት ወይም ብሌቺ አጽዳ' : 'Sterilize all tools with fire or 10% bleach'}</li>
+              <li>${currentLang === 'am' ? 'ዳ ወይም ቅርፁን ቆርጥ' : 'Remove and bury (not compost) infected plant parts'}</li>
+              <li>${currentLang === 'am' ? 'ቅርፁን ፎቶ አንሳ ለAI ምርመራ' : 'Take photos now — AI will analyze when internet is available'}</li>
+              <li>${currentLang === 'am' ? 'የቅርብ ዘርፍ ባለሥልጣን ያናግር' : 'Contact your local Development Agent (DA) immediately'}</li>
+            </ul>
+          </div>
+          <button onclick="analyze()" style="background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;width:100%;">
+            🔄 ${currentLang === 'am' ? 'ሲያያዝ እንደገና ሞክር' : 'Retry when connected'}
+          </button>
+        </div>`;
+      btn.disabled = false;
+      done();
+      saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), ctx: ctx, timestamp: Date.now() });
+      return;
+    }
     saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), ctx: ctx, timestamp: Date.now() });
     done();
     return;
@@ -3791,6 +4513,7 @@ function renderFollowUpChat(diagnosisResult) {
           rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"
         ></textarea>
+        <button class="chat-mic-btn" id="chat-mic-btn" onclick="toggleChatVoice()" title="Voice input">🎤</button>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">➤</button>
       </div>
     </div>`;
@@ -3895,9 +4618,120 @@ function addChatMessage(text, role, id) {
   const div = document.createElement('div');
   div.className = 'chat-msg ' + role;
   if (id) div.id = id;
-  div.textContent = text;
+  if (role === 'ai') {
+    div.textContent = text;
+    const spk = document.createElement('button');
+    spk.className = 'chat-speaker-btn';
+    spk.title = 'Listen';
+    spk.textContent = '🔊';
+    spk.onclick = function() { speakText(text); };
+    div.appendChild(spk);
+    if (window.chatAutoSpeak) speakText(text);
+  } else {
+    div.textContent = text;
+  }
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
+}
+
+// ==================== ANALYSIS MODE ====================
+var forceOfflineMode = false;
+
+function setAnalysisMode(mode) {
+  forceOfflineMode = (mode === 'offline');
+  var dot = document.getElementById('mode-dot');
+  var text = document.getElementById('mode-text');
+  var btnOn = document.getElementById('mode-btn-online');
+  var btnOff = document.getElementById('mode-btn-offline');
+  if (forceOfflineMode) {
+    if (dot) dot.style.background = '#ff9800';
+    if (text) text.textContent = '📴 Offline DB Mode — Using local disease database (no internet needed)';
+    if (btnOn) { btnOn.style.background = 'white'; btnOn.style.color = '#666'; btnOn.style.borderColor = '#aaa'; }
+    if (btnOff) { btnOff.style.background = '#ff9800'; btnOff.style.color = 'white'; btnOff.style.borderColor = '#ff9800'; }
+  } else {
+    if (dot) { dot.style.background = '#4caf50'; }
+    if (text) text.textContent = navigator.onLine ? '🤖 AI Online Mode — Full image analysis active' : '📴 Offline (no internet detected)';
+    if (btnOn) { btnOn.style.background = '#2D6A0A'; btnOn.style.color = 'white'; btnOn.style.borderColor = '#2D6A0A'; }
+    if (btnOff) { btnOff.style.background = 'white'; btnOff.style.color = '#666'; btnOff.style.borderColor = '#aaa'; }
+  }
+}
+
+function updateModeIndicator() {
+  if (forceOfflineMode) return;
+  var dot = document.getElementById('mode-dot');
+  var text = document.getElementById('mode-text');
+  if (navigator.onLine) {
+    if (dot) dot.style.background = '#4caf50';
+    if (text) text.textContent = '🤖 AI Online Mode — Full image analysis active';
+  } else {
+    if (dot) dot.style.background = '#f44336';
+    if (text) text.textContent = '📴 No internet — Offline database mode';
+  }
+}
+
+window.addEventListener('online', updateModeIndicator);
+window.addEventListener('offline', updateModeIndicator);
+
+// ==================== VOICE CHAT ====================
+var chatRecognition = null;
+var chatSpeaking = false;
+window.chatAutoSpeak = false;
+
+function toggleChatVoice() {
+  var btn = document.getElementById('chat-mic-btn');
+  if (!btn) return;
+
+  if (chatRecognition && btn.classList.contains('listening')) {
+    chatRecognition.stop();
+    btn.classList.remove('listening');
+    btn.textContent = '🎤';
+    return;
+  }
+
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('Voice input not supported on this browser. Try Chrome.');
+    return;
+  }
+
+  chatRecognition = new SpeechRecognition();
+  chatRecognition.lang = currentLang === 'am' ? 'am-ET' : 'en-US';
+  chatRecognition.interimResults = false;
+  chatRecognition.maxAlternatives = 1;
+
+  btn.classList.add('listening');
+  btn.textContent = '🔴';
+
+  chatRecognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    var input = document.getElementById('chat-input');
+    if (input) input.value = transcript;
+    btn.classList.remove('listening');
+    btn.textContent = '🎤';
+    sendChatMessage();
+  };
+
+  chatRecognition.onerror = function() {
+    btn.classList.remove('listening');
+    btn.textContent = '🎤';
+  };
+
+  chatRecognition.onend = function() {
+    btn.classList.remove('listening');
+    btn.textContent = '🎤';
+  };
+
+  chatRecognition.start();
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var utter = new SpeechSynthesisUtterance(text);
+  utter.lang = currentLang === 'am' ? 'am-ET' : currentLang === 'om' ? 'om' : 'en-US';
+  utter.rate = 0.9;
+  utter.pitch = 1;
+  window.speechSynthesis.speak(utter);
 }
 
 // ==================== HELP MODAL ====================
