@@ -3390,9 +3390,20 @@ Respond ONLY with this JSON (no markdown):
         });
         clearTimeout(tid);
 
-        // 502/503 = Render still waking up → retry
-        if (res.status === 502 || res.status === 503) {
-          lastErr = new Error('Server starting up (' + res.status + ')');
+        // 503 = Render waking up → retry
+        // 502 could be Gemini API error — check the actual message
+        if (res.status === 503) {
+          lastErr = new Error('Server starting up (503)');
+          continue;
+        }
+        if (res.status === 502) {
+          const e502 = await res.json().catch(() => ({}));
+          const msg502 = e502.error || 'Server error 502';
+          // If it's a Gemini API error — don't retry, show real error
+          if (msg502.toLowerCase().includes('gemini') || msg502.includes('40')) {
+            throw new Error(msg502);
+          }
+          lastErr = new Error(msg502);
           continue;
         }
 
@@ -3424,15 +3435,21 @@ Respond ONLY with this JSON (no markdown):
     }
 
     // All 3 attempts failed
+    const actualErr = lastErr?.message || 'Connection failed';
+    const isApiKeyErr = actualErr.toLowerCase().includes('403') || actualErr.toLowerCase().includes('api key') || actualErr.toLowerCase().includes('permission');
+    const isRateLimit = actualErr.toLowerCase().includes('429') || actualErr.toLowerCase().includes('quota');
     result.innerHTML = '<div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:14px;padding:24px;text-align:center;margin:16px 0;">'
-      + '<div style="font-size:36px;margin-bottom:10px;">⚠️</div>'
+      + '<div style="font-size:36px;margin-bottom:10px;">' + (isApiKeyErr ? '🔑' : isRateLimit ? '⏱️' : '⚠️') + '</div>'
       + '<div style="font-weight:700;font-size:15px;color:#856404;margin-bottom:8px;">'
-      + (currentLang === 'am' ? 'AI ሰርቨር አልተገናኘም' : 'Could not reach AI server') + '</div>'
-      + '<div style="font-size:12px;color:#856404;margin-bottom:16px;">' + (lastErr?.message || 'Connection failed') + '</div>'
-      + '<button onclick="analyze()" style="background:var(--leaf);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-weight:600;">'
+      + (isApiKeyErr ? 'API Key Issue — Please update Gemini key on Render'
+        : isRateLimit ? 'Rate limit reached — try again in 1 minute'
+        : (currentLang === 'am' ? 'AI ሰርቨር አልተገናኘም' : 'Could not reach AI server')) + '</div>'
+      + '<div style="font-size:12px;color:#856404;margin-bottom:16px;word-break:break-all;">' + actualErr + '</div>'
+      + '<button onclick="analyze()" style="background:var(--leaf);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-weight:600;margin:4px;">'
       + '🔄 ' + (currentLang === 'am' ? 'እንደገና ሞክር' : 'Try Again') + '</button>'
-      + '<div style="margin-top:10px;font-size:12px;color:var(--bark);">'
-      + (currentLang === 'am' ? 'ሰርቨሩ ለመነቃቃት 30-50 ሰከ ሊወስድ ይችላል' : 'Server may need 30-50 sec to wake up on first visit') + '</div>'
+      + (isApiKeyErr ? '<div style="margin-top:12px;padding:10px;background:#fff3e0;border-radius:8px;font-size:12px;color:#e65100;text-align:left;">'
+        + '👉 Go to <strong>dashboard.render.com</strong> → ResilienceGuardian → Environment → Update GEMINI_API_KEY with a new key from <strong>aistudio.google.com</strong></div>' : '')
+      + (!isApiKeyErr && !isRateLimit ? '<div style="margin-top:8px;font-size:11px;color:var(--bark);">Server may need 30-50 sec to wake up on first visit</div>' : '')
       + '</div>';
     result.style.display = 'block';
 
