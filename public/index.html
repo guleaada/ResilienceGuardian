@@ -3595,8 +3595,8 @@ function switchTab(tab) {
 <div id="install-banner" class="install-banner">
   <div class="install-icon">🌿</div>
   <div class="install-text">
-    <strong>Install Resilience Guardian</strong>
-    <small>Add to home screen — works offline, no app store needed</small>
+    <strong id="install-banner-title">Install Resilience Guardian</strong>
+    <small id="install-banner-sub">Add to home screen — works offline, no app store needed</small>
   </div>
   <button class="install-btn-yes" onclick="installApp()">Install</button>
   <button class="install-dismiss" onclick="dismissInstall()">✕</button>
@@ -3604,27 +3604,51 @@ function switchTab(tab) {
 
 <!-- iOS Install Popup -->
 <div id="ios-popup" class="ios-popup">
-  <h3>🌿 Install Resilience Guardian</h3>
-  <div class="ios-step">
-    <div class="ios-step-num">1</div>
-    <div>Tap the <strong>Share button</strong> <span style="font-size:18px;">⎙</span> at the bottom of Safari</div>
+  <h3 id="ios-popup-title">🌿 Install Resilience Guardian</h3>
+  <div id="ios-steps-mobile">
+    <div class="ios-step">
+      <div class="ios-step-num">1</div>
+      <div>Tap the <strong>Share button</strong> <span style="font-size:18px;">⎙</span> at the bottom of Safari</div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">2</div>
+      <div>Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">3</div>
+      <div>Tap <strong>"Add"</strong> — the app icon appears on your home screen ✅</div>
+    </div>
   </div>
-  <div class="ios-step">
-    <div class="ios-step-num">2</div>
-    <div>Scroll down and tap <strong>"Add to Home Screen"</strong></div>
-  </div>
-  <div class="ios-step">
-    <div class="ios-step-num">3</div>
-    <div>Tap <strong>"Add"</strong> — the app icon will appear on your home screen</div>
+  <div id="ios-steps-mac" style="display:none;">
+    <div class="ios-step">
+      <div class="ios-step-num">1</div>
+      <div>Click <strong>File</strong> menu in Safari → <strong>"Add to Dock"</strong></div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">2</div>
+      <div>Or click the <strong>Share button</strong> ⎙ in toolbar → <strong>"Add to Home Screen"</strong></div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">3</div>
+      <div>Click <strong>"Add"</strong> — app appears in your Dock ✅</div>
+    </div>
   </div>
   <button class="ios-close" onclick="closeIOSPopup()">✓ Got it</button>
 </div>
 
 <script>
-// ==================== PWA INSTALL (Android + iOS) ====================
+// ==================== PWA INSTALL (All Platforms) ====================
 var deferredPrompt = null;
-var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+var ua = navigator.userAgent.toLowerCase();
+var isIOS     = /iphone|ipad|ipod/.test(ua) && !window.MSStream;
+var isMac     = /macintosh|mac os x/.test(ua) && !isIOS;
+var isWindows = /windows/.test(ua);
+var isAndroid = /android/.test(ua);
+var isTablet  = /ipad/.test(ua) || (isAndroid && !/mobile/.test(ua));
+var isDesktop = (isMac || isWindows || /linux/.test(ua)) && !isAndroid && !isIOS;
 var isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+var isSafari  = /safari/.test(ua) && !/chrome/.test(ua) && !/chromium/.test(ua);
+var isChrome  = /chrome|chromium|crios/.test(ua);
 
 // Register Service Worker (real server only)
 if ('serviceWorker' in navigator) {
@@ -3657,18 +3681,42 @@ window.addEventListener('appinstalled', function() {
   console.log('App installed!');
 });
 
-// iOS: show manual instructions after 4 seconds
-if (isIOS && !isInStandaloneMode) {
-  // Check if dismissed before
+// iOS / Mac Safari / iPad: show manual instructions
+if ((isIOS || (isMac && isSafari) || isTablet) && !isInStandaloneMode) {
   var iosDismissed = localStorage.getItem('iosBannerDismissed');
   if (!iosDismissed) {
     setTimeout(function() { showIOSPopup(); }, 4000);
   }
 }
 
+// Desktop Chrome/Edge/Windows: show install banner
+if (isDesktop && !isInStandaloneMode) {
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    setTimeout(function() {
+      if (deferredPrompt) showInstallBanner();
+    }, 3000);
+  });
+}
+
 function showInstallBanner() {
   var b = document.getElementById('install-banner');
-  if (b) b.style.display = 'flex';
+  if (!b) return;
+  // Customize text per platform
+  var title = document.getElementById('install-banner-title');
+  var sub   = document.getElementById('install-banner-sub');
+  if (isDesktop) {
+    if (title) title.textContent = 'Install as Desktop App';
+    if (sub)   sub.textContent   = 'Works offline — no browser needed, like a native app';
+  } else if (isTablet) {
+    if (title) title.textContent = 'Install on your Tablet';
+    if (sub)   sub.textContent   = 'Add to home screen — works offline';
+  } else {
+    if (title) title.textContent = 'Install Resilience Guardian';
+    if (sub)   sub.textContent   = 'Add to home screen — works offline, no app store needed';
+  }
+  b.style.display = 'flex';
 }
 
 function hideInstallBanner() {
@@ -3694,7 +3742,25 @@ function dismissInstall() {
 
 function showIOSPopup() {
   var p = document.getElementById('ios-popup');
-  if (p) p.style.display = 'block';
+  if (!p) return;
+  // Show correct instructions for Mac vs iPhone/iPad
+  var macSteps    = document.getElementById('ios-steps-mac');
+  var mobileSteps = document.getElementById('ios-steps-mobile');
+  var title       = document.getElementById('ios-popup-title');
+  if (isMac) {
+    if (macSteps)    macSteps.style.display    = 'block';
+    if (mobileSteps) mobileSteps.style.display = 'none';
+    if (title) title.textContent = '🌿 Install on Mac';
+  } else if (isTablet) {
+    if (macSteps)    macSteps.style.display    = 'none';
+    if (mobileSteps) mobileSteps.style.display = 'block';
+    if (title) title.textContent = '🌿 Install on iPad';
+  } else {
+    if (macSteps)    macSteps.style.display    = 'none';
+    if (mobileSteps) mobileSteps.style.display = 'block';
+    if (title) title.textContent = '🌿 Install on iPhone';
+  }
+  p.style.display = 'block';
 }
 
 function closeIOSPopup() {

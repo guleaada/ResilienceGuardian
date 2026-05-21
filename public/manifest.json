@@ -1,18 +1,31 @@
 {
   "name": "Resilience Guardian",
   "short_name": "ResGuardian",
-  "description": "AI Crop Disease Advisor for Ethiopian Farmers - Offline Ready",
+  "description": "AI Crop Disease Advisor for Ethiopian Farmers - Works Offline",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
   "background_color": "#F5F0E8",
   "theme_color": "#2D6A0A",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "categories": ["agriculture", "health", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
-    { "src": "/icons/icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "maskable any" },
-    { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "maskable any" },
     { "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "maskable any" },
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Analyze Crop Disease",
+      "short_name": "Analyze",
+      "description": "Start a new crop disease analysis",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    }
   ]
 }
