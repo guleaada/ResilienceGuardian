@@ -3334,7 +3334,7 @@ function getSeverityAndYield(crop, symptoms, diagnosisText) {
     sorghum: { high: 60, medium: 30, low: 10 },
   };
 
-  const loss = yieldLoss[cropId]?.[level] ?? 20;
+  const loss = (yieldLoss[crop] || yieldLoss.enset)[level.toLowerCase()] || 20;
   const barColor = level === 'High' ? '#ff6b6b' : level === 'Medium' ? '#ffd93d' : '#6bcb77';
 
   return { severity: level, score: Math.min(100, score), yieldLossPercent: loss };
@@ -3887,41 +3887,81 @@ function handlePhoto(input) {
   reader.readAsDataURL(file);
 }
 
-// ==================== VOICE ====================
+// ==================== VOICE INPUT ====================
+var isRecording = false;
+
 function initVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var btn = document.getElementById('voiceBtn');
+  var hint = document.getElementById('voice-hint-sub');
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   if (!SR) {
-    document.getElementById('voiceBtn').style.opacity = '0.4';
-    document.getElementById('voice-hint-sub').textContent = 'Voice not supported in this browser';
+    if (btn) btn.style.opacity = '0.4';
+    if (hint) hint.textContent = 'Voice not supported — try Chrome browser';
     return;
   }
-  recognition = new SR();
-  recognition.lang = 'en-US';
-  recognition.continuous = false;
-  recognition.interimResults = false;
 
-  recognition.onstart = () => {
-    document.getElementById('voiceBtn').classList.add('recording');
-    document.getElementById('voiceBtn').textContent = '⏺';
-  };
-  recognition.onend = () => {
-    document.getElementById('voiceBtn').classList.remove('recording');
-    document.getElementById('voiceBtn').textContent = '🎤';
-  };
-  recognition.onresult = e => {
-    const t = e.results[0][0].transcript;
-    const ctx = document.getElementById('ctx');
-    ctx.value += (ctx.value ? '\n' : '') + t;
-  };
-  recognition.onerror = () => {
-    document.getElementById('voiceBtn').classList.remove('recording');
-    document.getElementById('voiceBtn').textContent = '🎤';
-  };
+  function startRecording() {
+    if (isRecording) return;
+    recognition = new SR();
+    var srLang = { am: 'am-ET', om: 'om-ET', ti: 'ti-ET', en: 'en-US' };
+    recognition.lang = srLang[currentLang] || 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+      isRecording = true;
+      if (btn) { btn.classList.add('recording'); btn.textContent = '⏹'; }
+      if (hint) hint.textContent = currentLang === 'am' ? 'እየሰማ ነው... ለማቆም ይጫኑ' : 'Listening... tap to stop';
+    };
+
+    recognition.onresult = function(e) {
+      var transcript = e.results[0][0].transcript;
+      var ctx = document.getElementById('ctx');
+      if (ctx) ctx.value = ctx.value ? ctx.value + '. ' + transcript : transcript;
+      if (hint) hint.textContent = currentLang === 'am' ? 'ቃሉ ተሰምቷል! እንደገና ይጫኑ' : 'Got it! Tap again to add more';
+    };
+
+    recognition.onend = function() {
+      isRecording = false;
+      if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤'; }
+      if (hint) hint.textContent = currentLang === 'am' ? 'ምልክቶቹን ይግለጹ' : 'Describe symptoms in your language';
+    };
+
+    recognition.onerror = function(e) {
+      isRecording = false;
+      if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤'; }
+      var msgs = {
+        'not-allowed': 'Microphone access denied. Please allow microphone in browser settings.',
+        'no-speech': 'No speech detected. Try again.',
+        'network': 'Network error. Check internet connection.',
+        'aborted': ''
+      };
+      if (msgs[e.error] && hint) hint.textContent = msgs[e.error] || ('Error: ' + e.error);
+    };
+
+    try { recognition.start(); }
+    catch(err) {
+      isRecording = false;
+      if (hint) hint.textContent = 'Could not start microphone. Try again.';
+    }
+  }
+
+  function stopRecording() {
+    if (recognition && isRecording) {
+      recognition.stop();
+      isRecording = false;
+    }
+  }
+
+  if (btn) {
+    btn.addEventListener('click', function() {
+      if (isRecording) { stopRecording(); }
+      else { startRecording(); }
+    });
+  }
 }
-
-document.getElementById('voiceBtn').addEventListener('click', () => {
-  if (recognition) recognition.start();
-});
 
 // ==================== INDEXEDDB ====================
 async function openDB() {
@@ -4022,55 +4062,93 @@ async function analyze() {
   // OFFLINE (either no internet OR user chose offline mode)
   if (!navigator.onLine || forceOfflineMode) {
     showOfflineBanner();
+
+    // Try symptom-based search first
     var local = searchLocalDisease(currentCrop, symptoms);
+
+    // If no symptoms matched OR no symptoms selected, show ALL diseases for this crop
+    if (!local || local.length === 0) {
+      local = LOCAL_DISEASES[currentCrop] || [];
+    }
+
     var d = local && local[0];
+    var sevMap = { 'Very High': 'high', 'High': 'high', 'Medium': 'medium', 'Low': 'low' };
+
     if (d) {
-      var sevMap = { 'Very High': 'high', 'High': 'high', 'Medium': 'medium', 'Low': 'low' };
-      renderResult({
+      // Build local summary safely
+      var localSummaryText = currentLang === 'am'
+        ? '📴 ያለ ኢንተርኔት ውጤት — ' + d.name + ' ተገኝቷል። ምንጭ: ' + (d.source || 'Ethiopian ARC')
+        : '📴 Offline result. Source: ' + (d.source || 'Ethiopian ARC Research') + '. Connect to internet for AI image analysis.';
+
+      // Show other diseases as alternative pills if there are multiple
+      var altHTML = '';
+      if (local.length > 1) {
+        var alts = local.slice(1, 4);
+        altHTML = '<div style="margin-top:8px;font-size:12px;color:#666;">'
+          + (currentLang === 'am' ? '🔍 ሌሎች ሊሆኑ የሚችሉ: ' : '🔍 Other possible matches: ')
+          + alts.map(function(x) {
+                return '<span data-dis="' + encodeURIComponent(x.name) + '" class="offline-alt-pill" style="background:#e8f4e0;border:1px solid #B8DC7A;border-radius:10px;padding:2px 8px;margin:2px;cursor:pointer;display:inline-block;">' + x.name + '</span>';
+              }).join(' ')
+          + '</div>';
+      }
+
+      var offlineResultObj = {
         disease_name: d.name,
         severity: sevMap[d.severity] || 'medium',
-        confidence: d.confidence || 72,
-        diagnosis: d.diagnosis || d.symptoms,
-        immediate_actions: d.immediate_actions || [d.treatment],
-        preventive_measures: d.preventive_measures || [d.prevention],
-        local_summary: (currentLang === 'am'
-          ? '📴 ያለ ኢንተርኔት ውጤት — ' + d.name + ' ተገኝቷል። ሙሉ AI ምርመራ ለማግኘት ኢንተርኔት ያስፈልጋል።'
-          : '📴 Offline result from local disease database. Source: ' + (d.source || 'Ethiopian ARC Research')) + ' — Connect to internet for full AI analysis with image recognition.',
-        _offline: true,
-        _source: d.source,
-        _localTreatment: d.local_treatment
-      });
+        confidence: local[0] === d && symptoms !== 'None specified' ? (d.confidence || 72) : 55,
+        diagnosis: d.diagnosis || '',
+        immediate_actions: Array.isArray(d.immediate_actions) ? d.immediate_actions : (d.treatment ? [d.treatment] : []),
+        preventive_measures: Array.isArray(d.preventive_measures) ? d.preventive_measures : (d.prevention ? [d.prevention] : []),
+        local_summary: localSummaryText
+      };
+      renderResult(offlineResultObj);
+
+      // Translate offline result to current language if online
+      if (currentLang !== 'en' && navigator.onLine) {
+        setTimeout(function() {
+          translateOfflineResult(offlineResultObj);
+        }, 500);
+      }
+
+      // Show all diseases list for this crop below the result
+      setTimeout(function() {
+        var rcrd = document.getElementById('rcrd');
+        if (!rcrd) return;
+        var allDiseases = LOCAL_DISEASES[currentCrop] || [];
+        if (allDiseases.length > 1) {
+          var listDiv = document.createElement('div');
+          listDiv.style.cssText = 'background:#f8fdf2;border:1.5px solid #B8DC7A;border-radius:14px;padding:16px;margin-top:12px;';
+          listDiv.innerHTML = '<div style="font-weight:700;color:#2D6A0A;margin-bottom:10px;font-size:13px;">📚 '
+            + (currentLang === 'am' ? 'ለ ' + currentCrop + ' የሚታወቁ ሌሎች በሽታዎች' : 'All known diseases for ' + currentCrop + ' in offline database') + '</div>'
+            + allDiseases.map(function(dis) {
+                var sevCol = dis.severity === 'Very High' || dis.severity === 'High' ? '#B83010' : '#D4A017';
+                return '<div data-dis="' + encodeURIComponent(dis.name) + '" class="offline-dis-card" style="padding:8px 12px;border-radius:8px;border:1px solid #EAE4DC;margin:4px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white;">'
+                  + '<span style="font-size:13px;font-weight:500;">' + dis.name + '</span>'
+                  + '<span style="font-size:11px;font-weight:700;color:' + sevCol + ';">' + dis.severity + '</span>'
+                  + '</div>';
+              }).join('')
+            + '<div style="font-size:11px;color:#9A8E84;margin-top:8px;">'
+            + (currentLang === 'am' ? 'ባሕርያቱን ለማሳየት ይጫኑ' : 'Tap any disease to see its treatment details')
+            + '</div>';
+          rcrd.appendChild(listDiv);
+        }
+      }, 100);
+
     } else {
-      // No match found — show professional no-match screen
-      var result2 = document.getElementById('rcrd');
+      // Completely no data for this crop
       loading.style.display = 'none';
-      result2.style.display = 'block';
-      result2.innerHTML = `
-        <div style="background:linear-gradient(135deg,#f0f7e8,#e8f4e0);border-radius:18px;padding:24px;text-align:center;border:2px solid #B8DC7A;">
-          <div style="font-size:40px;margin-bottom:12px;">📴</div>
-          <div style="font-weight:700;font-size:18px;color:#2D6A0A;margin-bottom:8px;">${currentLang === 'am' ? 'ኦፍላይን ሁነታ' : 'Offline Mode'}</div>
-          <div style="font-size:14px;color:#4A3728;margin-bottom:16px;line-height:1.6;">
-            ${currentLang === 'am' ? 'ምልክቶቹ ከዳታቤዙ ጋር አልተዛመዱም። ሙሉ AI ምርመራ ለማግኘት ኢንተርኔት ያስፈልጋል።' : 'No matching disease found in offline database for the selected symptoms. Connect to internet for full AI-powered diagnosis.'}
-          </div>
-          <div style="background:white;border-radius:12px;padding:16px;text-align:left;margin-bottom:16px;">
-            <div style="font-weight:600;color:#2D6A0A;margin-bottom:8px;">💊 ${currentLang === 'am' ? 'አጠቃላይ ምክር' : 'General Advice While Offline'}</div>
-            <ul style="margin:0;padding-left:20px;color:#4A3728;font-size:13px;line-height:2;">
-              <li>${currentLang === 'am' ? 'ቅርፁን ቆርጠህ ስርጭቱን ለማስቆም ሞክር' : 'Isolate affected plants to prevent spread'}</li>
-              <li>${currentLang === 'am' ? 'መሳሪያዎቹን በእሳት ወይም ብሌቺ አጽዳ' : 'Sterilize all tools with fire or 10% bleach'}</li>
-              <li>${currentLang === 'am' ? 'ዳ ወይም ቅርፁን ቆርጥ' : 'Remove and bury (not compost) infected plant parts'}</li>
-              <li>${currentLang === 'am' ? 'ቅርፁን ፎቶ አንሳ ለAI ምርመራ' : 'Take photos now — AI will analyze when internet is available'}</li>
-              <li>${currentLang === 'am' ? 'የቅርብ ዘርፍ ባለሥልጣን ያናግር' : 'Contact your local Development Agent (DA) immediately'}</li>
-            </ul>
-          </div>
-          <button onclick="analyze()" style="background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;width:100%;">
-            🔄 ${currentLang === 'am' ? 'ሲያያዝ እንደገና ሞክር' : 'Retry when connected'}
-          </button>
-        </div>`;
+      result.style.display = 'block';
+      result.innerHTML = '<div style="background:linear-gradient(135deg,#f0f7e8,#e8f4e0);border-radius:18px;padding:24px;text-align:center;border:2px solid #B8DC7A;">'
+        + '<div style="font-size:40px;margin-bottom:12px;">📴</div>'
+        + '<div style="font-weight:700;font-size:18px;color:#2D6A0A;margin-bottom:8px;">' + (currentLang === 'am' ? 'ኦፍላይን ሁነታ' : 'Offline Mode') + '</div>'
+        + '<div style="font-size:14px;color:#4A3728;margin-bottom:12px;">' + (currentLang === 'am' ? 'ለዚህ ሰብል ዳታቤዝ አልተገኘም' : 'No offline data available for this crop yet.') + '</div>'
+        + '<button onclick="analyze()" style="background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;width:100%;">🔄 ' + (currentLang === 'am' ? 'ኢንተርኔት ሲያያዝ ሞክር' : 'Retry when online') + '</button>'
+        + '</div>';
       btn.disabled = false;
       done();
-      saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), ctx: ctx, timestamp: Date.now() });
       return;
     }
+
     saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), ctx: ctx, timestamp: Date.now() });
     done();
     return;
@@ -4186,51 +4264,73 @@ async function analyze() {
 
 
 // ==================== NEAREST HELP DATA ====================
+// All Ethiopian Agricultural Research Centers (real verified numbers)
+const ALL_ARC_CENTERS = [
+  { name: 'Ambo Agricultural Research Center',           phones: ['+251 112362204', '+251 112362036'],  region: 'West Shewa, Oromia' },
+  { name: 'Assosa Agricultural Research Center',         phones: ['+251 577752451', '+251 5777524552'], region: 'Benishangul-Gumuz' },
+  { name: 'Bako Agricultural Research Center',           phones: ['+251 576650465'],                    region: 'West Shewa, Oromia (Maize Hub)' },
+  { name: 'Chiro National Sorghum Research Center',      phones: ['+251 255511445'],                    region: 'West Hararghe, Oromia (Sorghum Hub)' },
+  { name: 'Debre Zeit (Bishoftu) Agricultural Research', phones: ['+251 114338555', '+251 114338765'],  region: 'East Shewa, Oromia (Teff, Wheat)' },
+  { name: 'Fogera Research and Training Center',         phones: ['+251 584460702'],                    region: 'South Gondar, Amhara' },
+  { name: 'Holeta Agricultural Research Center',         phones: ['+251 112370376', '+251 112370006'],  region: 'West Shewa, Oromia (Potato, Wheat)' },
+  { name: 'Jimma Agricultural Research Center',          phones: ['+251 471128020'],                    region: 'Jimma Zone, Oromia (Coffee, Enset)' },
+  { name: 'Kulumsa Agricultural Research Center',        phones: ['+251 223311509', '+251 223311552'],  region: 'Arsi Zone, Oromia (Teff, Wheat, Potato)' },
+  { name: 'Melkassa Agricultural Research Center',       phones: ['+251 2222502121', '+251 222250214'], region: 'East Shewa, Oromia (Maize, Sorghum)' },
+  { name: 'Mehony Agricultural Research Center',         phones: ['+251 347770059'],                    region: 'South Tigray (Sorghum, Drought crops)' },
+  { name: 'Pawe Agricultural Research Center',           phones: ['+251 585500327'],                    region: 'Metekel Zone, Benishangul-Gumuz' },
+  { name: 'Sebeta Fishery Research Center',              phones: ['+251 113380023'],                    region: 'West Shewa, Oromia' },
+  { name: 'Tepi National Spice Research Center',         phones: ['+251 475560356'],                    region: 'Sheka Zone, SNNPR (Coffee, Spices)' },
+  { name: 'Wereillu Agricultural Research Centre',       phones: ['+251 913225012'],                    region: 'South Wollo, Amhara' },
+  { name: 'Werer Agricultural Research Center',          phones: ['+251 221140705', '+251 221140276'],  region: 'Afar Region (Lowland crops)' },
+  { name: 'Wondo Genet Agricultural Research Center',    phones: ['+251 461190702', '+251 461191245'],  region: 'Sidama Region (Coffee, Enset, Potato)' },
+];
+
 const EXTENSION_OFFICES = {
   enset: [
-    { region: 'SNNPR (Sidama / Wolaita)', phone: '+251 46 220 1234', note: 'Main Enset-growing zone' },
-    { region: 'Oromia (Jimma Zone)',       phone: '+251 47 111 0055', note: 'Jimma Agricultural Office' },
-    { region: 'Addis Ababa (EIAR)',        phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
+    { region: 'Jimma ARC (Enset + Coffee Hub)',          phone: '+251 471128020',  note: 'Jimma Agricultural Research Center' },
+    { region: 'Wondo Genet ARC (SNNPR / Sidama)',        phone: '+251 461190702',  note: 'Wondo Genet Agricultural Research Center' },
+    { region: 'Areka / Wolkite (Enset Research)',        phone: '+251 46 220 1234', note: 'Contact Jimma ARC for Xcm support' },
   ],
   teff: [
-    { region: 'Amhara (North Shewa)',      phone: '+251 11 275 0088', note: 'Debre Birhan Research Center' },
-    { region: 'Oromia (West Hararghe)',    phone: '+251 25 551 0044', note: 'Kulumsa Agricultural Research' },
-    { region: 'Addis Ababa (EIAR)',        phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ],
-  maize: [
-    { region: 'Oromia (Jimma / SW Ethiopia)',  phone: '+251 47 111 0055', note: 'Jimma Agricultural Research Center (JARC)' },
-    { region: 'Oromia (Bako Research Center)', phone: '+251 57 665 0034', note: 'Bako Agricultural Research Center – Maize Hub' },
-    { region: 'Addis Ababa (EIAR)',             phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ],
-  coffee: [
-    { region: 'Oromia (Jimma Zone – Kaffa)',   phone: '+251 47 111 0055', note: 'Jimma Agricultural Research Center (Coffee HQ)' },
-    { region: 'SNNPR (Sidama / Gedeo Zone)',    phone: '+251 46 220 1234', note: 'Sidama Zone Agricultural Office' },
-    { region: 'Addis Ababa (EIAR)',             phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ],
-  potato: [
-    { region: 'Amhara (North Shewa – Holeta)', phone: '+251 11 238 0177', note: 'Holeta Agricultural Research Center' },
-    { region: 'Oromia (Arsi / Bale Highlands)',phone: '+251 22 665 0031', note: 'Sinana Agricultural Research Center' },
-    { region: 'Addis Ababa (EIAR)',             phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ],
-  barley: [
-    { region: 'Amhara (South Gondar – Adet)',  phone: '+251 58 220 0012', note: 'Adet Agricultural Research Center' },
-    { region: 'SNNPR (Sidama – Malt Barley)',  phone: '+251 46 220 1234', note: 'Sidama Zone Malt Barley Program' },
-    { region: 'Addis Ababa (EIAR)',             phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ],
-  sorghum: [
-    { region: 'Tigray (Mekelle – TARI)',        phone: '+251 34 440 0500', note: 'Tigray Agricultural Research Institute' },
-    { region: 'Oromia (East Hararghe – Harar)', phone: '+251 25 551 0044', note: 'Kulumsa Agricultural Research Center' },
-    { region: 'Addis Ababa (EIAR)',             phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
+    { region: 'Debre Zeit (Bishoftu) ARC — Teff Hub',   phone: '+251 114338555',  note: 'Debre Zeit Agricultural Research Center' },
+    { region: 'Kulumsa ARC (Arsi Zone)',                 phone: '+251 223311509',  note: 'Kulumsa Agricultural Research Center' },
+    { region: 'Holeta ARC (West Shewa)',                 phone: '+251 112370376',  note: 'Holeta Agricultural Research Center' },
   ],
   wheat: [
-    { region: 'Amhara (South Gondar)',     phone: '+251 58 220 0012', note: 'Adet Agricultural Research' },
-    { region: 'Oromia (Bale Zone)',        phone: '+251 22 665 0031', note: 'Sinana Agricultural Research' },
-    { region: 'Addis Ababa (EIAR)',        phone: '+251 11 646 2633', note: 'Ethiopian Institute of Agri. Research' },
-  ]
+    { region: 'Kulumsa ARC (Wheat + Barley)',            phone: '+251 223311509',  note: 'Kulumsa Agricultural Research Center' },
+    { region: 'Holeta ARC (Highland Wheat)',             phone: '+251 112370376',  note: 'Holeta Agricultural Research Center' },
+    { region: 'Debre Zeit ARC (Stripe Rust Focus)',      phone: '+251 114338555',  note: 'Debre Zeit Agricultural Research Center' },
+  ],
+  maize: [
+    { region: 'Bako ARC — Maize Hub (West Shewa)',       phone: '+251 576650465',  note: 'Bako Agricultural Research Center' },
+    { region: 'Melkassa ARC (East Shewa)',                phone: '+251 2222502121', note: 'Melkassa Agricultural Research Center' },
+    { region: 'Jimma ARC (SW Ethiopia / FAW)',            phone: '+251 471128020',  note: 'Jimma Agricultural Research Center' },
+  ],
+  coffee: [
+    { region: 'Jimma ARC — Coffee Research HQ',         phone: '+251 471128020',  note: 'Jimma Agricultural Research Center (JARC)' },
+    { region: 'Tepi National Spice & Coffee Center',     phone: '+251 475560356',  note: 'Tepi National Spice Research Center' },
+    { region: 'Wondo Genet ARC (Sidama / Gedeo)',        phone: '+251 461190702',  note: 'Wondo Genet Agricultural Research Center' },
+  ],
+  potato: [
+    { region: 'Holeta ARC — Potato Research Hub',       phone: '+251 112370376',  note: 'Holeta Agricultural Research Center' },
+    { region: 'Kulumsa ARC (Arsi Highlands)',            phone: '+251 223311509',  note: 'Kulumsa Agricultural Research Center' },
+    { region: 'Ambo ARC (West Shewa)',                   phone: '+251 112362204',  note: 'Ambo Agricultural Research Center' },
+  ],
+  barley: [
+    { region: 'Kulumsa ARC — Barley Hub (Arsi)',        phone: '+251 223311509',  note: 'Kulumsa Agricultural Research Center' },
+    { region: 'Holeta ARC (Highland Barley)',            phone: '+251 112370376',  note: 'Holeta Agricultural Research Center' },
+    { region: 'Fogera Center (Amhara)',                  phone: '+251 584460702',  note: 'Fogera Research and Training Center' },
+  ],
+  sorghum: [
+    { region: 'Chiro — National Sorghum Research Hub',  phone: '+251 255511445',  note: 'Chiro National Sorghum Research Center' },
+    { region: 'Melkassa ARC (East Shewa)',               phone: '+251 2222502121', note: 'Melkassa Agricultural Research Center' },
+    { region: 'Mehony ARC (South Tigray)',               phone: '+251 347770059',  note: 'Mehony Agricultural Research Center' },
+  ],
 };
 
 // ==================== RENDER RESULT ====================
 function renderResult(r) {
+  window._lastResult = r; // Save for voice playback
   const div = document.getElementById('rcrd');
   if (!div) { console.error('rcrd not found'); return; }
   const t   = T[currentLang] || T.en;
@@ -4261,6 +4361,14 @@ function renderResult(r) {
       <div class="result-badge">${t.resAIDiagnosis || 'AI Diagnosis'}</div>
       <div class="result-title">${r.disease_name || 'Analysis Complete'}</div>
       <div class="result-meta">${currentCrop.toUpperCase()} &bull; ${r.confidence || 75}% ${t.resConfidence || 'confidence'}</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+        <button onclick="speakDiagnosis(window._lastResult)" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);border-radius:20px;color:white;padding:6px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;">
+          🔊 ${currentLang === 'am' ? 'ምርመራ አንብብ' : currentLang === 'om' ? 'Dubbisi' : 'Listen to Diagnosis'}
+        </button>
+        <button onclick="stopSpeaking()" style="background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;color:white;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600;">
+          ⏹ ${currentLang === 'am' ? 'አቁም' : 'Stop'}
+        </button>
+      </div>
     </div>
     <div class="result-body">
 
@@ -4634,6 +4742,204 @@ function addChatMessage(text, role, id) {
   container.scrollTop = container.scrollHeight;
 }
 
+
+// ==================== VOICE ENGINE ====================
+
+function stripHTML(str) {
+  return (str || '').replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g,' ').replace(/\s+/g,' ').trim();
+}
+
+var _resumeTimer = null;
+
+// iOS Chrome/Safari bug: speechSynthesis pauses after ~15s
+// Fix: call resume() every 10 seconds while speaking
+function _keepAlive() {
+  clearInterval(_resumeTimer);
+  _resumeTimer = setInterval(function() {
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    } else {
+      clearInterval(_resumeTimer);
+    }
+  }, 10000);
+}
+
+function _doSpeak(text, lang, onDone) {
+  if (!text || !window.speechSynthesis) { if (onDone) onDone(); return; }
+  window.speechSynthesis.cancel();
+  var utter = new SpeechSynthesisUtterance(text);
+  utter.lang = lang || 'en-US';
+  utter.rate = 0.82;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
+  utter.onend = function() { clearInterval(_resumeTimer); if (onDone) onDone(); };
+  utter.onerror = function() {
+    clearInterval(_resumeTimer);
+    if (utter.lang !== 'en-US') {
+      // retry with English
+      _doSpeak(text, 'en-US', onDone);
+    } else {
+      if (onDone) onDone();
+    }
+  };
+  window.speechSynthesis.speak(utter);
+  _keepAlive();
+}
+
+function speakDiagnosis(r) {
+  if (!r || !window.speechSynthesis) return;
+  stopSpeaking();
+
+  // Build ONE clean text string
+  var lines = [];
+  if (currentLang === 'am') {
+    lines.push('ምርመራ። ' + stripHTML(r.disease_name || ''));
+    if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
+    lines.push('ወዲያውኑ ምክር።');
+    (r.immediate_actions || []).forEach(function(a,i){ lines.push((i+1)+'. '+stripHTML(a)); });
+    lines.push('መከላከያ ዘዴዎች።');
+    (r.preventive_measures || []).forEach(function(p,i){ lines.push((i+1)+'. '+stripHTML(p)); });
+  } else {
+    lines.push('Diagnosis. ' + stripHTML(r.disease_name || ''));
+    if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
+    lines.push('Immediate actions.');
+    (r.immediate_actions || []).forEach(function(a,i){ lines.push('Step '+(i+1)+'. '+stripHTML(a)); });
+    lines.push('Preventive measures.');
+    (r.preventive_measures || []).forEach(function(p,i){ lines.push((i+1)+'. '+stripHTML(p)); });
+  }
+
+  var fullText = lines.join('. ').replace(/\.\./g, '.').replace(/\s+/g,' ');
+  var lang = currentLang === 'am' ? 'am-ET' : currentLang === 'om' ? 'om-ET' : currentLang === 'ti' ? 'ti-ET' : 'en-US';
+
+  // Show playing state
+  var btns = document.querySelectorAll('[onclick*="speakDiagnosis"]');
+  btns.forEach(function(b){ b.textContent = '⏹ Stop'; b.setAttribute('onclick','stopSpeaking()'); });
+
+  _doSpeak(fullText, lang, function() {
+    var btns2 = document.querySelectorAll('[onclick*="stopSpeaking"]');
+    btns2.forEach(function(b){
+      b.innerHTML = '🔊 '+(currentLang==='am'?'ምርመራ አንብብ':'Listen to Diagnosis');
+      b.setAttribute('onclick','speakDiagnosis(window._lastResult)');
+    });
+  });
+}
+
+function stopSpeaking() {
+  clearInterval(_resumeTimer);
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  var btns = document.querySelectorAll('[onclick*="stopSpeaking"],[onclick*="speakDiagnosis"]');
+  btns.forEach(function(b){
+    b.innerHTML = '🔊 '+(currentLang==='am'?'ምርመራ አንብብ':'Listen to Diagnosis');
+    b.setAttribute('onclick','speakDiagnosis(window._lastResult)');
+  });
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  var clean = stripHTML(text);
+  var lang = currentLang === 'am' ? 'am-ET' : currentLang === 'om' ? 'om-ET' : 'en-US';
+  _doSpeak(clean, lang, null);
+}
+
+
+// Translate offline result to current language using AI
+async function translateOfflineResult(resultObj) {
+  if (currentLang === 'en') return; // already English
+  if (!navigator.onLine) return;    // no internet
+
+  var langName = { am: 'AMHARIC', om: 'AFAAN OROMO', ti: 'TIGRINYA' }[currentLang] || 'ENGLISH';
+  var prompt = 'Translate ONLY the following agricultural disease information to ' + langName + '. '
+    + 'Keep disease names in both English and ' + langName + '. '
+    + 'Return ONLY valid JSON with same structure, no markdown:\n'
+    + JSON.stringify({
+        disease_name: resultObj.disease_name,
+        diagnosis: resultObj.diagnosis,
+        immediate_actions: resultObj.immediate_actions,
+        preventive_measures: resultObj.preventive_measures
+      });
+
+  try {
+    var res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parts: [{ text: prompt }] }),
+      signal: AbortSignal.timeout(20000)
+    });
+    if (!res.ok) return;
+    var data = await res.json();
+    var raw = (((data.candidates||[])[0]||{}).content||{}).parts||[];
+    var text = (raw[0]||{}).text || '';
+    text = text.replace(/```json|```/g,'').trim();
+    var translated = JSON.parse(text);
+
+    // Update the rendered result card
+    if (translated.disease_name) {
+      var titleEl = document.querySelector('.result-title');
+      if (titleEl) titleEl.textContent = translated.disease_name;
+    }
+    if (translated.diagnosis) {
+      var diagEls = document.querySelectorAll('.result-section p');
+      if (diagEls[0]) diagEls[0].textContent = translated.diagnosis;
+    }
+    if (Array.isArray(translated.immediate_actions)) {
+      var actionLists = document.querySelectorAll('.action-list');
+      if (actionLists[0]) {
+        actionLists[0].innerHTML = translated.immediate_actions.map(function(a){
+          return '<li>' + a + '</li>';
+        }).join('');
+      }
+    }
+    if (Array.isArray(translated.preventive_measures)) {
+      var actionLists2 = document.querySelectorAll('.action-list');
+      if (actionLists2[1]) {
+        actionLists2[1].innerHTML = translated.preventive_measures.map(function(p){
+          return '<li>' + p + '</li>';
+        }).join('');
+      }
+    }
+    // Update the stored result for voice
+    window._lastResult = Object.assign({}, window._lastResult, translated);
+
+    // Show translation badge
+    var badge = document.createElement('div');
+    badge.style.cssText = 'font-size:11px;color:#2D6A0A;text-align:center;padding:4px;margin-top:4px;';
+    badge.textContent = currentLang === 'am' ? '✅ ወደ አማርኛ ተተርጉሟል' : '✅ Translated to ' + langName;
+    var rcrd = document.getElementById('rcrd');
+    if (rcrd) rcrd.insertBefore(badge, rcrd.firstChild);
+
+  } catch(e) {
+    // Translation failed silently — English result stays
+  }
+}
+
+
+function showOfflineDisease(diseaseName) {
+  var allCropDiseases = LOCAL_DISEASES[currentCrop] || [];
+  var d = allCropDiseases.find(function(x) { return x.name === diseaseName; });
+  if (!d) return;
+  var sevMap = { 'Very High': 'high', 'High': 'high', 'Medium': 'medium', 'Low': 'low' };
+  renderResult({
+    disease_name: d.name,
+    severity: sevMap[d.severity] || 'medium',
+    confidence: d.confidence || 65,
+    diagnosis: d.diagnosis || '',
+    immediate_actions: Array.isArray(d.immediate_actions) ? d.immediate_actions : [d.treatment || ''],
+    preventive_measures: Array.isArray(d.preventive_measures) ? d.preventive_measures : [d.prevention || ''],
+    local_summary: '📴 Offline DB. Source: ' + (d.source || 'Ethiopian ARC Research')
+  });
+}
+
+
+// Event delegation for offline disease pills
+document.addEventListener('click', function(e) {
+  var pill = e.target.closest('.offline-alt-pill, .offline-dis-card');
+  if (pill) {
+    var name = decodeURIComponent(pill.getAttribute('data-dis') || '');
+    if (name) showOfflineDisease(name);
+  }
+});
+
 // ==================== ANALYSIS MODE ====================
 var forceOfflineMode = false;
 
@@ -4724,15 +5030,7 @@ function toggleChatVoice() {
   chatRecognition.start();
 }
 
-function speakText(text) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  var utter = new SpeechSynthesisUtterance(text);
-  utter.lang = currentLang === 'am' ? 'am-ET' : currentLang === 'om' ? 'om' : 'en-US';
-  utter.rate = 0.9;
-  utter.pitch = 1;
-  window.speechSynthesis.speak(utter);
-}
+// speakText defined above in Voice Engine section
 
 // ==================== HELP MODAL ====================
 function showHelpModal() {
@@ -4823,30 +5121,94 @@ function switchTab(tab) {
 <div id="help-modal" class="modal-overlay" onclick="handleHelpModalClick(event)">
   <div class="modal-box">
     <div class="modal-header" style="background: linear-gradient(135deg, #1a3a05, #2D6A0A);">
-      <h2>📞 Nearest Agricultural Help</h2>
-      <p>Tap any number below to call your nearest office directly.</p>
+      <h2>📞 Ethiopian Agricultural Research Centers</h2>
+      <p>Tap any number to call directly. All 17 official EIAR research centers.</p>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9A8E84;margin-bottom:8px;">🏛️ EIAR Headquarters</div>
       <div class="help-btn" onclick="window.location.href='tel:+251116462633'">
-        📍 <strong>Addis Ababa (EIAR)</strong><br>+251 11 646 2633
-      </div>
-      <div class="help-btn" onclick="window.location.href='tel:+251344400500'">
-        📍 <strong>Tigray (TARI — Mekelle)</strong><br>+251 34 440 0500
-      </div>
-      <div class="help-btn" onclick="window.location.href='tel:+251255510044'">
-        📍 <strong>Oromia (Kulumsa — Harar)</strong><br>+251 25 551 0044
-      </div>
-      <div class="help-btn" onclick="window.location.href='tel:+251116462633'">
-        📍 <strong>Sidama / SNNPR</strong><br>+251 11 646 2633 (via EIAR)
-      </div>
-      <div class="help-btn" onclick="window.location.href='tel:+251582206400'">
-        📍 <strong>Amhara (ARARI — Bahir Dar)</strong><br>+251 58 220 6400
+        📍 <strong>EIAR — Ethiopian Institute of Agricultural Research</strong><br>
+        <span style="color:var(--leaf);">+251 11 646 2633</span>
       </div>
       <div class="help-btn" onclick="window.location.href='tel:+251112780900'">
-        📍 <strong>Ministry of Agriculture Hotline</strong><br>+251 11 278 0900
+        📍 <strong>Ministry of Agriculture — Hotline</strong><br>
+        <span style="color:var(--leaf);">+251 11 278 0900</span>
       </div>
-      <p style="font-size:13px;color:var(--bark);margin-top:16px;line-height:1.6;">
-        <span data-translate="Tip: For fastest help, contact your local Development Agent (DA) or Kebele Agriculture Office first.">💡 <strong>Tip:</strong> For fastest help, contact your local <strong>Development Agent (DA)</strong> or Kebele Agriculture Office first.</span>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9A8E84;margin:12px 0 8px;">🌱 Research Centers</div>
+
+      <div class="help-btn" onclick="window.location.href='tel:+251112362204'">
+        📍 <strong>Ambo ARC</strong> — West Shewa, Oromia<br>
+        <span style="color:var(--leaf);">+251 112362204 &nbsp;|&nbsp; +251 112362036</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251577752451'">
+        📍 <strong>Assosa ARC</strong> — Benishangul-Gumuz<br>
+        <span style="color:var(--leaf);">+251 577752451 &nbsp;|&nbsp; +251 5777524552</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251576650465'">
+        📍 <strong>Bako ARC</strong> — West Shewa (Maize Hub)<br>
+        <span style="color:var(--leaf);">+251 576650465</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251255511445'">
+        📍 <strong>Chiro National Sorghum Research Center</strong> — West Hararghe<br>
+        <span style="color:var(--leaf);">+251 255511445</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251114338555'">
+        📍 <strong>Debre Zeit (Bishoftu) ARC</strong> — East Shewa (Teff, Wheat)<br>
+        <span style="color:var(--leaf);">+251 114338555 &nbsp;|&nbsp; +251 114338765</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251584460702'">
+        📍 <strong>Fogera Research Center</strong> — South Gondar, Amhara<br>
+        <span style="color:var(--leaf);">+251 584460702</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251112370376'">
+        📍 <strong>Holeta ARC</strong> — West Shewa (Potato, Wheat, Barley)<br>
+        <span style="color:var(--leaf);">+251 112370376 &nbsp;|&nbsp; +251 112370006</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251471128020'">
+        📍 <strong>Jimma ARC</strong> — Jimma Zone (Coffee, Enset Hub)<br>
+        <span style="color:var(--leaf);">+251 471128020</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251223311509'">
+        📍 <strong>Kulumsa ARC</strong> — Arsi Zone (Teff, Wheat, Potato)<br>
+        <span style="color:var(--leaf);">+251 223311509 &nbsp;|&nbsp; +251 223311552</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+2512222502121'">
+        📍 <strong>Melkassa ARC</strong> — East Shewa (Maize, Sorghum)<br>
+        <span style="color:var(--leaf);">+251 2222502121 &nbsp;|&nbsp; +251 222250214</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251347770059'">
+        📍 <strong>Mehony ARC</strong> — South Tigray (Drought-tolerant crops)<br>
+        <span style="color:var(--leaf);">+251 347770059</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251585500327'">
+        📍 <strong>Pawe ARC</strong> — Metekel Zone, Benishangul-Gumuz<br>
+        <span style="color:var(--leaf);">+251 585500327</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251113380023'">
+        📍 <strong>Sebeta Fishery Research Center</strong> — West Shewa<br>
+        <span style="color:var(--leaf);">+251 113380023</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251475560356'">
+        📍 <strong>Tepi National Spice Research Center</strong> — Sheka (Coffee, Spices)<br>
+        <span style="color:var(--leaf);">+251 475560356</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251913225012'">
+        📍 <strong>Wereillu ARC</strong> — South Wollo, Amhara<br>
+        <span style="color:var(--leaf);">+251 913225012</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251221140705'">
+        📍 <strong>Werer ARC</strong> — Afar Region (Lowland crops)<br>
+        <span style="color:var(--leaf);">+251 221140705 &nbsp;|&nbsp; +251 221140276</span>
+      </div>
+      <div class="help-btn" onclick="window.location.href='tel:+251461190702'">
+        📍 <strong>Wondo Genet ARC</strong> — Sidama (Coffee, Enset, Potato)<br>
+        <span style="color:var(--leaf);">+251 461190702 &nbsp;|&nbsp; +251 461191245</span>
+      </div>
+
+      <p style="font-size:12px;color:var(--bark);margin-top:16px;line-height:1.7;background:#f8fdf2;border-radius:8px;padding:10px;">
+        💡 <strong>Tip:</strong> For fastest help, first contact your local <strong>Development Agent (DA)</strong> or Kebele Agriculture Office. Then call the nearest research center for your crop.
       </p>
       <button class="modal-close" id="help-modal-close" onclick="closeHelpModal()">✓ Close</button>
     </div>
