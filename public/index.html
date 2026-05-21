@@ -1423,19 +1423,17 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 
   
   
-  <!-- Multi-Image Upload Section -->
-  <div style="margin:12px 0;">
-    <button onclick="toggleMultiUpload()" style="background:transparent;border:1px dashed var(--sprout);color:var(--leaf);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">
-      📸 + Add More Photos (leaf, stem, root)
-    </button>
-    <div id="multi-upload-area" style="display:none;margin-top:10px;">
-      <input type="file" id="multi-photo-input" accept="image/*" multiple style="display:none;" onchange="handleMultiImages(event)">
-      <button onclick="document.getElementById('multi-photo-input').click()" style="background:var(--mist);border:1px solid var(--sprout);color:var(--leaf);border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;width:100%;margin-bottom:8px;">
-        📁 Select Multiple Photos
-      </button>
-      <div id="multi-img-grid" class="multi-img-grid"></div>
+  <!-- Multi-Image Upload Zone -->
+  <div class="upload-zone" id="uzone" onclick="document.getElementById('multiFileInput').click()">
+    <input type="file" id="multiFileInput" accept="image/*" multiple style="display:none;"
+           onchange="handleImageUpload(this.files)">
+    <div id="uploadPrompt" class="upload-prompt">
+      <div class="upload-icon">📸</div>
+      <p id="upload-text">Tap to upload plant photos</p>
+      <small>Multiple images supported • Select part for better accuracy</small>
     </div>
-  </div>
+    <div id="multiImgPreview" class="multi-img-grid"></div>
+  </div></div>
 
   <p class="slabel" id="label-symptoms">Visible Symptoms</p>
   <div class="sym-grid" id="symgrid"></div>
@@ -1848,9 +1846,9 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <div class="modal-header" style="background: linear-gradient(135deg, #1a3a05, #2D6A0A); text-align:center; padding: 32px 22px 24px;">
       <div style="font-size:56px;margin-bottom:12px;">👨‍💻</div>
       <h2 style="font-size:20px;">Resilience Guardian</h2>
-      <div style="font-size:16px;font-weight:700;color:var(--sprout);margin:4px 0;">Gulilat Kasiye Worku</div>
+      <div id="about-dev-name" style="font-size:16px;font-weight:700;color:var(--sprout);margin:4px 0;">Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)</div>
       <p id="about-job-title" style="font-size:13px;opacity:0.8;">Ethiopian AI Developer &amp; Entrepreneur</p>
-      <p style="font-size:13px;margin-top:12px;line-height:1.6;opacity:0.9;">Gulilat Kasiye Worku is an Ethiopian AI developer and entrepreneur who identified a critical gap — smallholder farmers growing Enset, Teff, Wheat, Maize, Coffee, Potato, Barley, and Sorghum had no AI tool that spoke their language, used local Ethiopian research, and gave advice grounded in their specific crops, zones, and farming conditions.</p>
+      <p style="font-size:13px;margin-top:12px;line-height:1.6;opacity:0.9;">ጉልላት ካስዬ ዎርቁ (Gulilat Kasiye Worku) is an Ethiopian AI developer and entrepreneur who identified a critical gap — smallholder farmers growing Enset, Teff, Wheat, Maize, Coffee, Potato, Barley, and Sorghum had no AI tool that spoke their language, used local Ethiopian research, and gave advice grounded in their specific crops, zones, and farming conditions.</p>
     </div>
     <div class="modal-body">
 
@@ -1875,7 +1873,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
         <h3 id="about-why-title" id="about-why-title">Why This Was Built</h3>
         <div style="background:white;border:1px solid #EAE4DC;border-radius:12px;padding:16px;">
           <p style="font-size:13px;line-height:1.7;color:var(--bark);">Existing crop disease apps like Plantix, Nuru, and Tumaini are powerful tools — but they are built for global or sub-Saharan general crops. None of them focus on <strong>Enset</strong>, Ethiopia's most important food security crop for 20+ million people. None give advice in <strong>Afaan Oromo or Tigrinya</strong>. None use research from <strong>Ethiopian institutions</strong> like EIAR, Jimma University, Bonga University, or Werabe Agricultural Research Centre.</p>
-          <p style="font-size:13px;line-height:1.7;color:var(--bark);margin-top:10px;">Resilience Guardian fills that gap — built by Gulilat Kasiye Worku, an Ethiopian developer, for Ethiopian farmers, using Ethiopian science.</p>
+          <p style="font-size:13px;line-height:1.7;color:var(--bark);margin-top:10px;">Resilience Guardian fills that gap — built by ጉልላት ካስዬ ዎርቁ (Gulilat Kasiye Worku), an Ethiopian developer, for Ethiopian farmers, using Ethiopian science.</p>
         </div>
       </div>
 
@@ -2008,29 +2006,29 @@ const T = {
   am: {
     headerSub: "የኢትዮጵያ ሰብል AI አማካሪ",
     labelLang: "ቋንቋ",
-    labelCrop: "ሰብልን ይምረጡ",
-    labelPhoto: "የተክል ፎቶ ያስገቡ",
-    labelSymptoms: "ምልክቶች",
+    labelCrop: "ሰብል ይምረጡ",
+    labelPhoto: "የእፅዋት ፎቶ ያስገቡ",
+    labelSymptoms: "የሚታዩ ምልክቶች",
     labelContext: "ተጨማሪ ማብራሪያ",
-    uploadText: "ፎቶ ለማስገባት ይጫኑ",
+    uploadText: "ፎቶ ለመስቀል ይጫኑ",
     voiceMain: "ለመናገር ይጫኑ",
     voiceSub: "ምልክቶቹን ይግለጹ",
     analyzeBtnText: "AI ይተንትን",
     loadingText: "የተክል ጤናን እየተነተነ...",
     loadingSub: "ምልክቶቹን እና ፎቶውን እየመረመረ",
     navAdvisor: "አማካሪ",
-    navHowto: "እንዴት ይሠራል",
+    navHowto: "እንዴት ይሰራል",
     navResearch: "ምርምር",
-    navAbout: "ስለ",
+    navAbout: "ስለ እኛ",
     statusReady: "AI ዝግጁ",
     offlineBanner: "📡 ኢንተርኔት የለም — ትንተናዎቹ ሲያያዝ ይላካሉ",
     changeBtnText: "ፎቶ ይቀይሩ",
     resAIDiagnosis: "AI ምርመራ",
-    resSeverity: "የክብደት ግምገማ",
+    resSeverity: "የጉዳት ደረጃ",
     resDiagnosis: "ምርመራ",
-    resImmediateActions: "ፈጣን እርምጃዎች",
-    resPreventive: "መከላከያ እርምጃዎች",
-    resNearestHelp: "📍 ቅርብ የግብርና እርዳታ",
+    resImmediateActions: "ፈጣን የሚወሰዱ እርምጃዎች",
+    resPreventive: "ለወደፊት መከላከያ",
+    resNearestHelp: "📍 ቅርብ የግብርና ባለሙያ",
     resNearestSub: "ቁጥሩን ጠቅ ያድርጉ ወደ ቅርብ ቢሮ ለመደወል።",
     resOutbreak: "በብዙ እርሻዎች ላይ ለሚሰራጭ ወረርሽኝ ወደ <strong>የግብርና ሚኒስቴር</strong> ሆትላይን ያነጋግሩ:",
     resLocalSummaryLabel: "በአማርኛ ማጠቃለያ",
@@ -2040,10 +2038,10 @@ const T = {
     resSevHigh: "ከፍተኛ አደጋ",
     resConfidence: "ትክክለኛነት",
     resOfflineEstimate: "ከበይነ-መረብ ውጪ ግምት",
-    histNoAnalyses: "ምርመራ የለም",
+    histNoAnalyses: "ምንም ምርምር የለም",
     histNoAnalysesSub: "የመጀመሪያ ምርምርዎን ያካሂዱ፣ ከዚያ ይታያል።",
     histModalClose: "ዝጋ",
-    modalClose: "✓ ገባኝ",
+    modalClose: "✓ ገብቶኛል",
     infoPWA: "PWA",
     infoIndexedDB: "IndexedDB",
     infoBgSync: "ጀርባ ሲንክ",
@@ -2056,8 +2054,9 @@ const T = {
     resHowTitle: "ምርምር ወደ ምክር እንዴት ይለወጣል",
     aboutTitle: "Resilience Guardian",
     aboutJobTitle: "የኢትዮጵያ AI ገንቢ እና ሥራ ፈጣሪ",
-    aboutWhyTitle: "ለምን ተሠራ",
-    aboutDiffTitle: "ምን ይለያዋል",
+    aboutDevName: "ጉልላት ካስዬ ዎርቁ",
+    aboutWhyTitle: "ለምን ተሰራ",
+    aboutDiffTitle: "ከሌሎች ምን ይለየዋል",
     aboutVersionTitle: "አሁናዊ ስሪት",
     aboutDiscTitle: "ማስጠንቀቂያ",
     aboutCrops: "የሚሸፍናቸው ሰብሎች",
@@ -2143,29 +2142,29 @@ const T = {
   ti: {
     headerSub: "ናይ ኢትዮጵያ ሰብሊ AI መካሪ",
     labelLang: "ቋንቋ",
-    labelCrop: "ሰብሊ ምረጽ",
+    labelCrop: "ሰብሊኻ ምረጽ",
     labelPhoto: "ስእሊ ተኽሊ ኣስፍር",
     labelSymptoms: "ዝረኣዩ ምልክታት",
     labelContext: "ተወሳኺ ሓበሬታ",
-    uploadText: "ስእሊ ናይ ምስፋር ጠውቕ",
+    uploadText: "ስእሊ ናይ ምጽዓን ጠውቕ",
     voiceMain: "ንምዝራብ ጠውቕ",
     voiceSub: "ምልክታት ግለጽ",
-    analyzeBtnText: "ብ AI ተንትን",
-    loadingText: "ጥዕና ተኽሊ ይትንትን ኣሎ...",
+    analyzeBtnText: "ብ AI ምርመራ ግበር",
+    loadingText: "ጥዕና ተኽሊ ይምርምር ኣሎ...",
     loadingSub: "ምልክታትን ስእሊን ይምርምር ኣሎ",
-    navAdvisor: "መካሪ",
-    navHowto: "ከመይ ይሰርሕ",
+    navAdvisor: "ምኽሪ ሃቢ",
+    navHowto: "ከመይ ከምዝሰርሕ",
     navResearch: "መጽናዕቲ",
-    navAbout: "ብዛዕባ",
-    statusReady: "AI ድሉው",
+    navAbout: "ብዛዕባና",
+    statusReady: "AI ድሉው እዩ",
     offlineBanner: "📡 ኢንተርኔት የለን — ምርመራ ምስተተሓሓዘ ይሰዳ",
     changeBtnText: "ስእሊ ቀይር",
     resAIDiagnosis: "AI ምርመራ",
-    resSeverity: "ምዘና ክብደት",
+    resSeverity: "ደረጃ ሓደጋ",
     resDiagnosis: "ምርመራ",
-    resImmediateActions: "ቀልጡፍ ስጉምቲ",
-    resPreventive: "ናይ ምክልካል ስጉምቲ",
-    resNearestHelp: "📍 ቀረባ ናይ ሕርሻ ሓገዝ",
+    resImmediateActions: "ቅልጡፍ ስጉምቲ ውሰድ",
+    resPreventive: "ናይ ምክልኻል ስጉምቲ",
+    resNearestHelp: "📍 ቀረባ ናይ ሕርሻ ሓጋዚ",
     resNearestSub: "ቁጽሪ ጠውቕ ናብ ቀረባ ቤት-ጽሕፈት ደውል።",
     resOutbreak: "ንብዙሕ ሕርሻታት ዝጸልው ሕማም ምስ ዝህሉ ናብ <strong>ሚኒስቴር ሕርሻ</strong> ሆትላይን ድወል:",
     resLocalSummaryLabel: "ጠቕላላ ብቲግርኛ",
@@ -2175,7 +2174,7 @@ const T = {
     resSevHigh: "ልዑል ሓደጋ",
     resConfidence: "ርግጸኝነት",
     resOfflineEstimate: "ካብ ኢንተርኔት ወጻኢ ግምት",
-    histNoAnalyses: "ምርመራ የለን",
+    histNoAnalyses: "ምርመራ የልቦን",
     histNoAnalysesSub: "ናይ መጀመርያ ምርምርካ ግበር፣ ድሕሪኡ ኣብዚ ይረኤ።",
     histModalClose: "ዕጸው",
     modalClose: "✓ ተረዲኡኒ",
@@ -2190,7 +2189,7 @@ const T = {
     resWheat: "🌿 መጽናዕቲ ስንዴ — 1 ወረቐት",
     resHowTitle: "መጽናዕቲ ናብ ምኽሪ ከመይ ይቕየር",
     aboutTitle: "Resilience Guardian",
-    aboutJobTitle: "ናይ ኢትዮጵያ AI ሰሪሕ ን ኢንተርፕረነር",
+    aboutJobTitle: "ናይ ኢትዮጵያ AI ሰራሒን ኢንተርፕረነርን",
     aboutWhyTitle: "ስለምንታይ ተሃኒጹ",
     aboutDiffTitle: "እንታይ ይፈልዮ",
     aboutVersionTitle: "ናይ ሕጂ ቨርሽን",
@@ -2516,56 +2515,49 @@ function renderSeverityAndCost(result) {
 // ==================== MULTI IMAGE UPLOAD ====================
 let multiImages = [];
 
-function toggleMultiUpload() {
-  const area = document.getElementById('multi-upload-area');
-  if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
-}
-
-function handleMultiImages(e) {
-  handleImageUpload(e.target.files);
-}
-
 function handleImageUpload(files) {
-  Array.from(files).forEach((file, index) => {
+  Array.from(files).forEach((file, idx) => {
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = ev => {
-      const id = Date.now() + index + Math.random();
-      multiImages.push({ id, base64: ev.target.result.split(',')[1], part: 'leaf', name: file.name });
-      renderMultiGrid();
+    reader.onload = e => {
+      multiImages.push({ id: Date.now() + idx, base64: e.target.result.split(',')[1], part: 'leaf' });
+      renderMultiPreview();
+      if (multiImages.length === 1) { photoBase64 = multiImages[0].base64; photoMimeType = 'image/jpeg'; }
     };
     reader.readAsDataURL(file);
   });
 }
 
-function renderMultiGrid() {
-  const grid = document.getElementById('multi-img-grid');
-  if (!grid) return;
-  grid.innerHTML = multiImages.map((img, i) => `
+function renderMultiPreview() {
+  const container = document.getElementById('multiImgPreview');
+  if (!container) return;
+  const prompt = document.getElementById('uploadPrompt');
+  if (prompt) prompt.style.display = multiImages.length > 0 ? 'none' : 'block';
+  container.innerHTML = multiImages.map((img, i) => `
     <div class="multi-img-item">
-      <img src="data:image/jpeg;base64,${img.base64}" alt="photo ${i+1}">
+      <img src="data:image/jpeg;base64,${img.base64}" alt="preview">
       <button class="multi-img-remove" onclick="removeMultiImage(${i})">✕</button>
-      <select onchange="updateImagePart(${i}, this.value)">
-        <option value="leaf">🍃 Leaf</option>
-        <option value="stem">🌿 Stem</option>
-        <option value="root">🌱 Root</option>
-        <option value="whole">🌾 Whole</option>
-        <option value="fruit">🍎 Fruit</option>
+      <select onchange="multiImages[${i}].part = this.value">
+        <option value="leaf" ${img.part==='leaf'?'selected':''}>🍃 Leaf</option>
+        <option value="stem" ${img.part==='stem'?'selected':''}>🌿 Stem</option>
+        <option value="root" ${img.part==='root'?'selected':''}>🌱 Root</option>
+        <option value="whole" ${img.part==='whole'?'selected':''}>🌾 Whole</option>
+        <option value="fruit" ${img.part==='fruit'?'selected':''}>🍎 Fruit</option>
       </select>
     </div>`).join('');
 }
 
-function removeMultiImage(index) {
-  multiImages.splice(index, 1);
-  renderMultiGrid();
+function removeMultiImage(i) {
+  multiImages.splice(i, 1);
+  renderMultiPreview();
+  photoBase64 = multiImages.length > 0 ? multiImages[0].base64 : '';
 }
 
-function updateImagePart(index, part) {
-  if (multiImages[index]) multiImages[index].part = part;
-}
-
-function removeMultiImg(id) { removeMultiImage(multiImages.findIndex(i => i.id === id)); }
+function handleMultiImages(e) { handleImageUpload(e.target.files); }
+function removeMultiImg(id) { removeMultiImage(multiImages.findIndex(img => img.id === id)); }
 function updateImgPart(id, part) { const img = multiImages.find(i => i.id === id); if(img) img.part = part; }
+function updateImagePart(i, part) { if(multiImages[i]) multiImages[i].part = part; }
+function toggleMultiUpload() {}
 
 // ==================== TRANSLATION CACHE & HELPER ====================
 const _txCache = {};
@@ -3110,10 +3102,10 @@ Respond ONLY with this JSON (no markdown):
 }`;
 
     const parts = [{ text: promptText }];
-    // Add images — multi-image takes priority over single
+    // Add images — multi-image takes priority
     if (multiImages.length > 0) {
       multiImages.forEach((img, i) => {
-        parts[0].text += `\nImage ${i+1} - Plant Part: ${img.part.toUpperCase()}`;
+        parts[0].text += '\nImage ' + (i+1) + ' - Plant Part: ' + img.part.toUpperCase();
         parts.push({ inline_data: { mime_type: 'image/jpeg', data: img.base64 } });
       });
     } else if (photoBase64) {
@@ -3166,7 +3158,10 @@ Respond ONLY with this JSON (no markdown):
       timestamp: Date.now()
     });
 
-    document.getElementById('offlineBanner').style.display = 'flex';
+    // Only show offline banner if actually offline
+    if (!navigator.onLine) {
+      showOfflineBanner();
+    }
 
     renderResult({
       disease_name: currentLang === 'am' ? 'ያለ ኢንተርኔት ሁነታ' : currentLang === 'om' ? 'Haala Interneetii Malee' : currentLang === 'ti' ? 'ናይ ኢንተርኔት-ዘይብሉ ኩነታት' : 'Offline Mode — Analysis Queued',
@@ -3254,106 +3249,106 @@ const EXTENSION_OFFICES = {
 // ==================== RENDER RESULT ====================
 function renderResult(r) {
   const div = document.getElementById('rcrd');
-  const t = T[currentLang] || T.en;
+  const t   = T[currentLang] || T.en;
+  const sev  = getSeverityAndYield(currentCrop, Array.from(selectedSymptoms || []), r.diagnosis || '');
+  const cost = calculateTreatmentCost(currentCrop);
+  const sevColor = sev.severity === 'high' ? '#B83010' : sev.severity === 'medium' ? '#D4A017' : '#3A9E4A';
+  const sevBar   = sev.severity === 'high' ? '#ff6b6b'  : sev.severity === 'medium' ? '#ffd93d'  : '#6EE37A';
+  const sevIcon  = sev.severity === 'high' ? '🔴'       : sev.severity === 'medium' ? '🟡'       : '🟢';
 
-  const severityColor = { low: '#3A9E4A', medium: '#C8860A', high: '#B83010' };
-  const severityIcon  = { low: '🟢', medium: '🟡', high: '🔴' };
-  const sev = r.severity || 'medium';
-  const sevLabel = { low: t.resSevLow, medium: t.resSevMed, high: t.resSevHigh };
-  const confText = r.confidence ? `${r.confidence}% ${t.resConfidence}` : t.resOfflineEstimate;
-
-  const actionsHTML = (r.immediate_actions || r.actions || [])
-    .map(a => `<li>${a}</li>`).join('');
-
-  const preventHTML = (r.preventive_measures || [])
-    .map(a => `<li>${a}</li>`).join('');
-
-  // Nearest Help offices for current crop
-  const offices = EXTENSION_OFFICES[currentCrop] || EXTENSION_OFFICES.enset;
+  // Build offices HTML
+  const offices = (EXTENSION_OFFICES[currentCrop] || EXTENSION_OFFICES.enset || []).slice(0, 2);
   const officesHTML = offices.map(o => `
-    <div style="background:white;border:1px solid #EAE4DC;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;">
-      <span style="font-size:22px;flex-shrink:0;">📞</span>
+    <div style="background:white;padding:12px;border:1px solid #EAE4DC;border-radius:10px;margin:6px 0;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:22px;">📞</span>
       <div>
-        <div style="font-size:13px;font-weight:600;color:var(--soil);margin-bottom:2px;">${o.region}</div>
-        <a href="tel:${o.phone}" style="font-size:15px;font-weight:700;color:var(--leaf);text-decoration:none;display:block;margin-bottom:2px;">${o.phone}</a>
-        <div style="font-size:11px;color:#9A8E84;">${o.note}</div>
+        <div style="font-weight:600;font-size:13px;">${o.region}</div>
+        <a href="tel:${o.phone}" style="color:var(--leaf);font-weight:700;font-size:14px;">${o.phone}</a>
+        ${o.note ? `<div style="font-size:11px;color:var(--bark);opacity:0.7;">${o.note}</div>` : ''}
       </div>
     </div>`).join('');
 
-  const cropName = currentCrop.charAt(0).toUpperCase() + currentCrop.slice(1);
-
   div.innerHTML = `
     <div class="result-header">
-      <div class="result-badge">${t.resAIDiagnosis}</div>
+      <div class="result-badge">${t.resAIDiagnosis || 'AI Diagnosis'}</div>
       <div class="result-title">${r.disease_name || 'Analysis Complete'}</div>
-      <div class="result-meta">${cropName} · ${confText}</div>
+      <div class="result-meta">${currentCrop.toUpperCase()} &bull; ${r.confidence || 75}% ${t.resConfidence || 'confidence'}</div>
     </div>
     <div class="result-body">
 
-      <!-- SEVERITY with icon -->
-      <div class="result-section">
-        <h4>${t.resSeverity}</h4>
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:white;border:1px solid #EAE4DC;border-radius:10px;">
-          <span style="font-size:36px;line-height:1;">${severityIcon[sev]}</span>
-          <div style="flex:1;">
-            <div style="font-size:16px;font-weight:700;color:${severityColor[sev]};margin-bottom:4px;">${sevLabel[sev]}</div>
-            <div class="severity-bar severity-${sev}" style="height:7px;border-radius:4px;background:#E0DAD0;">
-              <div class="severity-fill" style="height:100%;border-radius:4px;width:${sev === 'low' ? 30 : sev === 'medium' ? 60 : 92}%;background:${severityColor[sev]};"></div>
+      <div class="severity-yield-card">
+        <h4 data-i18n="resSeverity">${t.resSeverity || 'Severity Assessment'}</h4>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;">
+          <span style="font-size:42px;">${sevIcon}</span>
+          <div style="flex:1">
+            <strong style="font-size:18px;color:${sevColor}">${sev.severity.toUpperCase()}</strong>
+            <div style="background:#E0DAD0;height:8px;border-radius:4px;overflow:hidden;margin:6px 0;">
+              <div style="width:${sev.score}%;background:${sevBar};height:100%;border-radius:4px;transition:width 0.8s;"></div>
             </div>
+            <small><strong>${t.resPreventive ? '' : 'Estimated Yield Loss:'}</strong> ⚠️ ${sev.yieldLossPercent}% yield loss if untreated</small>
           </div>
         </div>
+        <p style="font-size:12px;color:var(--bark);margin:0;">
+          ${sev.severity === 'high'
+            ? '🚨 Immediate action required — contact your Development Agent within 24-48 hours.'
+            : sev.severity === 'medium'
+            ? '⚡ Manageable with prompt treatment this week.'
+            : '✅ Caught early — treat now to prevent spread.'}
+        </p>
       </div>
 
       <div class="divider"></div>
 
       <div class="result-section">
-        <h4>${t.resDiagnosis}</h4>
-        <p>${r.diagnosis || ''}</p>
+        <h4 data-i18n="resDiagnosis">${t.resDiagnosis || 'Diagnosis'}</h4>
+        <p>${r.diagnosis || r.disease_name || ''}</p>
       </div>
 
-      ${actionsHTML ? `
-      <div class="divider"></div>
+      ${r.immediate_actions && r.immediate_actions.length > 0 ? `
       <div class="result-section">
-        <h4>${t.resImmediateActions}</h4>
-        <ul class="action-list">${actionsHTML}</ul>
+        <h4 data-i18n="resImmediateActions">${t.resImmediateActions || 'Immediate Actions'}</h4>
+        <ul class="action-list">${r.immediate_actions.map(a => `<li>${a}</li>`).join('')}</ul>
       </div>` : ''}
 
-      ${preventHTML ? `
-      <div class="divider"></div>
+      ${r.preventive_measures && r.preventive_measures.length > 0 ? `
       <div class="result-section">
-        <h4>${t.resPreventive}</h4>
-        <ul class="action-list">${preventHTML}</ul>
+        <h4 data-i18n="resPreventive">${t.resPreventive || 'Preventive Measures'}</h4>
+        <ul class="action-list">${r.preventive_measures.map(p => `<li>${p}</li>`).join('')}</ul>
       </div>` : ''}
+
+      <div class="cost-card">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--leaf);margin-bottom:12px;">💰 Estimated Treatment Cost (${farmerProfile.farmSizeHa || farmerProfile.farm || 0.5} ha)</div>
+        ${cost.rows}
+        <div class="cost-total">
+          <span>Total Cost</span>
+          <strong>${cost.total} ETB</strong>
+        </div>
+        <p style="font-size:11px;color:var(--bark);margin:8px 0 0;">💡 Organic alternatives (neem, wood ash) can reduce cost by ~35-40% ≈ ${Math.round(cost.total * 0.62)} ETB</p>
+      </div>
 
       ${r.local_summary ? `
-      <div class="divider"></div>
       <div class="result-section">
-        <h4>${t.resLocalSummaryLabel} &nbsp;<span style="font-weight:400;opacity:0.6;font-size:9px;letter-spacing:0;">${t.resLocalSummaryLang} Summary</span></h4>
-        <div class="amharic-box" lang="${currentLang}" dir="ltr">${r.local_summary}</div>
+        <h4 data-i18n="resLocalSummaryLabel">${t.resLocalSummaryLabel || 'Local Language Summary'}</h4>
+        <div class="amharic-box">${r.local_summary}</div>
       </div>` : ''}
 
       <div class="divider"></div>
 
-      <!-- SEVERITY + COST -->
-      ${renderSeverityAndCost(r)}
-
-      <!-- NEAREST HELP -->
       <div class="result-section">
-        <h4>${t.resNearestHelp}</h4>
-        <p style="font-size:12px;color:#9A8E84;margin-bottom:10px;">${t.resNearestSub}</p>
+        <h4 data-i18n="resNearestHelp">${t.resNearestHelp || '📍 Nearest Agricultural Help'}</h4>
+        <p style="font-size:12px;color:#9A8E84;margin-bottom:8px;" data-i18n="resNearestSub">${t.resNearestSub || 'Tap a number to call your nearest extension office directly.'}</p>
         <button onclick="showHelpModal()" style="background:var(--leaf);color:white;border:none;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;margin-bottom:10px;width:100%;">📞 View All Contact Numbers</button>
         ${officesHTML}
         <div style="background:#FFF8EC;border:1px solid #F0D080;border-radius:10px;padding:10px 14px;margin-top:6px;font-size:12px;color:#7A5A00;display:flex;gap:8px;align-items:flex-start;">
-          <span style="flex-shrink:0;">⚠️</span>
-          <span>${t.resOutbreak} <a href="tel:+251116462633" style="color:var(--leaf);font-weight:700;">+251 11 646 2633</a></span>
+          <span>⚠️</span>
+          <span>${t.resOutbreak || 'For disease outbreaks affecting many farms, contact the <strong>Ministry of Agriculture</strong> hotline.'}</span>
         </div>
       </div>
 
-    </div>
-  `;
+    </div>`;
 
   div.style.display = 'block';
-  setTimeout(() => div.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ==================== HISTORY ====================
@@ -3407,16 +3402,29 @@ function handleHistoryModalClick(e) {
 
 // ==================== NETWORK STATUS ====================
 function checkNetwork() {
+  // Only show banner if browser confirms offline
   if (!navigator.onLine) {
-    document.getElementById('offlineBanner').style.display = 'flex';
+    showOfflineBanner();
+  } else {
+    hideOfflineBanner();
   }
 }
 
-window.addEventListener('offline', () => {
-  document.getElementById('offlineBanner').style.display = 'flex';
-});
+function showOfflineBanner() {
+  const b = document.getElementById('offlineBanner');
+  if (b) b.style.display = 'flex';
+}
+
+function hideOfflineBanner() {
+  const b = document.getElementById('offlineBanner');
+  if (b) b.style.display = 'none';
+}
+
+window.addEventListener('offline', showOfflineBanner);
 window.addEventListener('online', () => {
-  document.getElementById('offlineBanner').style.display = 'none';
+  hideOfflineBanner();
+  // Retry any queued analyses
+  syncPending();
 });
 
 // ==================== ABOUT MODAL ====================
