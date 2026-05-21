@@ -1389,6 +1389,127 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ─── FOLLOW-UP CHAT ──────────────────────────────────── */
+.chat-section {
+  margin-top: 20px;
+  border-top: 2px solid var(--mist);
+  padding-top: 16px;
+}
+.chat-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bark);
+  margin-bottom: 12px;
+}
+.chat-messages {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+.chat-msg.user {
+  background: var(--leaf);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.ai {
+  background: var(--mist);
+  color: var(--soil);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-msg.thinking {
+  background: var(--mist);
+  color: var(--bark);
+  align-self: flex-start;
+  font-style: italic;
+  opacity: 0.8;
+}
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chat-input {
+  flex: 1;
+  border: 1.5px solid #D8D0C4;
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--soil);
+  background: white;
+  resize: none;
+  outline: none;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.chat-input:focus { border-color: var(--leaf); }
+.chat-send-btn {
+  width: 42px;
+  height: 42px;
+  background: var(--leaf);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.chat-send-btn:hover { background: var(--sprout); }
+.chat-send-btn:disabled { background: #ccc; cursor: not-allowed; }
+.quick-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.quick-q {
+  background: white;
+  border: 1px solid var(--sprout);
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--leaf);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quick-q:hover { background: var(--leaf); color: white; }
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--bark);
+  margin-bottom: 8px;
+}
+.connection-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+}
+.connection-dot.online { background: #4CAF50; }
+.connection-dot.offline { background: #f44336; }
+
 </style>
 </head>
 <body>
@@ -3158,101 +3279,111 @@ async function getHistory() {
 
 // ==================== ANALYZE ====================
 async function analyze() {
-  // ── Validate before running ──
-  if (!currentCrop) {
-    alert('Please select a crop first.');
-    return;
-  }
+  if (!currentCrop) { alert('Please select a crop first.'); return; }
 
-  const btn = document.getElementById('abtn');
+  const btn     = document.getElementById('abtn');
   const loading = document.getElementById('lcrd');
-  const result = document.getElementById('rcrd');
+  const result  = document.getElementById('rcrd');
 
   btn.disabled = true;
   loading.style.display = 'block';
-  result.style.display = 'none';
+  result.style.display  = 'none';
+
+  const symptomsList = Array.from(selectedSymptoms).join(', ') || 'None specified';
+  const context      = document.getElementById('ctx').value || '';
+
+  // ── Step 1: Real connectivity test ──────────────────────
+  let isOnline = navigator.onLine;
+  if (isOnline) {
+    try {
+      const test = await fetch('/api/health', { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+      isOnline = test.ok;
+    } catch {
+      isOnline = false;
+    }
+  }
+
+  // ── Step 2: Offline — use local disease DB ────────────
+  if (!isOnline) {
+    showOfflineBanner();
+    loading.style.display = 'none';
+    btn.disabled = false;
+
+    // Try local disease DB first
+    const localMatches = searchLocalDisease(currentCrop, symptomsList);
+    if (localMatches.length > 0) {
+      const d = localMatches[0];
+      renderResult({
+        disease_name: d.name,
+        severity: d.severity === 'Very High' ? 'high' : d.severity === 'High' ? 'high' : 'medium',
+        confidence: 65,
+        diagnosis: d.symptoms,
+        immediate_actions: [d.treatment],
+        preventive_measures: [d.prevention],
+        local_summary: currentLang === 'am'
+          ? 'ያለ ኢንተርኔት ከአካባቢ ዳታቤዝ ውጤት። ኢንተርኔት ሲኖር AI ምርመራ ያካሂዱ።'
+          : currentLang === 'om'
+          ? 'Interneetii malee database keessaa argame. Interneetii yoo jiraate AI waliin qori.'
+          : currentLang === 'ti'
+          ? 'ብዘይ ኢንተርኔት ካብ ዳታቤዝ ዝረኸብካዮ። ኢንተርኔት ምስ ዝህሉ AI ተጠቐም።'
+          : 'Offline result from local database. Connect to internet for AI diagnosis.'
+      });
+    } else {
+      renderResult({
+        disease_name: currentLang === 'am' ? 'ዕቀብ ዕቀብ ሁነታ' : 'Offline Mode',
+        severity: 'medium', confidence: null,
+        diagnosis: currentLang === 'am'
+          ? 'ኢንተርኔት የለም። ምልክቶቹን ምረጡ — ከዳታቤዝ ምርመራ ለማካሄድ።'
+          : 'No internet connection. Select symptoms above for local database diagnosis.',
+        immediate_actions: ['Sterilize all tools', 'Remove infected plant parts', 'Isolate affected plants'],
+        preventive_measures: ['Use certified seed', 'Practice crop rotation'],
+        local_summary: ''
+      });
+    }
+
+    // Queue for sync when online
+    await saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), context, timestamp: Date.now() });
+    return;
+  }
+
+  // ── Step 3: Online — call Gemini via server ────────────
+  hideOfflineBanner();
+
+  const cropKnowledge = {
+    enset: 'Enset (Ensete ventricosum) — Ethiopia staple for 20M+ people in Southern regions. Key disease: Bacterial Wilt (Xcm). Altitude 1500-3000m.',
+    teff: 'Teff (Eragrostis tef) — Ethiopia exclusive grain, 6M ha cultivated. Key diseases: Leaf Rust, Head Smudge.',
+    wheat: 'Wheat — Major cereal. Biggest threat: Stripe Rust Ug99 race (up to 100% yield loss). Altitude 1500-3000m.',
+    maize: 'Maize (Zea mays) — 2nd most important cereal. Key disease: Northern Leaf Blight.',
+    coffee: 'Coffee — Ethiopia origin country. Key diseases: Coffee Berry Disease (40-80% loss), Coffee Wilt Disease.',
+    potato: 'Potato — Key food security crop. Biggest threat: Late Blight (Phytophthora infestans).',
+    barley: 'Barley — Highland cereal. Key diseases: Scald, Net Blotch.',
+    sorghum: 'Sorghum — Drought-tolerant lowland crop. Key diseases: Anthracnose, Grain Mold.'
+  };
 
   try {
-    const symptomsList = Array.from(selectedSymptoms).join(', ') || 'None specified';
-    const context = document.getElementById('ctx').value || '';
-
-    const cropKnowledge = {
-      enset: `Enset (Ensete ventricosum) — SOURCE: Negash T. et al., Bonga University 2023; Temam B. et al., Werabe ARC 2023; Tsegaye Yibgeta, Jimma University 2021.
-DOMINANT REGIONS: SNNPR (Gurage, Siltie, Wolayita, Kaffa, Bench), Oromia (Jimma). Altitude: 1500–2500m.
-PRIMARY DISEASE: Bacterial Wilt (Xanthomonas campestris pv. musacearum / Xcm). First symptom is heart-leaf wilting — critical early sign. Secondary: yellowing of older leaves, bacterial ooze from cut pseudostem, black streaks in vascular tissue. Up to 80% of Ethiopian enset farms infected. Spreads via contaminated tools (survives 3–4 days on knives), infected planting material (survives 3 months in soil), and irrigation water. NO CHEMICAL CURE.
-MANAGEMENT: (1) Rogue — uproot and bury infected plants immediately, never compost. (2) Sterilize tools with fire or bleach between every plant. (3) Use clean suckers only. (4) Community simultaneous mass rouging proven most effective — Temam et al. 2023 reduced prevalence from 65.7% to 5.6% in Siltie/Gurage. (5) Resistant clones: Gishera, Durbete. Secondary diseases: Root Mealybug, Sigatoka, Cordana.`,
-
-      teff: `Teff (Eragrostis tef) — SOURCE: Degete A.G., EIAR Debre Zeit 2021; Bekana G., Int. J. Applied Agricultural Sciences 2021.
-DOMINANT REGIONS: Amhara (North Shewa, South Shewa), Oromia (West Shewa, West Hararghe). Altitude: 1500–2400m.
-PRIMARY DISEASES: (1) Leaf Rust (Puccinia sp.) — orange pustules on leaves, 10–41% yield loss. Highest severity in Mendida (North Shewa, 90% severity). Zero rust in Woliso/Dendi. (2) Head Smudge — reduces grain quality and market value, worst in Liben Jawe (West Shewa), absent in North Shewa. (3) Zonate Eye Spot — circular lesions with concentric rings. (4) Smut — black grain heads. (5) Damping Off — seedling death.
-MANAGEMENT: Proper plant spacing for airflow, propiconazole or mancozeb fungicide at first rust sign, certified seed, crop rotation. Plant resistant varieties where available.`,
-
-      maize: `Maize (Zea mays) — SOURCE: Ethiopian MoA Maize Sector Strategy 2013–2017; FAO Maize Value Chain Ethiopia; Semantic Scholar Socio-Economic Study; ACIAR Farming System Framework.
-DOMINANT REGIONS: Oromia (Jimma, Bako, West Hararghe), SNNPR, Amhara (West Gojjam). Farming system: mixed smallholder, 1200–2200m altitude.
-PRIMARY DISEASES: (1) Northern Leaf Blight / NLB (Exserohilum turcicum) — most prevalent, long cigar-shaped grey-tan lesions on leaves, 20–50% yield loss. (2) Gray Leaf Spot (Cercospora zeae-maydis) — grey rectangular spots, worsens in humid conditions. (3) Common Rust (Puccinia sorghi) — orange-red pustules on both leaf surfaces, 12–60% yield loss. (4) Maize Lethal Necrosis Disease (MLND) — viral, devastating, no chemical cure — only resistant varieties and rouging. (5) Stalk/Ear Rots (Gibberella/Fusarium) — rotting stems and cobs, produces mycotoxins dangerous for human/animal consumption.
-MANAGEMENT: Resistant varieties are primary control — BH-540, BH-543, BH-546, BH-660 (NLB-resistant). Crop rotation (at least 1 year break). Propiconazole fungicide for TLB at early sign. Remove infected crop residues after harvest. Source certified, disease-free seed.`,
-
-      coffee: `Coffee (Coffea arabica) — SOURCE: EfD Coffee and Household Poverty Study Ethiopia; David Publisher Coffee-Khat Interface Eastern Ethiopia; IIASA Smallholder Typologies Ethiopia.
-DOMINANT REGIONS: Oromia (Kaffa, Jimma, Illubabor, East Hararghe), SNNPR (Sidama, Gedeo). Altitude: 1500–2200m optimal; CLR worst below 1500m.
-PRIMARY DISEASES: (1) Coffee Berry Disease / CBD (Colletotrichum kahawae) — most economically devastating. Dark lesions on green berries, 48.7% berry loss in untreated farms. Management: mancozeb or copper-oxychloride spray beginning at small-berry stage; maintain shade cover. (2) Coffee Wilt Disease / CWD (Fusarium xylarioides) — soil-borne vascular wilt, 37% national yield loss, 28% incidence nationwide. NO CHEMICAL CURE — uproot infected trees, burn (do not compost), do not replant coffee in same spot for 3+ years. (3) Coffee Leaf Rust / CLR (Hemileia vastatrix) — orange pustules under leaves, worsens below 1500m altitude. Manage with copper-based fungicides; shade management reduces severity.
-TRADITIONAL PRACTICE: Forest-coffee shade management (Kaffa) reduces CLR by maintaining humidity balance and limiting temperature spikes. Community nurseries producing CWD-resistant planting material documented in Jimma zone.`,
-
-      potato: `Potato (Solanum tuberosum) — SOURCE: ACIAR Farming System Framework; IIASA Smallholder Typologies Ethiopia; Concern Worldwide Amhara Programme Report.
-DOMINANT REGIONS: Amhara (North Shewa — Holeta), Oromia (Arsi, Bale highlands), Tigray highlands. Altitude: 1800–3000m. Cool, humid conditions. Potato is expanding into Amhara barley-growing communities as a food security crop.
-PRIMARY DISEASES: (1) Late Blight (Phytophthora infestans) — decades-dominant disease in Ethiopian highlands. Dark water-soaked lesions on leaves with white sporulation on leaf underside in wet weather. Spreads rapidly in cool humid conditions (10–15°C, high humidity). Devastates entire fields within days if not managed. Management: metalaxyl+mancozeb or cymoxanil+mancozeb fungicide spray at 7–10 day intervals in wet season; plant resistant varieties (Gudene, Belete). (2) Bacterial Wilt (Ralstonia solanacearum) — wilting, brown vascular staining, bacterial ooze from cut stem. NO CHEMICAL CURE. Management: rogue infected plants, bury material (never compost), use clean certified seed tubers, 3-year rotation (avoid solanaceous crops), avoid contaminated irrigation water, sanitize tools.
-MANAGEMENT: Source certified disease-free seed tubers only. Holeta and Sinana Agricultural Research Centers supply improved seed.`,
-
-      barley: `Barley (Hordeum vulgare) — SOURCE: CGSpace CGIAR Nutritive Values and Farmers Preference of Barley; ACIAR Farming System Framework; WUR Wageningen Edepot Pulses and Cereal Rotation Context.
-DOMINANT REGIONS: Amhara (Gondar, South Gondar, North Shewa — Adet ARC), Oromia (Arsi, Bale), Tigray, SNNPR (Sidama — malt barley). Altitude: 1500–3500m. Ethiopia's 4th most important cereal. National yield: 1.97 t/ha vs 3.1 global average — disease is a key yield gap driver. Approximately 40 diseases recorded in Ethiopian barley.
-PRIMARY DISEASES: (1) Scald (Rhynchosporium secalis) — most prevalent, found in 79.2% of surveyed barley fields nationwide. Water-soaked blotches turning tan/brown. Spreads in wet cool conditions. (2) Net Blotch (Pyrenophora teres) — most widespread in terms of damage, net-like brown lesions on leaves, up to 67% yield loss. (3) Stripe Rust (Puccinia striiformis) — yellow pustule stripes on leaves, worsens at higher altitudes. (4) Loose Smut (Ustilago nuda) — black sooty grain heads, seed-borne. (5) Spot Blotch (Cochliobolus sativus) — brown spots on leaves and stem.
-MANAGEMENT: Resistant varieties are primary control. Seed dressing: Thiram or Apron Star. Rescue 430SC fungicide at 0.5L/ha at first disease sign. Remove crop residues after harvest. Rotate with pulses (lentils, faba beans). Adet ARC (Amhara) and Sinana ARC (Oromia) supply improved seed.`,
-
-      sorghum: `Sorghum (Sorghum bicolor) — SOURCE: PMC/NCBI Determinants of Sorghum Commercialization; FAO Country Report on Plant Genetic Resources; ACIAR Farming System Framework.
-DOMINANT REGIONS: Tigray (lowlands), East Oromia (East Hararghe), Amhara lowlands, SNNPR. Farming system: semi-arid mixed, 700–1800m altitude. Ethiopia is globally recognised as a primary centre of origin for sorghum genetic diversity — traditional farmer-managed varieties hold drought and pest resistance traits of international importance.
-PRIMARY DISEASES: (1) Anthracnose (Colletotrichum sublineola) — most destructive sorghum disease in Ethiopia. Red-orange lesions on leaves and stalk. 50–87% yield loss in susceptible varieties. Worsens in humid conditions. (2) Grain Mold Complex (Fusarium, Alternaria, Curvularia sp.) — pink/grey/black discolouration of grain heads in wet conditions. Reduces grain quality and produces mycotoxins. (3) Covered Kernel Smut (Sporisorium sorghi) — black sooty grain heads at harvest; seed-borne. (4) Charcoal Rot (Macrophomina phaseolina) — black pith and stalk rot under drought stress, causes plant collapse. (5) Downy Mildew (Peronoscleropora sorghi) — white fuzzy growth on young leaves.
-MANAGEMENT: Resistant varieties are the primary and most effective strategy — TARI, Kulumsa ARC, and EIAR supply improved seed. Remove and burn infected crop residues. Adjust planting dates to avoid peak humid season for grain mold. Crop rotation with legumes. For smut: use clean certified seed or hot-water seed treatment (52°C for 10 minutes).`,
-
-      wheat: `Wheat (Triticum aestivum) — SOURCE: Allen-Sader C. et al., Cambridge/Met Office/CIMMYT/EIAR 2019; ACIAR Farming System Framework.
-DOMINANT REGIONS: Arsi, Bale (Sinana ARC), Amhara (South Gondar — Adet ARC), Tigray. Altitude: 1800–3000m.
-PRIMARY DISEASES: (1) Stripe (Yellow) Rust (Puccinia striiformis) — Ethiopia's #1 wheat constraint. Yellow pustule stripes on leaves between veins. Optimal at 10–15°C. Rust spores travel hundreds to thousands of km on wind — can originate from Yemen or circulate within Ethiopian highlands. Critical monitoring: tillering to heading stage. (2) Stem Rust (P. graminis) — particularly race Ug99 and variants, can cause 100% loss in susceptible varieties. (3) Leaf Rust (P. triticina) — orange pustules. (4) Powdery Mildew — white powdery growth in cool humid conditions. (5) Septoria Blotch (Zymoseptoria tritici) — brown lesions. (6) Fusarium Head Blight — reddish-pink grain discolouration, mycotoxins.
-MANAGEMENT: Resistant varieties are most effective — EIAR releases new rust-resistant varieties regularly. Timely fungicide application (tebuconazole or propiconazole) at first stripe rust sign. Early planting to avoid peak rust season. Adet ARC and Sinana ARC supply certified seed.`
-    };
-
-    const promptText = `You are an expert Ethiopian agricultural plant pathologist advising smallholder farmers.
+    const promptText = `You are an expert Ethiopian agricultural plant pathologist.
 
 CROP: ${currentCrop.toUpperCase()}
-FARMER: ${farmerProfile.name || 'Unknown'} | Region: ${farmerProfile.region || 'Unknown'} | Woreda: ${farmerProfile.woreda || 'Unknown'} | Farm: ${farmerProfile.farm || 0.5} ha
-SYMPTOMS OBSERVED: ${symptomsList}
-FARMER NOTES: ${context || 'None'}
-RESPONSE LANGUAGE: ${currentLang === 'am' ? 'AMHARIC (አማርኛ)' : currentLang === 'om' ? 'AFAAN OROMO (Oromiffa)' : currentLang === 'ti' ? 'TIGRINYA (ትግርኛ)' : 'ENGLISH'}
+FARMER: ${farmerProfile.name || 'Smallholder'} | Region: ${farmerProfile.region || 'Ethiopia'} | Farm: ${farmerProfile.farmSizeHa || 0.5} ha
+SYMPTOMS SELECTED: ${symptomsList}
+CONTEXT: ${context || 'None'}
+RESPONSE LANGUAGE: ${currentLang === 'am' ? 'AMHARIC (አማርኛ)' : currentLang === 'om' ? 'AFAAN OROMO' : currentLang === 'ti' ? 'TIGRINYA (ትግርኛ)' : 'ENGLISH'}
+BACKGROUND: ${cropKnowledge[currentCrop] || ''}
 
-⚠️ CRITICAL LANGUAGE RULE: You MUST write EVERY word of your response — including ALL action steps, ALL preventive measures, ALL diagnosis text, and the local_summary — in the RESPONSE LANGUAGE above. Do NOT use English if the language is Amharic, Oromiffa, or Tigrinya. This app serves Ethiopian farmers who may not read English. Write naturally and simply in their language.
-
-BACKGROUND KNOWLEDGE:
-${cropKnowledge[currentCrop]}
-
-${photoBase64 ? 'A plant photo has been provided for visual analysis.' : ''}
-
-Please provide a structured diagnosis response. Be practical and clear. Consider smallholder farmer constraints (limited inputs, remote location).
+⚠️ CRITICAL: Write ALL fields in the RESPONSE LANGUAGE. Ethiopian farmers may not read English.
 
 Respond ONLY with this JSON (no markdown):
 {
-  "disease_name": "Most likely disease name",
-  maize:   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2Y1ZjBlOCIvPgogIDxyZWN0IHg9IjUwIiB5PSIxMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjgwIiByeD0iMTAiIGZpbGw9IiNlOGM1NDciLz4KICA8ZWxsaXBzZSBjeD0iNjAiIGN5PSI5MCIgcng9IjEyIiByeT0iMTgiIGZpbGw9IiNkNGE4MzUiLz4KICA8Y2lyY2xlIGN4PSI1NCIgY3k9IjcwIiByPSIzIiBmaWxsPSIjYjg5NDBhIi8+CiAgPGNpcmNsZSBjeD0iNjAiIGN5PSI2OCIgcj0iMyIgZmlsbD0iI2I4OTQwYSIvPgogIDxjaXJjbGUgY3g9IjY2IiBjeT0iNzAiIHI9IjMiIGZpbGw9IiNiODk0MGEiLz4KICA8Y2lyY2xlIGN4PSI1NCIgY3k9Ijc2IiByPSIzIiBmaWxsPSIjYjg5NDBhIi8+CiAgPGNpcmNsZSBjeD0iNjAiIGN5PSI3NCIgcj0iMyIgZmlsbD0iI2I4OTQwYSIvPgogIDxjaXJjbGUgY3g9IjY2IiBjeT0iNzYiIHI9IjMiIGZpbGw9IiNiODk0MGEiLz4KICA8Y2lyY2xlIGN4PSI1NCIgY3k9IjgyIiByPSIzIiBmaWxsPSIjYjg5NDBhIi8+CiAgPGNpcmNsZSBjeD0iNjAiIGN5PSI4MCIgcj0iMyIgZmlsbD0iI2I4OTQwYSIvPgogIDxjaXJjbGUgY3g9IjY2IiBjeT0iODIiIHI9IjMiIGZpbGw9IiNiODk0MGEiLz4KICA8cGF0aCBkPSJNNjAgMTAgUTQwIDMwIDM1IDYwIiBzdHJva2U9IiM1YThjMmEiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPgogIDxwYXRoIGQ9Ik02MCAxMCBRODAgMzAgODUgNjAiIHN0cm9rZT0iIzVhOGMyYSIgc3Ryb2tlLXdpZHRoPSIzIiBmaWxsPSJub25lIi8+CiAgPHRleHQgeD0iNjAiIHk9IjExNSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iOSIgZmlsbD0iIzVhOGMyYSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TWFpemUgLyDhiaDhiYHhiI48L3RleHQ+Cjwvc3ZnPg==",
-  coffee:  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2Y1ZjBlOCIvPgogIDxlbGxpcHNlIGN4PSI2MCIgY3k9IjU1IiByeD0iMzUiIHJ5PSI0MCIgZmlsbD0iIzVjMzMxNyIvPgogIDxjaXJjbGUgY3g9IjQ4IiBjeT0iNDUiIHI9IjYiIGZpbGw9IiM4QjQ1MTMiLz4KICA8Y2lyY2xlIGN4PSI2NSIgY3k9IjQwIiByPSI1IiBmaWxsPSIjOEI0NTEzIi8+CiAgPGNpcmNsZSBjeD0iNTUiIGN5PSI2MCIgcj0iNyIgZmlsbD0iIzhCNDUxMyIvPgogIDxjaXJjbGUgY3g9IjcwIiBjeT0iNTgiIHI9IjUiIGZpbGw9IiM4QjQ1MTMiLz4KICA8Y2lyY2xlIGN4PSI0NSIgY3k9IjYyIiByPSI1IiBmaWxsPSIjOEI0NTEzIi8+CiAgPHBhdGggZD0iTTI1IDkwIFE2MCAxMDAgOTUgOTAiIHN0cm9rZT0iIzVjMzMxNyIgc3Ryb2tlLXdpZHRoPSI0IiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTYwIDE1IFE1MCA1IDU1IDE1IiBzdHJva2U9IiM0YTdhMWEiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPgogIDxlbGxpcHNlIGN4PSI1NSIgY3k9IjEyIiByeD0iOCIgcnk9IjUiIGZpbGw9IiM0YTdhMWEiLz4KICA8dGV4dCB4PSI2MCIgeT0iMTE1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSI5IiBmaWxsPSIjNWMzMzE3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Db2ZmZWUgLyDhiaHhipM8L3RleHQ+Cjwvc3ZnPg==",
-  potato:  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2Y1ZjBlOCIvPgogIDxlbGxpcHNlIGN4PSI2MCIgY3k9IjYwIiByeD0iMzgiIHJ5PSIyOCIgZmlsbD0iI2M0YTA1MCIgdHJhbnNmb3JtPSJyb3RhdGUoLTE1IDYwIDYwKSIvPgogIDxlbGxpcHNlIGN4PSI1NSIgY3k9IjU4IiByeD0iMzUiIHJ5PSIyNiIgZmlsbD0iI2Q0YjA2MCIgdHJhbnNmb3JtPSJyb3RhdGUoLTE1IDU1IDU4KSIvPgogIDxjaXJjbGUgY3g9IjQ1IiBjeT0iNTAiIHI9IjMiIGZpbGw9IiNhMDc4MzAiLz4KICA8Y2lyY2xlIGN4PSI3MCIgY3k9IjU1IiByPSIzIiBmaWxsPSIjYTA3ODMwIi8+CiAgPGNpcmNsZSBjeD0iNTUiIGN5PSI3MCIgcj0iMyIgZmlsbD0iI2EwNzgzMCIvPgogIDxjaXJjbGUgY3g9IjQyIiBjeT0iNjUiIHI9IjIiIGZpbGw9IiNhMDc4MzAiLz4KICA8Y2lyY2xlIGN4PSI3MiIgY3k9IjQ1IiByPSIyIiBmaWxsPSIjYTA3ODMwIi8+CiAgPHBhdGggZD0iTTYwIDMyIFE1OCAyMCA2MiAxOCIgc3Ryb2tlPSIjNGE3YTFhIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8ZWxsaXBzZSBjeD0iNjIiIGN5PSIxNSIgcng9IjciIHJ5PSI1IiBmaWxsPSIjNGE3YTFhIi8+CiAgPHRleHQgeD0iNjAiIHk9IjExNSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iOSIgZmlsbD0iIzhCNjkxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UG90YXRvIC8g4Yu14YqV4Ym9PC90ZXh0Pgo8L3N2Zz4=",
-  barley:  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2Y1ZjBlOCIvPgogIDxsaW5lIHgxPSI2MCIgeTE9Ijk1IiB4Mj0iNjAiIHkyPSIxNSIgc3Ryb2tlPSIjOEI3MzU1IiBzdHJva2Utd2lkdGg9IjIiLz4KICA8bGluZSB4MT0iNTUiIHkxPSI5NSIgeDI9IjQwIiB5Mj0iMTUiIHN0cm9rZT0iIzhCNzM1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iNjUiIHkxPSI5NSIgeDI9IjgwIiB5Mj0iMTUiIHN0cm9rZT0iIzhCNzM1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8ZWxsaXBzZSBjeD0iNjAiIGN5PSIyMCIgcng9IjUiIHJ5PSIxMCIgZmlsbD0iI2M4YTg0NCIvPgogIDxsaW5lIHgxPSI2MCIgeTE9IjE1IiB4Mj0iNTAiIHkyPSI1IiBzdHJva2U9IiNjOGE4NDQiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPGxpbmUgeDE9IjYwIiB5MT0iMTgiIHgyPSI3MCIgeTI9IjgiIHN0cm9rZT0iI2M4YTg0NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iNjAiIHkxPSIyMiIgeDI9IjQ4IiB5Mj0iMTgiIHN0cm9rZT0iI2M4YTg0NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iNjAiIHkxPSIyNiIgeDI9IjcyIiB5Mj0iMjIiIHN0cm9rZT0iI2M4YTg0NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8ZWxsaXBzZSBjeD0iNDgiIGN5PSIyMiIgcng9IjUiIHJ5PSIxMCIgZmlsbD0iI2Q0YjA1MCIvPgogIDxlbGxpcHNlIGN4PSI3MiIgY3k9IjIyIiByeD0iNSIgcnk9IjEwIiBmaWxsPSIjZDRiMDUwIi8+CiAgPHBhdGggZD0iTTM1IDgwIFE2MCA5NSA4NSA4MCIgc3Ryb2tlPSIjOEI3MzU1IiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8dGV4dCB4PSI2MCIgeT0iMTE1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSI5IiBmaWxsPSIjOEI3MzU1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5CYXJsZXkgLyDhjIjhiaXhiLU8L3RleHQ+Cjwvc3ZnPg==",
-  sorghum: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2Y1ZjBlOCIvPgogIDxsaW5lIHgxPSI2MCIgeTE9IjEwMCIgeDI9IjYwIiB5Mj0iMTAiIHN0cm9rZT0iIzhCNjkxNCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMjAiIHJ4PSIxOCIgcnk9IjI1IiBmaWxsPSIjYzQ1YTAwIi8+CiAgPGNpcmNsZSBjeD0iNTUiIGN5PSIxMiIgcj0iNCIgZmlsbD0iIzhCMDAwMCIvPgogIDxjaXJjbGUgY3g9IjY1IiBjeT0iMTQiIHI9IjQiIGZpbGw9IiM4QjAwMDAiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjIwIiByPSI0IiBmaWxsPSIjOEIwMDAwIi8+CiAgPGNpcmNsZSBjeD0iNzAiIGN5PSIyMCIgcj0iNCIgZmlsbD0iIzhCMDAwMCIvPgogIDxjaXJjbGUgY3g9IjU1IiBjeT0iMjgiIHI9IjQiIGZpbGw9IiM4QjAwMDAiLz4KICA8Y2lyY2xlIGN4PSI2NSIgY3k9IjMwIiByPSI0IiBmaWxsPSIjOEIwMDAwIi8+CiAgPGNpcmNsZSBjeD0iNjAiIGN5PSIzNiIgcj0iMyIgZmlsbD0iIzhCMDAwMCIvPgogIDxwYXRoIGQ9Ik02MCA1NSBRNDUgNTAgMzUgNjAiIHN0cm9rZT0iIzVhOGMyYSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTYwIDY1IFE3NSA2MCA4NSA3MCIgc3Ryb2tlPSIjNWE4YzJhIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8dGV4dCB4PSI2MCIgeT0iMTE1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSI5IiBmaWxsPSIjOEI2OTE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Tb3JnaHVtIC8g4Yib4Yi94YiLPC90ZXh0Pgo8L3N2Zz4=",
-  "severity": "low|medium|high",
-  "confidence": 70,
-  "diagnosis": "2-3 sentence clear diagnosis in English",
+  "disease_name": "Disease name (scientific name in parentheses)",
+  "confidence": 85,
+  "severity": "high|medium|low",
+  "diagnosis": "Clear explanation in response language",
   "immediate_actions": ["action 1", "action 2", "action 3"],
   "preventive_measures": ["measure 1", "measure 2"],
-  "local_summary": "Brief summary in the farmer's language (${currentLang === 'am' ? 'Amharic' : currentLang === 'om' ? 'Oromiffa' : currentLang === 'ti' ? 'Tigrinya' : 'English'})"
+  "local_summary": "2-sentence summary in response language for farmer"
 }`;
 
     const parts = [{ text: promptText }];
-    // Add images — multi-image takes priority
     if (multiImages.length > 0) {
       multiImages.forEach((img, i) => {
         parts[0].text += '\nImage ' + (i+1) + ' - Plant Part: ' + img.part.toUpperCase();
@@ -3265,90 +3396,58 @@ Respond ONLY with this JSON (no markdown):
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parts })
+      body: JSON.stringify({ parts }),
+      signal: AbortSignal.timeout(30000)
     });
 
-    if (!response.ok) throw new Error('API error');
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'Server error ' + response.status);
+    }
 
-    const data = await response.json();
+    const data    = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     let parsed;
     try {
-      const clean = rawText.replace(/```json|```/g, '').trim();
-      parsed = JSON.parse(clean);
+      parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
     } catch {
       parsed = {
-        disease_name: 'AI Analysis Complete',
-        severity: 'medium',
-        confidence: 70,
-        diagnosis: rawText.substring(0, 300),
-        immediate_actions: ['Consult local extension officer', 'Remove severely infected plants', 'Keep records of spread'],
-        preventive_measures: ['Use certified planting material', 'Practice crop rotation'],
-        local_summary: 'ትንታኔው ተጠናቋል። እባክዎ ወደ አካባቢ ባለሙያ ያቅርቡ።'
+        disease_name: 'Analysis Complete',
+        severity: 'medium', confidence: 70,
+        diagnosis: rawText.substring(0, 400),
+        immediate_actions: ['Consult local extension officer'],
+        preventive_measures: ['Monitor crops closely'],
+        local_summary: rawText.substring(0, 150)
       };
     }
 
-    await saveToHistory({
-      timestamp: Date.now(),
-      crop: currentCrop,
-      symptoms: Array.from(selectedSymptoms),
-      result: parsed
-    });
-
+    await saveDiagnosis({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), result: parsed });
     renderResult(parsed);
+    renderFollowUpChat(parsed);  // ← Enable conversation after diagnosis
 
   } catch (err) {
     console.error('Analyze error:', err);
+    const errMsg = err.name === 'TimeoutError'
+      ? 'Request timed out. Please try again.'
+      : err.message || 'Connection error. Please try again.';
 
-    await saveToQueue({
-      crop: currentCrop,
-      symptoms: Array.from(selectedSymptoms),
-      context: document.getElementById('ctx').value,
-      timestamp: Date.now()
-    });
-
-    // Only show offline banner if actually offline
-    if (!navigator.onLine) {
-      showOfflineBanner();
-    }
-
-    renderResult({
-      disease_name: currentLang === 'am' ? 'ያለ ኢንተርኔት ሁነታ' : currentLang === 'om' ? 'Haala Interneetii Malee' : currentLang === 'ti' ? 'ናይ ኢንተርኔት-ዘይብሉ ኩነታት' : 'Offline Mode — Analysis Queued',
-      severity: 'medium',
-      confidence: null,
-      diagnosis: currentLang === 'am'
-        ? 'ኢንተርኔት ስለሌለ ትንታኔው ተቀምጧል። ስምምነት ሲፈጠር ይሰደዳል። ምስሎቹን እና ምልክቶቹን ይቀጥሉ።'
-        : currentLang === 'om'
-        ? 'Interneetii waan hin jirreef xiinxalli kuufame. Yeroo walitti deebitetti ni ergama. Suuraa fi mallattoolee itti fufaa.'
-        : currentLang === 'ti'
-        ? 'ኢንተርኔት ስለዘይብሉ ትንተና ተዓቂቡ ኣሎ። ምስ ተራኸብካ ይሰዳ። ስእሊን ምልክታትን ቀጽሉ።'
-        : 'No internet connection. Your analysis has been saved and will be sent automatically when you come back online.',
-      immediate_actions: currentLang === 'am'
-        ? ['ሁሉንም መሳሪያዎች በእሳት ወይም አልኮል ያጸዱ','የተጎዱ የእፅዋቱ ክፍሎችን ያስወግዱ እና ይቅበሩ (አያቅልጡ)','ከሌሎቹ ጤናማ ተክሎች ይለዩ','ስርጭቱን በፎቶ ይመዝግቡ']
-        : currentLang === 'om'
-        ? ['Meeshaa hunda ibiddaan yookaan alkootiiniin qulqulleessi','Qooda biqiltuu dhukkubsate kaasi awwaalidhu (kompostii hin godhin)','Biqiltuulee fayyaa irraa adda baasi','Tatamsaina suuraadhaan galmeessi']
-        : currentLang === 'ti'
-        ? ['ኩሉ መሳርሒ ብሓዊ ወይ ኣልኮሆል ኣጽርዮ','ዝተጠቕዐ ክፋል ተኽሊ ኣልዕሎ ቁፈሮ (ኮምፖስት ኣይትግበር)','ካብ ጥዑያት ተኽሊታት ፈልዮ','ምስፍሕፋሕ ብስእሊ መዝግቦ']
-        : ['Sterilize all tools with fire or alcohol','Remove and bury (not compost) infected plant parts','Isolate affected plants from healthy ones','Document spread with photos if possible'],
-      preventive_measures: currentLang === 'am'
-        ? ['ምስክር ወረቀት ያለው ፣ ከበሽታ ነፃ የሆነ የተክሉ ቁሳቁስ ብቻ ይጠቀሙ','ትክክለኛ የእርሻ ፅዳት ይጠብቁ']
-        : currentLang === 'om'
-        ? ['Lafa qofa madda biqiltuu fayyaa fi mirkanaawaa tae fayyadami','Qulqullina dirree sirrii eeggadhu']
-        : currentLang === 'ti'
-        ? ['መሰከሪ ወረቐት ዘለዎ ካብ ሕማም ነፃ ዝኾነ ናይ ምትካእ ቁሳቁስ ጥራይ ተጠቐም','ቅኑዕ ናይ ሕርሻ ጽሬት ሓሉ']
-        : ['Source only certified, disease-free planting material','Practice proper field sanitation'],
-      local_summary: currentLang === 'am'
-        ? 'ኢንተርኔት ስለሌለ ትንታኔው ተቀምጧል። ስምምነት ሲፈጠር ይላካል።'
-        : currentLang === 'om'
-        ? 'Interneetii waan hin jirreef xiinxalli kuufame. Yeroo walitti deebitetti ni ergama.'
-        : currentLang === 'ti'
-        ? 'ኢንተርኔት ዘይብሉ ስለዝኾነ ትንተና ተዓቂቡ ኣሎ። ምስ ተራኸብካ ይሰዳ።'
-        : 'Analysis saved. Will sync when online.'
-    });
-  } finally {
-    btn.disabled = false;
     loading.style.display = 'none';
+    btn.disabled = false;
+
+    // Show error inline — NOT offline banner (internet IS working)
+    result.innerHTML = `
+      <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:14px;padding:20px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
+        <div style="font-weight:700;font-size:15px;color:#856404;margin-bottom:8px;">Could not reach AI server</div>
+        <div style="font-size:13px;color:#856404;margin-bottom:16px;">${errMsg}</div>
+        <button onclick="analyze()" style="background:var(--leaf);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-weight:600;">🔄 Try Again</button>
+      </div>`;
+    result.style.display = 'block';
+    return;
+  } finally {
+    loading.style.display = 'none';
+    btn.disabled = false;
   }
 }
 
@@ -3640,6 +3739,151 @@ window.onload = () => {
   setLanguage(savedLang);
 };
 
+
+
+// ==================== FOLLOW-UP CONVERSATION ====================
+let conversationHistory = [];
+
+function renderFollowUpChat(diagnosisResult) {
+  const div = document.getElementById('rcrd');
+  if (!div) return;
+
+  const t = T[currentLang] || T.en;
+
+  const quickQs = {
+    en: ['Can I eat the crops?', 'How much will it cost?', 'How long to recover?', 'Is it contagious?'],
+    am: ['ሰብሉን መብላት ይቻላል?', 'ወጪው ስንት ነው?', 'ለማገገም ምን ያህል ጊዜ ይወስዳል?', 'ይተላለፋል?'],
+    om: ['Midhaan nyaachuu ni dandaama?', 'Gatiin meeqa?', 'Fayyuuf yeroo meeqa?', 'Dhukkubni ni darbaa?'],
+    ti: ['ሰብሊ ምብላዕ ይከኣል?', 'ወጻኢ ክንደይ?', 'ንምሓውየ ክንደይ ጊዜ?', 'ይቀሓሓፍ ዶ?']
+  };
+
+  const qs = quickQs[currentLang] || quickQs.en;
+
+  // Add chat section after result
+  const chatHTML = `
+    <div class="chat-section" id="chat-section">
+      <div class="chat-header">💬 ${currentLang === 'am' ? 'ተጨማሪ ጥያቄዎች' : currentLang === 'om' ? 'Gaaffii dabalataa' : currentLang === 'ti' ? 'ተወሳኺ ሕቶታት' : 'Ask follow-up questions'}</div>
+      <div class="connection-status">
+        <div class="connection-dot online" id="chat-status-dot"></div>
+        <span id="chat-status-text">${currentLang === 'am' ? 'AI ዝርዝር — ጥያቄዎን ይጠይቁ' : 'AI connected — ask anything about this diagnosis'}</span>
+      </div>
+      <div class="quick-questions">
+        ${qs.map(q => `<button class="quick-q" onclick="sendQuickQ('${q.replace(/'/g, "\'")}')">${q}</button>`).join('')}
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <textarea
+          id="chat-input"
+          class="chat-input"
+          placeholder="${currentLang === 'am' ? 'ጥያቄ ይፃፉ...' : currentLang === 'om' ? 'Gaaffii barreessi...' : currentLang === 'ti' ? 'ሕቶ ጸሓፍ...' : 'Ask a question about this diagnosis...'}"
+          rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"
+        ></textarea>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">➤</button>
+      </div>
+    </div>`;
+
+  div.insertAdjacentHTML('beforeend', chatHTML);
+
+  // Save diagnosis context for conversation
+  conversationHistory = [{
+    role: 'user',
+    content: `I am a farmer growing ${currentCrop} in Ethiopia. I have this crop disease diagnosis: ${diagnosisResult.disease_name}. Diagnosis: ${diagnosisResult.diagnosis || ''}. I may ask follow-up questions.`
+  }, {
+    role: 'model',
+    content: `I understand. You have ${diagnosisResult.disease_name} on your ${currentCrop}. I'm ready to answer any follow-up questions about treatment, costs, prevention, or recovery. What would you like to know?`
+  }];
+}
+
+function sendQuickQ(question) {
+  document.getElementById('chat-input').value = question;
+  sendChatMessage();
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+
+  const sendBtn = document.getElementById('chat-send-btn');
+  sendBtn.disabled = true;
+  input.value = '';
+
+  // Add user message
+  addChatMessage(msg, 'user');
+
+  // Add thinking indicator
+  const thinkingId = 'thinking-' + Date.now();
+  addChatMessage(currentLang === 'am' ? 'AI እያሰበ ነው...' : 'AI is thinking...', 'thinking', thinkingId);
+
+  conversationHistory.push({ role: 'user', content: msg });
+
+  try {
+    // Check online first
+    const test = await fetch('/api/health', { signal: AbortSignal.timeout(4000) }).catch(() => null);
+    if (!test || !test.ok) throw new Error('offline');
+
+    const langInstruction = currentLang === 'am' ? 'Respond in Amharic (አማርኛ).' :
+                            currentLang === 'om' ? 'Respond in Afaan Oromo.' :
+                            currentLang === 'ti' ? 'Respond in Tigrinya (ትግርኛ).' : 'Respond in English.';
+
+    const systemContext = `You are an expert Ethiopian agricultural advisor helping a ${currentCrop} farmer. 
+Be concise, practical, and specific to Ethiopian farming conditions. ${langInstruction}
+Keep answers under 4 sentences. Use simple language the farmer can understand.`;
+
+    const parts = [{
+      text: systemContext + '\n\nConversation so far:\n' +
+        conversationHistory.map(m => (m.role === 'user' ? 'Farmer: ' : 'Advisor: ') + m.content).join('\n') +
+        '\n\nFarmer: ' + msg + '\nAdvisor:'
+    }];
+
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parts }),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    const data    = await response.json();
+    const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
+
+    // Remove thinking indicator
+    const thinkingEl = document.getElementById(thinkingId);
+    if (thinkingEl) thinkingEl.remove();
+
+    addChatMessage(aiReply, 'ai');
+    conversationHistory.push({ role: 'model', content: aiReply });
+
+    // Keep history manageable (last 10 messages)
+    if (conversationHistory.length > 10) {
+      conversationHistory = conversationHistory.slice(-10);
+    }
+
+  } catch (err) {
+    const thinkingEl = document.getElementById(thinkingId);
+    if (thinkingEl) thinkingEl.remove();
+
+    const offlineMsg = currentLang === 'am'
+      ? 'ኢንተርኔት አይገኝም። ለዚህ ጥያቄ ኢንተርኔት ያስፈልጋል።'
+      : 'No internet connection. Follow-up questions require internet access.';
+    addChatMessage(offlineMsg, 'ai');
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+function addChatMessage(text, role, id) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  if (id) div.id = id;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
 
 // ==================== HELP MODAL ====================
 function showHelpModal() {
