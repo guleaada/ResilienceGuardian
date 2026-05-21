@@ -5,8 +5,8 @@ const path    = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
-const GROQ_KEY      = process.env.GROQ_API_KEY;
-const GEMINI_KEY    = process.env.GEMINI_API_KEY;
+const GROQ_KEY       = process.env.GROQ_API_KEY;
+const GEMINI_KEY     = process.env.GEMINI_API_KEY;
 const OPENROUTER_KEY = process.env.OpenRouter_API_KEY;
 
 app.use(cors());
@@ -17,10 +17,23 @@ const reqCounts = new Map();
 setInterval(() => reqCounts.clear(), 60000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Inject image analysis instruction into the text prompt
+function enhancePrompt(parts) {
+  const hasImage = parts.some(p => p.inline_data);
+  if (!hasImage) return parts;
+  return parts.map(p => {
+    if (p.text) {
+      return { text: 'IMPORTANT: An image of the plant has been provided. Carefully examine it for visual disease symptoms: discoloration, lesions, spots, wilting, rust, fungal growth, pest damage, abnormal patterns. Base your diagnosis on BOTH the image AND the reported symptoms.\n\n' + p.text };
+    }
+    return p;
+  });
+}
+
 async function tryGroq(parts) {
   if (!GROQ_KEY) return null;
+  const enhanced = enhancePrompt(parts);
   const content = [];
-  parts.forEach(p => {
+  enhanced.forEach(p => {
     if (p.text) content.push({ type: 'text', text: p.text });
     if (p.inline_data) content.push({ type: 'image_url', image_url: { url: `data:${p.inline_data.mime_type};base64,${p.inline_data.data}` } });
   });
@@ -38,8 +51,9 @@ async function tryGroq(parts) {
 
 async function tryOpenRouter(parts) {
   if (!OPENROUTER_KEY) return null;
+  const enhanced = enhancePrompt(parts);
   const content = [];
-  parts.forEach(p => {
+  enhanced.forEach(p => {
     if (p.text) content.push({ type: 'text', text: p.text });
     if (p.inline_data) content.push({ type: 'image_url', image_url: { url: `data:${p.inline_data.mime_type};base64,${p.inline_data.data}` } });
   });
@@ -57,6 +71,7 @@ async function tryOpenRouter(parts) {
 
 async function tryGemini(parts) {
   if (!GEMINI_KEY) return null;
+  const enhanced = enhancePrompt(parts);
   const models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   for (const name of models) {
     try {
@@ -64,7 +79,7 @@ async function tryGemini(parts) {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${name}:generateContent?key=${GEMINI_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.3, maxOutputTokens: 1600 } })
+        body: JSON.stringify({ contents: [{ parts: enhanced }], generationConfig: { temperature: 0.3, maxOutputTokens: 1600 } })
       });
       if (res.ok) { console.log(`✅ Gemini ${name} success!`); return res.json(); }
       console.error(`❌ Gemini ${name} → ${res.status}`);
@@ -83,16 +98,19 @@ app.post('/api/analyze', async (req, res) => {
   reqCounts.set(ip, count);
   if (count > 20) return res.status(429).json({ error: 'Too many requests. Wait 1 minute.' });
 
+  const hasImage = parts.some(p => p.inline_data);
+  console.log(`🖼️ Request: ${hasImage ? 'WITH image' : 'text only'}`);
+
   const result = await tryGroq(parts)
     || await tryOpenRouter(parts)
     || await tryGemini(parts);
 
   if (result) return res.json(result);
-  return res.status(503).json({ error: 'All AI models failed. Please try again in 1 minute.' });
+  return res.status(503).json({ error: 'All AI models failed. Please try again.' });
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '3.0', timestamp: new Date().toISOString(),
+  res.json({ status: 'ok', version: '3.1', timestamp: new Date().toISOString(),
     groq: GROQ_KEY ? '✅' : '❌',
     openrouter: OPENROUTER_KEY ? '✅' : '❌',
     gemini: GEMINI_KEY ? '✅' : '❌' });
@@ -101,7 +119,7 @@ app.get('/api/health', (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
-  console.log(`\n🌿 Resilience Guardian v3.0`);
+  console.log(`\n🌿 Resilience Guardian v3.1`);
   console.log(`   Groq:       ${GROQ_KEY       ? '✅' : '❌'}`);
   console.log(`   OpenRouter: ${OPENROUTER_KEY ? '✅' : '❌'}`);
   console.log(`   Gemini:     ${GEMINI_KEY     ? '✅' : '❌'}\n`);
