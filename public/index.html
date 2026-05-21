@@ -3278,190 +3278,171 @@ async function getHistory() {
 }
 
 // ==================== ANALYZE ====================
+
+
 async function analyze() {
   if (!currentCrop) { alert('Please select a crop first.'); return; }
 
   const btn     = document.getElementById('abtn');
   const loading = document.getElementById('lcrd');
   const result  = document.getElementById('rcrd');
+  const loadSub = document.getElementById('loading-sub');
 
-  btn.disabled = true;
+  btn.disabled         = true;
   loading.style.display = 'block';
   result.style.display  = 'none';
 
-  // Show "waking up server" message if it takes > 8 seconds (Render free tier)
+  const symptomsList = Array.from(selectedSymptoms).join(', ') || 'None specified';
+  const context      = (document.getElementById('ctx') || {}).value || '';
+
+  // Wakeup hint after 8 seconds
   const wakeTimer = setTimeout(() => {
-    const loadSub = document.getElementById('loading-sub');
     if (loadSub && loading.style.display === 'block') {
       loadSub.textContent = currentLang === 'am'
-        ? 'ሰርቨሩ እየነቃ ነው... ይጠብቁ (30-50 ሰከንድ)'
-        : currentLang === 'om' ? 'Server dammaqaa jira... eeggadhaa'
-        : currentLang === 'ti' ? 'ሰርቨር ይበራ ኣሎ... ጸናሕ'
-        : 'Server waking up... please wait (30-50 sec)';
+        ? 'ሰርቨሩ እየነቃ ነው... ይጠብቁ (30-50 ሰከ)'
+        : 'Server waking up... please wait 30-50 sec';
     }
   }, 8000);
 
-  const symptomsList = Array.from(selectedSymptoms).join(', ') || 'None specified';
-  const context      = document.getElementById('ctx').value || '';
-
-  // ── Step 1: Check offline via browser (reliable) ────────
-  // Don't do pre-flight fetch — Render free tier takes 30-50s to wake up
-  // which would falsely trigger offline mode
-  const isOnline = navigator.onLine;
-
-  // ── Step 2: Offline — use local disease DB ────────────
-  if (!isOnline) {
-    showOfflineBanner();
-    loading.style.display = 'none';
-    btn.disabled = false;
-
-    // Try local disease DB first
-    const localMatches = searchLocalDisease(currentCrop, symptomsList);
-    if (localMatches.length > 0) {
-      const d = localMatches[0];
-      renderResult({
-        disease_name: d.name,
-        severity: d.severity === 'Very High' ? 'high' : d.severity === 'High' ? 'high' : 'medium',
-        confidence: 65,
-        diagnosis: d.symptoms,
-        immediate_actions: [d.treatment],
-        preventive_measures: [d.prevention],
+  try {
+    // ── Offline: use local disease database ──────────────
+    if (!navigator.onLine) {
+      showOfflineBanner();
+      const local = searchLocalDisease(currentCrop, symptomsList);
+      const d = local[0];
+      renderResult(d ? {
+        disease_name: d.name, severity: d.severity === 'Very High' ? 'high' : 'medium',
+        confidence: 60, diagnosis: d.symptoms,
+        immediate_actions: [d.treatment], preventive_measures: [d.prevention],
         local_summary: currentLang === 'am'
-          ? 'ያለ ኢንተርኔት ከአካባቢ ዳታቤዝ ውጤት። ኢንተርኔት ሲኖር AI ምርመራ ያካሂዱ።'
-          : currentLang === 'om'
-          ? 'Interneetii malee database keessaa argame. Interneetii yoo jiraate AI waliin qori.'
-          : currentLang === 'ti'
-          ? 'ብዘይ ኢንተርኔት ካብ ዳታቤዝ ዝረኸብካዮ። ኢንተርኔት ምስ ዝህሉ AI ተጠቐም።'
-          : 'Offline result from local database. Connect to internet for AI diagnosis.'
-      });
-    } else {
-      renderResult({
-        disease_name: currentLang === 'am' ? 'ዕቀብ ዕቀብ ሁነታ' : 'Offline Mode',
-        severity: 'medium', confidence: null,
-        diagnosis: currentLang === 'am'
-          ? 'ኢንተርኔት የለም። ምልክቶቹን ምረጡ — ከዳታቤዝ ምርመራ ለማካሄድ።'
-          : 'No internet connection. Select symptoms above for local database diagnosis.',
-        immediate_actions: ['Sterilize all tools', 'Remove infected plant parts', 'Isolate affected plants'],
-        preventive_measures: ['Use certified seed', 'Practice crop rotation'],
+          ? 'ያለ ኢንተርኔት ከአካባቢ ዳታቤዝ። ኢንተርኔት ሲኖር AI ምርመራ ያካሂዱ።'
+          : 'Offline result. Connect to internet for full AI diagnosis.'
+      } : {
+        disease_name: 'Offline Mode', severity: 'medium', confidence: null,
+        diagnosis: 'No internet. Select symptoms for local database lookup.',
+        immediate_actions: ['Sterilize tools','Remove infected parts','Isolate plants'],
+        preventive_measures: ['Use certified seed','Practice crop rotation'],
         local_summary: ''
       });
+      await saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), context, timestamp: Date.now() });
+      return;
     }
 
-    // Queue for sync when online
-    await saveToQueue({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), context, timestamp: Date.now() });
-    return;
-  }
+    // ── Online: call Gemini with retry ───────────────────
+    hideOfflineBanner();
 
-  // ── Step 3: Online — call Gemini via server ────────────
-  hideOfflineBanner();
+    const langName = currentLang === 'am' ? 'AMHARIC (አማርኛ)'
+                   : currentLang === 'om' ? 'AFAAN OROMO'
+                   : currentLang === 'ti' ? 'TIGRINYA (ትግርኛ)' : 'ENGLISH';
 
-  const cropKnowledge = {
-    enset: 'Enset (Ensete ventricosum) — Ethiopia staple for 20M+ people in Southern regions. Key disease: Bacterial Wilt (Xcm). Altitude 1500-3000m.',
-    teff: 'Teff (Eragrostis tef) — Ethiopia exclusive grain, 6M ha cultivated. Key diseases: Leaf Rust, Head Smudge.',
-    wheat: 'Wheat — Major cereal. Biggest threat: Stripe Rust Ug99 race (up to 100% yield loss). Altitude 1500-3000m.',
-    maize: 'Maize (Zea mays) — 2nd most important cereal. Key disease: Northern Leaf Blight.',
-    coffee: 'Coffee — Ethiopia origin country. Key diseases: Coffee Berry Disease (40-80% loss), Coffee Wilt Disease.',
-    potato: 'Potato — Key food security crop. Biggest threat: Late Blight (Phytophthora infestans).',
-    barley: 'Barley — Highland cereal. Key diseases: Scald, Net Blotch.',
-    sorghum: 'Sorghum — Drought-tolerant lowland crop. Key diseases: Anthracnose, Grain Mold.'
-  };
+    const cropBg = {
+      enset:'Enset staple crop Southern Ethiopia, Bacterial Wilt main disease',
+      teff:'Teff Ethiopian exclusive grain, Leaf Rust main disease',
+      wheat:'Wheat, Stripe Rust Ug99 major threat up to 100% loss',
+      maize:'Maize 2nd cereal Ethiopia, Northern Leaf Blight main disease',
+      coffee:'Coffee Ethiopia origin, Coffee Berry Disease 40-80% loss',
+      potato:'Potato food security, Late Blight biggest threat',
+      barley:'Barley highland crop, Scald and Net Blotch diseases',
+      sorghum:'Sorghum drought-tolerant, Anthracnose and Grain Mold'
+    };
 
-  try {
     const promptText = `You are an expert Ethiopian agricultural plant pathologist.
 
 CROP: ${currentCrop.toUpperCase()}
-FARMER: ${farmerProfile.name || 'Smallholder'} | Region: ${farmerProfile.region || 'Ethiopia'} | Farm: ${farmerProfile.farmSizeHa || 0.5} ha
-SYMPTOMS SELECTED: ${symptomsList}
+FARMER: ${farmerProfile.name || 'Smallholder'} | ${farmerProfile.region || 'Ethiopia'} | ${farmerProfile.farmSizeHa || 0.5} ha
+SYMPTOMS: ${symptomsList}
 CONTEXT: ${context || 'None'}
-RESPONSE LANGUAGE: ${currentLang === 'am' ? 'AMHARIC (አማርኛ)' : currentLang === 'om' ? 'AFAAN OROMO' : currentLang === 'ti' ? 'TIGRINYA (ትግርኛ)' : 'ENGLISH'}
-BACKGROUND: ${cropKnowledge[currentCrop] || ''}
+RESPONSE LANGUAGE: ${langName}
+BACKGROUND: ${cropBg[currentCrop] || ''}
 
-⚠️ CRITICAL: Write ALL fields in the RESPONSE LANGUAGE. Ethiopian farmers may not read English.
+CRITICAL: Write ALL fields in the RESPONSE LANGUAGE. Ethiopian farmers may not read English.
 
 Respond ONLY with this JSON (no markdown):
-{
-  "disease_name": "Disease name (scientific name in parentheses)",
-  "confidence": 85,
-  "severity": "high|medium|low",
-  "diagnosis": "Clear explanation in response language",
-  "immediate_actions": ["action 1", "action 2", "action 3"],
-  "preventive_measures": ["measure 1", "measure 2"],
-  "local_summary": "2-sentence summary in response language for farmer"
-}`;
+{"disease_name":"name","confidence":85,"severity":"high|medium|low","diagnosis":"explanation","immediate_actions":["a1","a2","a3"],"preventive_measures":["m1","m2"],"local_summary":"summary"}`;
 
-    const parts = [{ text: promptText }];
+        const parts = [{ text: promptText }];
     if (multiImages.length > 0) {
       multiImages.forEach((img, i) => {
-        parts[0].text += '\nImage ' + (i+1) + ' - Plant Part: ' + img.part.toUpperCase();
+        parts[0].text += ' Image ' + (i+1) + ': ' + img.part;
         parts.push({ inline_data: { mime_type: 'image/jpeg', data: img.base64 } });
       });
     } else if (photoBase64) {
       parts.push({ inline_data: { mime_type: photoMimeType || 'image/jpeg', data: photoBase64 } });
     }
 
-    // AbortController for Safari compatibility (AbortSignal.timeout not in older Safari)
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 60000); // 60s — server may be waking up
+    // Try up to 3 times — handles Render free tier 30-50s wakeup
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) {
+          if (loadSub) loadSub.textContent = 'Attempt ' + (attempt+1) + '/3 — retrying...';
+          await new Promise(r => setTimeout(r, attempt === 1 ? 12000 : 18000));
+        }
 
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parts }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 55000);
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || 'Server error ' + response.status);
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parts }),
+          signal: ctrl.signal
+        });
+        clearTimeout(tid);
+
+        // 502/503 = Render still waking up → retry
+        if (res.status === 502 || res.status === 503) {
+          lastErr = new Error('Server starting up (' + res.status + ')');
+          continue;
+        }
+
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error || 'Server error ' + res.status);
+        }
+
+        const data = await res.json();
+        const raw  = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json|```/g, '').trim();
+
+        let parsed;
+        try   { parsed = JSON.parse(raw); }
+        catch { parsed = { disease_name:'Analysis Complete', severity:'medium', confidence:70,
+                  diagnosis: raw.substring(0,300),
+                  immediate_actions:['Consult local extension officer'],
+                  preventive_measures:['Monitor crops regularly'],
+                  local_summary: raw.substring(0,120) }; }
+
+        await saveDiagnosis({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), result: parsed });
+        renderResult(parsed);
+        renderFollowUpChat(parsed);
+        return; // success
+
+      } catch (e) {
+        lastErr = e.name === 'AbortError' ? new Error('Request timed out — try again') : e;
+        console.warn('Attempt', attempt+1, 'failed:', lastErr.message);
+      }
     }
 
-    const data    = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-    } catch {
-      parsed = {
-        disease_name: 'Analysis Complete',
-        severity: 'medium', confidence: 70,
-        diagnosis: rawText.substring(0, 400),
-        immediate_actions: ['Consult local extension officer'],
-        preventive_measures: ['Monitor crops closely'],
-        local_summary: rawText.substring(0, 150)
-      };
-    }
-
-    await saveDiagnosis({ crop: currentCrop, symptoms: Array.from(selectedSymptoms), result: parsed });
-    renderResult(parsed);
-    renderFollowUpChat(parsed);  // ← Enable conversation after diagnosis
-
-  } catch (err) {
-    console.error('Analyze error:', err);
-    const errMsg = err.name === 'TimeoutError'
-      ? 'Request timed out. Please try again.'
-      : err.message || 'Connection error. Please try again.';
-
-    loading.style.display = 'none';
-    btn.disabled = false;
-
-    // Show error inline — NOT offline banner (internet IS working)
-    result.innerHTML = `
-      <div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:14px;padding:20px;text-align:center;">
-        <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
-        <div style="font-weight:700;font-size:15px;color:#856404;margin-bottom:8px;">Could not reach AI server</div>
-        <div style="font-size:13px;color:#856404;margin-bottom:16px;">${errMsg}</div>
-        <button onclick="analyze()" style="background:var(--leaf);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-weight:600;">🔄 Try Again</button>
-      </div>`;
+    // All 3 attempts failed
+    result.innerHTML = '<div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:14px;padding:24px;text-align:center;margin:16px 0;">'
+      + '<div style="font-size:36px;margin-bottom:10px;">⚠️</div>'
+      + '<div style="font-weight:700;font-size:15px;color:#856404;margin-bottom:8px;">'
+      + (currentLang === 'am' ? 'AI ሰርቨር አልተገናኘም' : 'Could not reach AI server') + '</div>'
+      + '<div style="font-size:12px;color:#856404;margin-bottom:16px;">' + (lastErr?.message || 'Connection failed') + '</div>'
+      + '<button onclick="analyze()" style="background:var(--leaf);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-weight:600;">'
+      + '🔄 ' + (currentLang === 'am' ? 'እንደገና ሞክር' : 'Try Again') + '</button>'
+      + '<div style="margin-top:10px;font-size:12px;color:var(--bark);">'
+      + (currentLang === 'am' ? 'ሰርቨሩ ለመነቃቃት 30-50 ሰከ ሊወስድ ይችላል' : 'Server may need 30-50 sec to wake up on first visit') + '</div>'
+      + '</div>';
     result.style.display = 'block';
-    return;
+
   } finally {
     clearTimeout(wakeTimer);
     loading.style.display = 'none';
     btn.disabled = false;
   }
 }
+
 
 // ==================== NEAREST HELP DATA ====================
 const EXTENSION_OFFICES = {
