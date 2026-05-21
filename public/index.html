@@ -5,7 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resilience Guardian — Ethiopian Crop AI Advisor</title>
 <meta name="description" content="Offline AI Advisor for Enset, Teff, Wheat, Maize, Coffee, Potato, Barley and Sorghum">
-<meta name="theme-color" content="#1a3a05">
+<meta name="theme-color" content="#2D6A0A">
+
+<!-- PWA Manifest & Icons -->
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ResGuardian">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&family=Noto+Sans+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
@@ -3670,15 +3682,14 @@ if ('serviceWorker' in navigator) {
   }
 }
 
-// Android: catch install prompt
+// Catch install prompt — Android + Desktop Chrome/Edge
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredPrompt = e;
-  // Show after 4 seconds if not already installed
   if (!isInStandaloneMode) {
     setTimeout(function() {
       if (deferredPrompt) showInstallBanner();
-    }, 4000);
+    }, 3000);
   }
 });
 
@@ -3697,16 +3708,7 @@ if ((isIOS || (isMac && isSafari) || isTablet) && !isInStandaloneMode) {
   }
 }
 
-// Desktop Chrome/Edge/Windows: show install banner
-if (isDesktop && !isInStandaloneMode) {
-  window.addEventListener('beforeinstallprompt', function(e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    setTimeout(function() {
-      if (deferredPrompt) showInstallBanner();
-    }, 3000);
-  });
-}
+// Desktop handled by global beforeinstallprompt above
 
 function showInstallBanner() {
   var b = document.getElementById('install-banner');
