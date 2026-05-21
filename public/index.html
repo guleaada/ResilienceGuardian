@@ -3289,19 +3289,25 @@ async function analyze() {
   loading.style.display = 'block';
   result.style.display  = 'none';
 
+  // Show "waking up server" message if it takes > 8 seconds (Render free tier)
+  const wakeTimer = setTimeout(() => {
+    const loadSub = document.getElementById('loading-sub');
+    if (loadSub && loading.style.display === 'block') {
+      loadSub.textContent = currentLang === 'am'
+        ? 'ሰርቨሩ እየነቃ ነው... ይጠብቁ (30-50 ሰከንድ)'
+        : currentLang === 'om' ? 'Server dammaqaa jira... eeggadhaa'
+        : currentLang === 'ti' ? 'ሰርቨር ይበራ ኣሎ... ጸናሕ'
+        : 'Server waking up... please wait (30-50 sec)';
+    }
+  }, 8000);
+
   const symptomsList = Array.from(selectedSymptoms).join(', ') || 'None specified';
   const context      = document.getElementById('ctx').value || '';
 
-  // ── Step 1: Real connectivity test ──────────────────────
-  let isOnline = navigator.onLine;
-  if (isOnline) {
-    try {
-      const test = await fetch('/api/health', { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(5000) });
-      isOnline = test.ok;
-    } catch {
-      isOnline = false;
-    }
-  }
+  // ── Step 1: Check offline via browser (reliable) ────────
+  // Don't do pre-flight fetch — Render free tier takes 30-50s to wake up
+  // which would falsely trigger offline mode
+  const isOnline = navigator.onLine;
 
   // ── Step 2: Offline — use local disease DB ────────────
   if (!isOnline) {
@@ -3393,12 +3399,17 @@ Respond ONLY with this JSON (no markdown):
       parts.push({ inline_data: { mime_type: photoMimeType || 'image/jpeg', data: photoBase64 } });
     }
 
+    // AbortController for Safari compatibility (AbortSignal.timeout not in older Safari)
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 60000); // 60s — server may be waking up
+
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ parts }),
-      signal: AbortSignal.timeout(30000)
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -3446,6 +3457,7 @@ Respond ONLY with this JSON (no markdown):
     result.style.display = 'block';
     return;
   } finally {
+    clearTimeout(wakeTimer);
     loading.style.display = 'none';
     btn.disabled = false;
   }
@@ -3820,8 +3832,8 @@ async function sendChatMessage() {
 
   try {
     // Check online first
-    const test = await fetch('/api/health', { signal: AbortSignal.timeout(4000) }).catch(() => null);
-    if (!test || !test.ok) throw new Error('offline');
+    // Check offline via browser — reliable without pre-flight request
+    if (!navigator.onLine) throw new Error('offline');
 
     const langInstruction = currentLang === 'am' ? 'Respond in Amharic (አማርኛ).' :
                             currentLang === 'om' ? 'Respond in Afaan Oromo.' :
@@ -3837,12 +3849,15 @@ Keep answers under 4 sentences. Use simple language the farmer can understand.`;
         '\n\nFarmer: ' + msg + '\nAdvisor:'
     }];
 
+    const chatController = new AbortController();
+    const chatTimeout = setTimeout(() => chatController.abort(), 30000);
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ parts }),
-      signal: AbortSignal.timeout(20000)
+      signal: chatController.signal
     });
+    clearTimeout(chatTimeout);
 
     const data    = await response.json();
     const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
