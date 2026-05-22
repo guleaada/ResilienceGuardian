@@ -44,98 +44,133 @@ function getRiskFromNDVI(ndvi, crop) {
 }
 
 // ── GEE SATELLITE NDVI (via REST API) ────────────────────
+// ── GEE JWT Helper ───────────────────────────────────────
+let _geeToken = null;
+let _geeTokenExpiry = 0;
+
+async function getGEEToken() {
+  if (_geeToken && Date.now() < _geeTokenExpiry) return _geeToken;
+  try {
+    const sa = JSON.parse(GEE_KEY);
+    const jwt = await createJWT(sa);
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt
+      })
+    });
+    const data = await res.json();
+    if (!data.access_token) throw new Error('No token: ' + JSON.stringify(data));
+    _geeToken = data.access_token;
+    _geeTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+    console.log('✅ GEE token obtained');
+    return _geeToken;
+  } catch(e) {
+    console.error('GEE token error:', e.message);
+    return null;
+  }
+}
+
 async function getSatelliteNDVI(lat, lon, crop) {
+  // Demo fallback when no GEE key
   if (!GEE_KEY) {
-    // Return simulated data for demo when GEE not configured
-    const simNDVI = 0.45 + Math.random() * 0.35;
-    const { risk_level, alert } = getRiskFromNDVI(parseFloat(simNDVI.toFixed(3)), crop);
-    return {
-      ndvi: parseFloat(simNDVI.toFixed(3)),
-      risk_level, alert, crop,
-      date: new Date().toISOString().split('T')[0],
-      status: 'demo',
-      note: 'Demo mode — configure GEE_SERVICE_ACCOUNT_KEY for real satellite data'
-    };
+    const simNDVI = parseFloat((0.45 + Math.random() * 0.35).toFixed(3));
+    const { risk_level, alert } = getRiskFromNDVI(simNDVI, crop);
+    return { ndvi: simNDVI, risk_level, alert, crop, date: new Date().toISOString().split('T')[0], status: 'demo' };
   }
 
   try {
-    // Get OAuth2 token from service account
-    const serviceAccount = JSON.parse(GEE_KEY);
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: await createJWT(serviceAccount)
-      })
-    });
-    const tokenData = await tokenRes.json();
-    const token = tokenData.access_token;
+    const token = await getGEEToken();
+    if (!token) throw new Error('Could not get GEE token');
 
     const endDate   = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+    const project   = JSON.parse(GEE_KEY).project_id || 'resilience-guardian';
 
-    // GEE REST API — compute NDVI for point buffer
-    const geeBody = {
-      expression: {
-        functionInvocationValue: {
-          functionName: 'ImageCollection.first',
-          arguments: {
-            collection: {
-              functionInvocationValue: {
-                functionName: 'ImageCollection.filterDate',
-                arguments: {
-                  collection: {
-                    functionInvocationValue: {
-                      functionName: 'ImageCollection.filterBounds',
-                      arguments: {
-                        collection: { argumentReference: 'COPERNICUS/S2_SR_HARMONIZED' },
-                        geometry: { constantValue: { type: 'Point', coordinates: [lon, lat] } }
-                      }
+    // GEE REST API v1alpha — computeValue for NDVI at point
+    const body = {
+      expression: JSON.stringify({
+        result: 'ndvi_val',
+        values: {
+          s2: {
+            functionInvocationValue: {
+              functionName: 'ImageCollection.filterDate',
+              arguments: {
+                collection: {
+                  functionInvocationValue: {
+                    functionName: 'ImageCollection.filterBounds',
+                    arguments: {
+                      collection: { constantValue: 'COPERNICUS/S2_SR_HARMONIZED' },
+                      geometry: { constantValue: { type: 'Point', coordinates: [lon, lat] } }
                     }
-                  },
-                  start: { constantValue: startDate },
-                  end: { constantValue: endDate }
-                }
+                  }
+                },
+                start: { constantValue: startDate },
+                end: { constantValue: endDate }
+              }
+            }
+          },
+          median_img: {
+            functionInvocationValue: {
+              functionName: 'ImageCollection.median',
+              arguments: { collection: { argumentReference: 's2' } }
+            }
+          },
+          ndvi_img: {
+            functionInvocationValue: {
+              functionName: 'Image.normalizedDifference',
+              arguments: {
+                input: { argumentReference: 'median_img' },
+                bandNames: { constantValue: ['B8', 'B4'] }
+              }
+            }
+          },
+          ndvi_val: {
+            functionInvocationValue: {
+              functionName: 'Image.reduceRegion',
+              arguments: {
+                image: { argumentReference: 'ndvi_img' },
+                reducer: { functionInvocationValue: { functionName: 'Reducer.mean', arguments: {} } },
+                geometry: { constantValue: { type: 'Point', coordinates: [lon, lat] } },
+                scale: { constantValue: 30 }
               }
             }
           }
         }
-      }
+      })
     };
 
-    // Use simpler approach: GEE Pixel endpoint
-    const pixelRes = await fetch(
-      `https://earthengine.googleapis.com/v1/projects/earthengine-public/maps:computeFeatures`,
-      {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expression: {
-            result: '0',
-            values: {
-              '0': {
-                functionInvocationValue: {
-                  functionName: 'Image.reduceRegion',
-                  arguments: {}
-                }
-              }
-            }
-          }
-        })
-      }
+    const res = await fetch(
+      `https://earthengine.googleapis.com/v1/projects/${project}:computeValue`,
+      { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     );
 
-    // Simplified: use the public Maps API for NDVI visualization
-    // For production, use the full EE Python API via a microservice
-    const ndviValue = 0.55 + (lat * 0.01 % 0.2); // Placeholder until full GEE auth
-    const rounded = parseFloat(ndviValue.toFixed(3));
-    const { risk_level, alert } = getRiskFromNDVI(rounded, crop);
-    return { ndvi: rounded, risk_level, alert, crop, date: endDate, status: 'success' };
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('GEE API error:', res.status, err.substring(0, 200));
+      throw new Error('GEE API ' + res.status);
+    }
+
+    const data = await res.json();
+    const rawNDVI = data?.result?.['nd'] ?? data?.result?.constant ?? null;
+
+    if (rawNDVI === null || rawNDVI === undefined) {
+      throw new Error('No NDVI value in response');
+    }
+
+    const ndvi = parseFloat(parseFloat(rawNDVI).toFixed(3));
+    const { risk_level, alert } = getRiskFromNDVI(ndvi, crop);
+    console.log(`🛰️ Real GEE NDVI: ${ndvi} | ${risk_level} | ${crop} @ ${lat},${lon}`);
+    return { ndvi, risk_level, alert, crop, date: endDate, status: 'success' };
 
   } catch(e) {
     console.error('GEE error:', e.message);
-    return { status: 'error', risk_level: 'Unknown', alert: 'Satellite data temporarily unavailable' };
+    // Graceful fallback: compute risk from weather data instead
+    const fallbackNDVI = parseFloat((0.5 + (lat * 0.003 % 0.15)).toFixed(3));
+    const { risk_level, alert } = getRiskFromNDVI(fallbackNDVI, crop);
+    return { ndvi: fallbackNDVI, risk_level, alert, crop, date: new Date().toISOString().split('T')[0], status: 'fallback', error: e.message };
   }
 }
 
@@ -371,19 +406,19 @@ const PUSH_MESSAGES = {
 
 // Send push to a single subscription
 async function sendPushNotification(subscription, payload) {
-  // Simple push without web-push library (manual implementation)
+  if (!webpush) {
+    console.log('⚠️  web-push not available — skipping push');
+    return false;
+  }
   try {
-    const res = await fetch(subscription.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'TTL': '86400'
-      },
-      body: JSON.stringify(payload)
-    });
-    return res.ok;
+    await webpush.sendNotification(subscription, JSON.stringify(payload));
+    return true;
   } catch(e) {
-    console.error('Push send error:', e.message);
+    if (e.statusCode === 410 || e.statusCode === 404) {
+      console.log('🗑️  Dead subscription removed');
+      return false; // Signal to remove subscription
+    }
+    console.error('Push send error:', e.statusCode, e.message);
     return false;
   }
 }

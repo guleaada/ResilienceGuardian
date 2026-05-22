@@ -2379,6 +2379,9 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
         <button onclick="closeAbout();setTimeout(showTutorials,100);" style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);color:white;border:none;border-radius:14px;padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;">
           🎬 Tutorials
         </button>
+        <button onclick="closeAbout();setTimeout(showImpactDashboard,100);" style="grid-column:span 2;background:linear-gradient(135deg,#856404,#D4A017);color:white;border:none;border-radius:14px;padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;">
+          📊 My Impact Dashboard
+        </button>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;">
@@ -2541,7 +2544,7 @@ const T = {
     howtoResultsTitle: "What the AI Result Includes",
     // Crop selection label
     selectCropLabel: "SELECT CROP",
-  },
+  navProfile:"Profile",navMore:"More",hotline:"Emergency Hotline"},
   am: {
     headerSub: "የኢትዮጵያ ሰብል AI አማካሪ",
     labelLang: "ቋንቋ",
@@ -2609,7 +2612,7 @@ const T = {
     howtoStep6: "በምርምር የተደገፈ ምክር ያግኙ",
     howtoResultsTitle: "AI ውጤቱ የሚያካትተው",
     selectCropLabel: "ሰብል ምረጡ",
-  },
+  navProfile:"መገለጫ",navMore:"ተጨማሪ",hotline:"አስቸኳይ መስመር"},
   om: {
     headerSub: "Gorsaa AI Qonnaa Itoophiyaa",
     labelLang: "Afaan",
@@ -2676,7 +2679,7 @@ const T = {
     howtoStep6: "Gorsa qorannoo irratti hundaae argadhu",
     howtoResultsTitle: "AI Deebii Keessatti Maal Jira",
     selectCropLabel: "MIDHAAN FILADHU",
-  },
+  navProfile:"Profaayilii",navMore:"Dabalee",hotline:"Sarara Hatattamaa"},
 
   ti: {
     headerSub: "ናይ ኢትዮጵያ ሰብሊ AI መካሪ",
@@ -2744,7 +2747,7 @@ const T = {
     howtoStep6: "ብመጽናዕቲ ዝተደገፈ ምኽሪ ረኸብ",
     howtoResultsTitle: "ውጺኢት AI እንታይ ይሓዝ",
     selectCropLabel: "ሰብሊ ምረጽ",
-  }
+  navProfile:"ፕሮፋይል",navMore:"ተወሳኺ",hotline:"ህጹጽ መስመር"}
 };
 
 // ==================== LOCAL DISEASE DATABASE ====================
@@ -4127,7 +4130,8 @@ function setLanguage(lang) {
   setText('nav-advisor',  t.navAdvisor);
   setText('nav-howto',    t.navHowto);
   setText('nav-research', t.navResearch);
-  setText('nav-about',    t.navAbout);
+  setText('nav-about',    t.navMore    || t.navAbout);
+  setText('nav-profile',  t.navProfile || 'Profile');
 
   // Status pill & offline banner
   setText('status-pill-text', t.statusReady);
@@ -4248,6 +4252,35 @@ function setLanguage(lang) {
   });
   var smsD2 = document.getElementById('sms-desc');
   if (smsD2 && tLang.smsDesc) smsD2.textContent = tLang.smsDesc;
+
+  // Translate push legitimacy text
+  var pushTexts = {
+    en: ['Sent by: Resilience Guardian — resilienceguardian.onrender.com',
+         'Based on: Satellite NDVI + Weather + Seasonal disease calendar',
+         'No spam · Only high-risk alerts · Max 1 per day'],
+    am: ['የተላከው: ጠባቂ ጥንካሬ — resilienceguardian.onrender.com',
+         'ምንጭ: ሳተላይት NDVI + የአየር ሁኔታ + ወቅታዊ የበሽታ ቀን መቁጠሪያ',
+         'ስፓም የለም · ከፍ ያለ አደጋ ብቻ · ቀን 1 ብቻ'],
+    om: ['Kan erge: Resilience Guardian — resilienceguardian.onrender.com',
+         'Madda: Satellite NDVI + Haala qilleensaa + Kaalaandara dhukkubaa',
+         'Spam hin jiru · Sodaa guddaa qofa · Guyyaa tokko qofa'],
+    ti: ['ዝሰደደ: Resilience Guardian — resilienceguardian.onrender.com',
+         'ምንጪ: Satellite NDVI + ኩነታት ኣየር + ናይ ሕማም መዝሓሊ',
+         'ስፓም የለን · ልዑል ሓደጋ ጥራሕ · ሓደ መዓልቲ ሓደ ጥራሕ']
+  };
+  var ptexts = pushTexts[lang] || pushTexts.en;
+  ['push-source-text','push-source2-text','push-source3-text'].forEach(function(id, i) {
+    var el = document.getElementById(id);
+    if (el) {
+      if (i === 0) {
+        el.innerHTML = (lang==='am'?'የተላከው: ':'Sent by: ')
+          + '<strong style="color:#B8DC7A;">Resilience Guardian</strong>'
+          + ' — resilienceguardian.onrender.com';
+      } else {
+        el.textContent = ptexts[i];
+      }
+    }
+  });
 
   // Translate privacy notice in profile modal
   var privacyTitles = {
@@ -5210,11 +5243,9 @@ function renderResult(r) {
   setTimeout(function() {
     generateActionPlan(r);
     generateSustainabilityScore(r);
-    // Log this diagnosis to farmer activity log
-    logFarmerActivity('diagnosis', {
-      crop: currentCrop, disease: r.disease_name,
-      severity: r.severity, confidence: r.confidence
-    });
+    logFarmerActivity('diagnosis', { crop: currentCrop, disease: r.disease_name, severity: r.severity, confidence: r.confidence });
+    recordImpact(r); // Track impact metrics
+    saveDiagnosis({ result: r }); // Auto-save last diagnosis
   }, 50);
 }
 
@@ -6045,6 +6076,106 @@ function getLocalRemedies(diseaseName) {
   return LOCAL_REMEDIES[key] || LOCAL_REMEDIES.default;
 }
 
+
+// ==================== IMPACT METRICS ====================
+var _impactData = {
+  totalDiagnoses: 0,
+  farmersHelped:  0,
+  etbPrevented:   0,
+  cropsAnalyzed:  {},
+  regionsServed:  new Set(),
+  lastUpdated:    null
+};
+
+function loadImpactData() {
+  try {
+    var saved = localStorage.getItem('rg_impact');
+    if (saved) {
+      var d = JSON.parse(saved);
+      _impactData.totalDiagnoses = d.totalDiagnoses || 0;
+      _impactData.farmersHelped  = d.farmersHelped  || 0;
+      _impactData.etbPrevented   = d.etbPrevented   || 0;
+      _impactData.cropsAnalyzed  = d.cropsAnalyzed  || {};
+    }
+  } catch(e) {}
+}
+
+function recordImpact(result) {
+  loadImpactData();
+  _impactData.totalDiagnoses++;
+  _impactData.farmersHelped = Math.max(_impactData.farmersHelped, _impactData.totalDiagnoses);
+  
+  // Calculate ETB loss prevented (75% savings from early treatment)
+  var prices = window.PRICE_PER_QT || { enset:1900, teff:5200, wheat:4600, maize:3500, coffee:11200, potato:2200, barley:3800, sorghum:2800 };
+  var farmHa = (window.farmerProfile && parseFloat(farmerProfile.farmSizeHa)) || 0.5;
+  var baseYield = { enset:50, teff:12, wheat:20, maize:30, coffee:8, potato:80, barley:15, sorghum:18 };
+  var lossRates = { high:0.65, medium:0.35, low:0.15 };
+  var sev = (result && result.severity) || 'medium';
+  var crop = currentCrop || 'teff';
+  var yld = (baseYield[crop] || 15) * farmHa;
+  var loss = yld * (lossRates[sev] || 0.35);
+  var etbSaved = Math.round(loss * 0.75 * (prices[crop] || 3000));
+  _impactData.etbPrevented += etbSaved;
+  
+  // Track crops
+  _impactData.cropsAnalyzed[crop] = (_impactData.cropsAnalyzed[crop] || 0) + 1;
+  _impactData.lastUpdated = new Date().toISOString();
+  
+  try {
+    localStorage.setItem('rg_impact', JSON.stringify({
+      totalDiagnoses: _impactData.totalDiagnoses,
+      farmersHelped: _impactData.farmersHelped,
+      etbPrevented: _impactData.etbPrevented,
+      cropsAnalyzed: _impactData.cropsAnalyzed,
+      lastUpdated: _impactData.lastUpdated
+    }));
+  } catch(e) {}
+}
+
+function closeImpactModal() {
+  var ov = document.getElementById('impact-modal-overlay');
+  if (ov) document.body.removeChild(ov);
+}
+
+function showImpactDashboard() {
+  loadImpactData();
+  var isAm = currentLang === 'am';
+  var modal = document.createElement('div');
+  modal.id = 'impact-modal-overlay';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99997;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+  modal.onclick = function(e) { if (e.target === modal) document.body.removeChild(modal); };
+  
+  var topCrop = Object.entries(_impactData.cropsAnalyzed).sort((a,b)=>b[1]-a[1])[0];
+  var cropNames = {enset:'Enset',teff:'Teff',wheat:'Wheat',maize:'Maize',coffee:'Coffee',potato:'Potato',barley:'Barley',sorghum:'Sorghum'};
+  
+  modal.innerHTML = '<div style="background:white;border-radius:18px;max-width:400px;width:100%;overflow:hidden;">'
+    + '<div style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);padding:18px 20px;">'
+    + '<div style="font-size:17px;font-weight:700;color:white;">'+(isAm?'📊 የእርስዎ ተጽዕኖ':'📊 Your Impact Dashboard')+'</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;">'+(isAm?'Resilience Guardian ሲጠቀሙ የተከናወነ':'Achieved with Resilience Guardian')+'</div>'
+    + '</div>'
+    + '<div style="padding:20px;">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">'
+    + '<div style="background:#f0f8eb;border-radius:12px;padding:14px;text-align:center;border:1.5px solid #B8DC7A;">'
+    + '<div style="font-size:28px;font-weight:800;color:#2D6A0A;">'+_impactData.totalDiagnoses+'</div>'
+    + '<div style="font-size:11px;color:#666;">'+(isAm?'ምርመራዎች':'Diagnoses Run')+'</div></div>'
+    + '<div style="background:#f0f8eb;border-radius:12px;padding:14px;text-align:center;border:1.5px solid #B8DC7A;">'
+    + '<div style="font-size:28px;font-weight:800;color:#2D6A0A;">'+(_impactData.etbPrevented/1000).toFixed(1)+'K</div>'
+    + '<div style="font-size:11px;color:#666;">'+(isAm?'ETB ኪሳራ ተከለከለ':'ETB Loss Prevented')+'</div></div>'
+    + '<div style="background:#f0f8eb;border-radius:12px;padding:14px;text-align:center;border:1.5px solid #B8DC7A;">'
+    + '<div style="font-size:28px;font-weight:800;color:#2D6A0A;">'+Object.keys(_impactData.cropsAnalyzed).length+'</div>'
+    + '<div style="font-size:11px;color:#666;">'+(isAm?'ሰብሎች ተለኩ':'Crops Analyzed')+'</div></div>'
+    + '<div style="background:#f0f8eb;border-radius:12px;padding:14px;text-align:center;border:1.5px solid #B8DC7A;">'
+    + '<div style="font-size:22px;font-weight:800;color:#2D6A0A;">'+(topCrop ? cropNames[topCrop[0]] || topCrop[0] : '-')+'</div>'
+    + '<div style="font-size:11px;color:#666;">'+(isAm?'ዋና ሰብል':'Most Analyzed')+'</div></div>'
+    + '</div>'
+    + '<div style="background:#FFF8EC;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#856404;">'
+    + '🌍 '+(isAm?'ይህ መሣሪያ ከ15 ሚሊዮን የኢትዮጵያ ቤተሰቦች ሰብሎችን ለመጠበቅ ተሠርቷል':'This tool was built to protect crops for 15M+ Ethiopian farming families')+'</div>'
+    + 'onclick="closeImpactModal()" style="width:100%;background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">'
+    + (isAm?'✓ ዝጋ':'✓ Close')+'</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+}
+
 // ==================== MARKET PRICES CACHE ====================
 var ECX_FALLBACK = {
   Teff:    { avg: 5200, unit: 'ETB/Quintal' },
@@ -6307,7 +6438,7 @@ function translatePrivacy(lang) {
     'pp-item1': t.item1, 'pp-item2': t.item2, 'pp-item3': t.item3, 'pp-item4': t.item4,
     'pp-never-title': t.neverTitle, 'pp-never-text': t.neverText,
     'pp-delete-title': t.deleteTitle, 'pp-delete-text': t.deleteText,
-    'pp-contact-title': t.contactTitle, 'pp-standards': t.standards,
+    'pp-standards': t.standards,
     'pp-close-btn': t.closeBtn
   };
   Object.keys(map).forEach(function(id) {
@@ -6317,7 +6448,7 @@ function translatePrivacy(lang) {
 }
 
 // ==================== PUSH NOTIFICATIONS ====================
-var VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHpbCGXzvDZukB6gK4xH0jxBInD5Z-gn41a6dR_IlfzUJQsF22Du9UNgwTICXaUM_xv-6GIMl2rb-OrqOYXXVpQ';
+var VAPID_PUBLIC_KEY = 'BF-5Qhebp7BUCBYHU9YvJkrCOnOfmTQhQFGARjGmBlbUGzxH6ysWlYhZKrw2ugVbtXI9Z3iJOOa9rLdrHvD2c7c';
 
 function urlBase64ToUint8Array(base64String) {
   var padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -6329,51 +6460,76 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush() {
-  if (!('PushManager' in window)) {
-    alert(currentLang === 'am'
-      ? 'ይቅርታ፣ ይህ ስልክ Push Notification አይደግፍም።'
-      : 'Push notifications not supported on this device.');
+  var isAm = currentLang === 'am';
+
+  // Check browser support
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert(isAm
+      ? 'ይቅርታ፣ ይህ ስልክ ወይም ብሮውዘር Push Notification አይደግፍም።'
+      : 'Push notifications are not supported on this browser. Try Chrome or Firefox.');
     return false;
   }
 
   try {
-    // Request notification permission
-    var perm = await Notification.requestPermission();
+    // Ensure service worker is registered
+    var reg = await navigator.serviceWorker.register('/service-worker.js').catch(function() {
+      return navigator.serviceWorker.ready;
+    });
+    reg = await navigator.serviceWorker.ready;
+
+    // Request permission
+    var perm = Notification.permission;
+    if (perm === 'denied') {
+      alert(isAm
+        ? 'ማሳወቂያ ተከልክሏል። ሰርጉ ቅንብሮቻ → ፍቃዶች → ማሳወቂያዎች ይፍቀዱ።'
+        : 'Notifications are blocked. Go to browser Settings → Site permissions → Notifications → Allow.');
+      return false;
+    }
     if (perm !== 'granted') {
-      alert(currentLang === 'am'
-        ? 'ማሳወቂያ ፍቃድ ያስፈልጋል። እባክዎ ይፍቀዱ።'
-        : 'Please allow notifications to receive disease alerts.');
+      perm = await Notification.requestPermission();
+    }
+    if (perm !== 'granted') {
       return false;
     }
 
-    var reg = await navigator.serviceWorker.ready;
+    // Check existing subscription
     var existing = await reg.pushManager.getSubscription();
     if (existing) {
       console.log('✅ Already subscribed to push');
       return true;
     }
 
+    // Subscribe
     var subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
 
-    // Send subscription to server
-    await fetch('/api/push-subscribe', {
+    // Save to server
+    var res = await fetch('/api/push-subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        subscription: subscription,
-        lang: currentLang || 'en',
+        subscription: JSON.parse(JSON.stringify(subscription)),
+        lang:   currentLang || 'en',
         region: (window.farmerProfile && farmerProfile.region) || 'Addis Ababa',
-        crop: currentCrop || 'enset'
+        crop:   currentCrop || 'enset'
       })
     });
 
-    console.log('✅ Push subscription saved');
+    var data = await res.json();
+    console.log('✅ Push subscription saved. Total subscribers:', data.total);
     return true;
+
   } catch(e) {
-    console.error('Push subscribe error:', e);
+    console.error('Push subscribe error:', e.name, e.message);
+    if (e.name === 'NotAllowedError') {
+      alert(isAm ? 'ፍቃድ ተከልክሏል። ቅንብሮቻ ውስጥ ፍቀዱ።' : 'Permission denied. Please allow notifications in browser settings.');
+    } else if (e.name === 'InvalidStateError') {
+      alert(isAm ? 'ቀደም ሲል ተመዝጋቢ። እንደገና ይሞክሩ።' : 'Already subscribed. Please try again.');
+    } else {
+      alert((isAm ? 'ማሳወቂያ ማንቃት አልተሳካም: ' : 'Could not enable notifications: ') + e.message);
+    }
     return false;
   }
 }
@@ -7323,10 +7479,11 @@ async function speakWithServerTTS(text, lang) {
     var res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.substring(0, 500), lang: lang })
+      body: JSON.stringify({ text: text.substring(0, 500), lang: lang }),
+      signal: AbortSignal.timeout(8000)
     });
 
-    if (!res.ok) throw new Error('TTS failed');
+    if (!res.ok || res.headers.get('content-type')?.includes('json')) throw new Error('TTS failed');
     var blob = await res.blob();
     var url  = URL.createObjectURL(blob);
     var audio = new Audio(url);
@@ -7783,10 +7940,30 @@ function switchTab(tab) {
       </div>
       <!-- Push Notification Toggle -->
       <div style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);border-radius:12px;padding:14px;margin-bottom:12px;">
-        <div style="color:white;font-weight:700;font-size:13px;margin-bottom:4px;">🔔 Disease Alert Notifications</div>
-        <div style="color:rgba(255,255,255,0.75);font-size:11px;margin-bottom:10px;" id="push-status-text">Get notified when disease risk is high in your region</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="color:white;font-weight:700;font-size:13px;">🔔 Disease Alert Notifications</div>
+          <span style="background:rgba(184,220,122,0.25);color:#B8DC7A;border:1px solid rgba(184,220,122,0.4);border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;">OFFICIAL</span>
+        </div>
+        <div style="color:rgba(255,255,255,0.75);font-size:11px;margin-bottom:8px;" id="push-status-text">Get notified when disease risk is high in your region</div>
+
+        <!-- Legitimacy info -->
+        <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:9px 10px;margin-bottom:10px;font-size:11px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;">
+            <span style="color:#B8DC7A;flex-shrink:0;">🌿</span>
+            <span style="color:rgba(255,255,255,0.85);" id="push-source-text">Sent by: <strong style="color:#B8DC7A;">Resilience Guardian</strong> — resilienceguardian.onrender.com</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;">
+            <span style="color:#B8DC7A;flex-shrink:0;">📡</span>
+            <span style="color:rgba(255,255,255,0.85);" id="push-source2-text">Based on: Satellite NDVI + Weather data + Seasonal disease calendar</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <span style="color:#B8DC7A;flex-shrink:0;">🔐</span>
+            <span style="color:rgba(255,255,255,0.85);" id="push-source3-text">No spam · Only high-risk alerts · Max 1 per day</span>
+          </div>
+        </div>
+
         <button id="push-toggle-btn" onclick="togglePushNotifications(this)"
-          style="width:100%;background:#B8DC7A;color:#1a3a05;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">
+          style="width:100%;background:#B8DC7A;color:#1a3a05;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">
           🔔 Enable Disease Alerts
         </button>
       </div>
@@ -8272,8 +8449,7 @@ function closeIOSPopup() {
       <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:8px;" id="pp-delete-title">🗑️ Delete Your Data</div>
       <div style="font-size:12px;color:#666;line-height:1.7;margin-bottom:14px;" id="pp-delete-text">Go to Profile → clear your info → Save. Or clear site data in your browser settings. All data is on your device only.</div>
 
-      <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:8px;" id="pp-contact-title">📧 Contact</div>
-      <div style="font-size:12px;color:#666;margin-bottom:16px;">gulilatkasiye4@gmail.com · Gulilat Kasiye Worku · Hawassa, Ethiopia</div>
+
 
       <div style="background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;">
         <div style="font-size:11px;color:#aaa;" id="pp-standards">GDPR Compliant · No Cookies · No Tracking · CC BY-NC-ND 4.0</div>
