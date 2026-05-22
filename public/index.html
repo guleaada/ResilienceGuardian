@@ -1903,8 +1903,8 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
           <option value="11.29,36.65">Pawe / Metekel</option>
         </optgroup>
       </select>
-      <button class="weather-loc-btn" id="geo-btn">
-        📍 Use My GPS Location
+      <button class="weather-loc-btn" id="geo-btn" onclick="getUserLocation()">
+        📍 My Location
       </button>
     </div>
     <div id="weather-loading" style="display:none;text-align:center;padding:12px;font-size:13px;color:rgba(255,255,255,0.7);">
