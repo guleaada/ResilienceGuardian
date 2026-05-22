@@ -3754,6 +3754,11 @@ function loadProfile() {
 }
 
 function showProfile() {
+  // Auto-fill phone from profile or localStorage
+  var savedAlertPhone = localStorage.getItem('rg_sms_alert_phone') || (window.farmerProfile && farmerProfile.phone) || '';
+  var phoneAlertInput = document.getElementById('push-phone-input');
+  if (phoneAlertInput && savedAlertPhone) phoneAlertInput.value = savedAlertPhone;
+
   // Update push button state
   checkPushStatus().then(function(status) {
     var btn = document.getElementById('push-toggle-btn');
@@ -6170,7 +6175,7 @@ function showImpactDashboard() {
     + '</div>'
     + '<div style="background:#FFF8EC;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#856404;">'
     + '🌍 '+(isAm?'ይህ መሣሪያ ከ15 ሚሊዮን የኢትዮጵያ ቤተሰቦች ሰብሎችን ለመጠበቅ ተሠርቷል':'This tool was built to protect crops for 15M+ Ethiopian farming families')+'</div>'
-    + 'onclick="closeImpactModal()" style="width:100%;background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">'
+    + '<button onclick="closeImpactModal()" style="width:100%;background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">'
     + (isAm?'✓ ዝጋ':'✓ Close')+'</button>'
     + '</div></div>';
   document.body.appendChild(modal);
@@ -6559,14 +6564,36 @@ async function togglePushNotifications(btn) {
   var status = await checkPushStatus();
   if (status === 'subscribed') {
     await unsubscribeFromPush();
-    if (btn) { btn.textContent = currentLang === 'am' ? '🔔 ማሳወቂያ አስነቃ' : '🔔 Enable Disease Alerts'; btn.style.background = '#2D6A0A'; }
+    // Also unsubscribe SMS
+    var savedPhone = localStorage.getItem('rg_sms_alert_phone');
+    if (savedPhone) {
+      fetch('/api/sms-unsubscribe', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone:savedPhone}) }).catch(function(){});
+      localStorage.removeItem('rg_sms_alert_phone');
+    }
+    if (btn) { btn.textContent = currentLang === 'am' ? '🔔 ማሳወቂያ አስነቃ' : '🔔 Enable Disease Alerts'; btn.style.background = '#B8DC7A'; btn.style.color = '#1a3a05'; }
     alert(currentLang === 'am' ? 'ማሳወቂያዎች ተሰናክለዋል።' : 'Notifications disabled.');
   } else {
     var ok = await subscribeToPush();
-    if (ok && btn) {
-      btn.textContent = currentLang === 'am' ? '🔕 ማሳወቂያ አጥፋ' : '🔕 Disable Alerts';
-      btn.style.background = '#B83010';
-      alert(currentLang === 'am' ? '✅ ማሳወቂያዎች ነቅተዋል! የበሽታ ማንቂያ ይደርስዎታል።' : '✅ Disease alerts enabled! You will be notified of high-risk conditions.');
+    if (ok) {
+      // Also register phone for SMS if provided
+      var phoneInput = document.getElementById('push-phone-input');
+      var phone = (phoneInput && phoneInput.value.trim()) || localStorage.getItem('rg_sms_alert_phone') || '';
+      if (phone) {
+        await registerSMSAlerts(phone);
+        var isAm = currentLang === 'am';
+        var nl = '\n';
+        var msg = isAm
+          ? '✅ ማሳወቂያ ነቅቷል!' + nl + '🔔 Push notification ይደርስዎታል' + nl + '📲 SMS ወደ ' + phone + ' ይላካል'
+          : '✅ Disease alerts enabled!' + nl + '🔔 Push notifications active' + nl + '📲 SMS alerts will be sent to ' + phone;
+        alert(msg);
+      } else {
+        alert(currentLang === 'am' ? '✅ ማሳወቂያዎች ነቅተዋል! የበሽታ ማንቂያ ይደርስዎታል።' : '✅ Push alerts enabled! Add your phone number above to also get SMS alerts.');
+      }
+      if (btn) {
+        btn.textContent = currentLang === 'am' ? '🔕 ማሳወቂያ አጥፋ' : '🔕 Disable Alerts';
+        btn.style.background = '#B83010';
+        btn.style.color = 'white';
+      }
     }
   }
 }
@@ -6586,6 +6613,39 @@ function updatePushSubscriptionRegion() {
       }).catch(function(){});
     }
   });
+}
+
+function useProfilePhoneForAlerts() {
+  var phone = (window.farmerProfile && farmerProfile.phone) || '';
+  var input = document.getElementById('push-phone-input');
+  if (!phone) {
+    alert(currentLang === 'am'
+      ? 'ስልክ ቁጥርዎን በፕሮፋይል ላይ ያስቀምጡ።'
+      : 'Please save your phone number in Profile first.');
+    return;
+  }
+  if (input) input.value = phone;
+}
+
+async function registerSMSAlerts(phone) {
+  if (!phone || phone.length < 9) return;
+  try {
+    await fetch('/api/sms-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: phone,
+        region: (window.farmerProfile && farmerProfile.region) || 'Addis Ababa',
+        crop: currentCrop || 'enset',
+        lang: currentLang || 'en'
+      })
+    });
+    // Save locally
+    try { localStorage.setItem('rg_sms_alert_phone', phone); } catch(e) {}
+    console.log('✅ SMS alerts registered for:', phone);
+  } catch(e) {
+    console.warn('SMS subscribe error:', e.message);
+  }
 }
 
 // ==================== AI DATA CONTRIBUTION ====================
@@ -7960,6 +8020,21 @@ function switchTab(tab) {
             <span style="color:#B8DC7A;flex-shrink:0;">🔐</span>
             <span style="color:rgba(255,255,255,0.85);" id="push-source3-text">No spam · Only high-risk alerts · Max 1 per day</span>
           </div>
+        </div>
+
+        <!-- Phone for SMS alerts -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:5px;" id="push-phone-label">📲 Also send SMS alerts to my phone (optional)</div>
+          <div style="display:flex;gap:6px;">
+            <input type="tel" id="push-phone-input" placeholder="+251 9XX XXX XXX"
+              style="flex:1;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 10px;font-size:13px;background:rgba(255,255,255,0.1);color:white;outline:none;"
+              oninput="this.style.borderColor='rgba(184,220,122,0.6)'">
+            <button onclick="useProfilePhoneForAlerts()"
+              style="background:rgba(255,255,255,0.15);color:#B8DC7A;border:1px solid rgba(184,220,122,0.4);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;" id="use-my-phone-btn">
+              👤 Mine
+            </button>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:4px;" id="push-phone-hint2">Leave empty for push-only alerts</div>
         </div>
 
         <button id="push-toggle-btn" onclick="togglePushNotifications(this)"

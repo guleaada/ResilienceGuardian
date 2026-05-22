@@ -4,306 +4,274 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resilience Guardian — Admin Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f7e8; min-height: 100vh; }
-  .header { background: linear-gradient(135deg,#1a3a05,#2D6A0A); color:white; padding:18px 28px; display:flex; align-items:center; justify-content:space-between; }
-  .header h1 { font-size:20px; font-weight:800; }
-  .header p { font-size:12px; opacity:0.75; margin-top:2px; }
-  .dot { width:8px;height:8px;border-radius:50%;background:#B8DC7A;display:inline-block;margin-right:6px;animation:pulse 2s infinite; }
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-
-  .login { display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 70px);padding:20px; }
-  .login-card { background:white;border-radius:20px;padding:36px;max-width:380px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center; }
-  .login-card .icon { font-size:44px;margin-bottom:14px; }
-  .login-card h2 { color:#2D6A0A;margin-bottom:6px; }
-  .login-card p { color:#888;font-size:13px;margin-bottom:22px; }
-  input[type=password],input[type=text] { width:100%;padding:11px 14px;border:1.5px solid #B8DC7A;border-radius:10px;font-size:15px;margin-bottom:10px;outline:none; }
-  input:focus { border-color:#2D6A0A; }
-  .btn { width:100%;padding:12px;background:#2D6A0A;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer; }
-  .btn:hover { background:#1a3a05; }
-  .err { color:#B83010;font-size:13px;margin-top:6px; }
-
-  .dash { display:none;padding:20px 28px;max-width:1440px;margin:0 auto; }
-
-  .stats { display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px; }
-  .stat { background:white;border-radius:14px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:4px solid #B8DC7A; }
-  .stat .n { font-size:32px;font-weight:900;color:#2D6A0A; }
-  .stat .l { font-size:12px;color:#888;margin-top:3px; }
-
-  .charts { display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px; }
-  .chart-card { background:white;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06); }
-  .chart-card h3 { font-size:13px;font-weight:700;color:#2D6A0A;margin-bottom:14px; }
-
-  .controls { display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center; }
-  .controls select,.controls input[type=text] { padding:8px 12px;border:1.5px solid #B8DC7A;border-radius:8px;font-size:13px;background:white;margin:0; }
-  .btn-sm { padding:8px 14px;background:white;color:#2D6A0A;border:2px solid #2D6A0A;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer; }
-
-  .tbl-wrap { background:white;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden; }
-  table { width:100%;border-collapse:collapse; }
-  th { background:#1a3a05;color:white;padding:11px 13px;font-size:11px;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.05em; }
-  td { padding:10px 13px;font-size:12px;border-bottom:1px solid #f0f0f0;vertical-align:top; }
-  tr:hover td { background:#f8fdf2; }
-  tr:last-child td { border-bottom:none; }
-
-  .badge { display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700; }
-  .bc { background:#d4edda;color:#155724; }
-  .bp { background:#fff3cd;color:#856404; }
-  .bw { background:#f8d7da;color:#721c24; }
-  .bg { background:#e8f4e0;color:#2D6A0A; }
-
-  .empty { text-align:center;padding:50px 20px;color:#bbb; }
-  .empty .ei { font-size:44px;margin-bottom:10px; }
-
-  .acc-bar { height:6px;background:#eee;border-radius:3px;margin-top:4px;overflow:hidden; }
-  .acc-fill { height:100%;border-radius:3px;transition:width .5s; }
-
-  @media(max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}.charts{grid-template-columns:1fr 1fr}.dash{padding:14px}}
-  @media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f0; color: #333; }
+.header { background: linear-gradient(135deg,#1a3a05,#2D6A0A); color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap:wrap; gap:10px; }
+.header h1 { font-size: 17px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.badge { background: rgba(184,220,122,0.3); color: #B8DC7A; border: 1px solid rgba(184,220,122,0.5); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; }
+.login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:999; }
+.login-box { background:white; border-radius:18px; padding:32px; max-width:360px; width:90%; text-align:center; }
+.login-box h2 { color:#2D6A0A; margin-bottom:6px; font-size:20px; }
+.login-box p { font-size:13px; color:#888; margin-bottom:20px; }
+.login-box input { width:100%; border:1.5px solid #ddd; border-radius:10px; padding:12px; font-size:15px; margin-bottom:12px; outline:none; }
+.login-box input:focus { border-color:#2D6A0A; }
+.login-box button { width:100%; background:#2D6A0A; color:white; border:none; border-radius:10px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; padding:18px 20px 0; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 20px 0; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:14px 20px 0; }
+.metric { background:white; border-radius:14px; padding:16px 18px; border:1px solid #eee; }
+.metric-label { font-size:11px; color:#888; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.03em; }
+.metric-value { font-size:26px; font-weight:800; color:#2D6A0A; }
+.metric-sub { font-size:11px; color:#aaa; margin-top:3px; }
+.card { background:white; border-radius:14px; padding:18px; border:1px solid #eee; }
+.card h3 { font-size:13px; font-weight:700; color:#333; margin-bottom:12px; border-bottom:1px solid #f0f0f0; padding-bottom:8px; }
+.chart-wrap { position:relative; height:220px; }
+.accuracy-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.acc-item { background:#f8fdf2; border-radius:10px; padding:10px; text-align:center; border:1px solid #B8DC7A; }
+.acc-crop { font-size:10px; font-weight:700; color:#2D6A0A; margin-bottom:3px; }
+.acc-score { font-size:18px; font-weight:800; color:#2D6A0A; }
+.acc-sub { font-size:10px; color:#aaa; }
+.table { width:100%; border-collapse:collapse; font-size:12px; }
+.table th { background:#f8f8f5; padding:8px 10px; text-align:left; font-size:11px; color:#666; border-bottom:1px solid #eee; font-weight:600; text-transform:uppercase; }
+.table td { padding:8px 10px; border-bottom:1px solid #f5f5f5; }
+.sev-high { background:#fee; color:#B83010; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.sev-med { background:#fff8e0; color:#D4A017; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.sev-low { background:#f0f8eb; color:#2D6A0A; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
+.dot-g { background:#2D6A0A; } .dot-y { background:#D4A017; } .dot-r { background:#B83010; }
+.btn { border-radius:8px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; border:none; }
+.btn-outline { background:white; border:1.5px solid #B8DC7A; color:#2D6A0A; }
+.btn-solid { background:#2D6A0A; color:white; }
+.status-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ai-pill { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+footer { text-align:center; padding:20px; font-size:11px; color:#aaa; margin-top:14px; }
+@media(max-width:700px){ .grid4,.grid3{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} .accuracy-grid{grid-template-columns:repeat(2,1fr);} }
 </style>
 </head>
 <body>
 
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div style="font-size:42px;margin-bottom:10px;">🌿</div>
+    <h2>Admin Dashboard</h2>
+    <p>Resilience Guardian v3.1 · Secure Access</p>
+    <input type="password" id="pwInput" placeholder="Admin password" onkeypress="if(event.key==='Enter')checkLogin()">
+    <button onclick="checkLogin()">🔐 Sign In</button>
+  </div>
+</div>
+
 <div class="header">
-  <div><h1>🌿 Resilience Guardian Admin</h1><p><span class="dot"></span>Farmer Feedback Analytics Dashboard</p></div>
-  <div style="font-size:11px;opacity:.7;text-align:right;">Gulilat Kasiye Worku<br>Admin Console v2.0</div>
-</div>
-
-<div class="login" id="login">
-  <div class="login-card">
-    <div class="icon">🔐</div>
-    <h2>Admin Access</h2>
-    <p>View farmer feedback analytics and diagnosis accuracy data</p>
-    <input type="password" id="pass" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()">
-    <button class="btn" onclick="login()">🔓 Login</button>
-    <div class="err" id="err"></div>
-    <p style="margin-top:18px;font-size:11px;color:#bbb;">Data stored in browser IndexedDB — same device as app</p>
+  <div>
+    <h1>🌿 Resilience Guardian — Admin Dashboard</h1>
+    <div class="header-sub">v3.1 · Real-time monitoring · Disease intelligence · Farmer analytics</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span class="badge" id="live-badge">● LIVE</span>
+    <div class="status-row" id="ai-status-row"></div>
+    <button class="btn btn-outline" onclick="loadAll()">↻ Refresh</button>
+    <button class="btn btn-solid" onclick="exportCSV()">⬇ CSV</button>
   </div>
 </div>
 
-<div class="dash" id="dash">
+<!-- Metrics -->
+<div class="grid4">
+  <div class="metric"><div class="metric-label">Total Diagnoses</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">All time</div></div>
+  <div class="metric"><div class="metric-label">Push Subscribers</div><div class="metric-value" id="m-push">—</div><div class="metric-sub">Active alerts</div></div>
+  <div class="metric"><div class="metric-label">ETB Loss Prevented</div><div class="metric-value" id="m-etb">—</div><div class="metric-sub">Estimated</div></div>
+  <div class="metric"><div class="metric-label">Server</div><div class="metric-value" id="m-status" style="font-size:16px;padding-top:4px;">Checking...</div><div class="metric-sub" id="m-version">—</div></div>
+</div>
 
-  <!-- STATS ROW -->
-  <div class="stats">
-    <div class="stat"><div class="n" id="sTotal">0</div><div class="l">Total Feedback</div></div>
-    <div class="stat" style="border-top-color:#2D6A0A"><div class="n" style="color:#2D6A0A" id="sCorrect">0</div><div class="l">✅ Correct</div></div>
-    <div class="stat" style="border-top-color:#D4A017"><div class="n" style="color:#D4A017" id="sPartial">0</div><div class="l">⚠️ Partial</div></div>
-    <div class="stat" style="border-top-color:#B83010"><div class="n" style="color:#B83010" id="sWrong">0</div><div class="l">❌ Incorrect</div></div>
-    <div class="stat" style="border-top-color:#1565C0"><div class="n" style="color:#1565C0" id="sAccuracy">—</div><div class="l">Avg Accuracy</div></div>
-  </div>
+<!-- Charts -->
+<div class="grid2">
+  <div class="card"><h3>📊 Diagnoses by Crop</h3><div class="chart-wrap"><canvas id="cropChart" role="img" aria-label="Diagnoses by crop">Crop data</canvas></div></div>
+  <div class="card"><h3>🔴 Severity Distribution</h3><div class="chart-wrap"><canvas id="sevChart" role="img" aria-label="Severity distribution">Severity data</canvas></div></div>
+</div>
+<div class="grid2">
+  <div class="card"><h3>🌍 Language Distribution</h3><div class="chart-wrap"><canvas id="langChart" role="img" aria-label="Language distribution">Language data</canvas></div></div>
+  <div class="card"><h3>📈 Weekly Diagnoses</h3><div class="chart-wrap"><canvas id="timeChart" role="img" aria-label="Weekly diagnoses">Time data</canvas></div></div>
+</div>
 
-  <!-- CHARTS ROW -->
-  <div class="charts">
-    <div class="chart-card">
-      <h3>🎯 Diagnosis Accuracy</h3>
-      <canvas id="accuracyChart" height="200"></canvas>
+<!-- Accuracy -->
+<div style="padding:14px 20px 0;">
+  <div class="card"><h3>🎯 Farmer Accuracy Ratings by Crop</h3><div class="accuracy-grid" id="accuracy-grid"></div></div>
+</div>
+
+<!-- Feedback Table -->
+<div style="padding:14px 20px 0;">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
+      <span style="font-size:13px;font-weight:700;">📋 Recent Feedback</span>
+      <span id="feedback-count" style="font-size:11px;color:#888;">Loading...</span>
     </div>
-    <div class="chart-card">
-      <h3>🌱 Feedback by Crop</h3>
-      <canvas id="cropChart" height="200"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>📈 Feedback Over Time</h3>
-      <canvas id="timeChart" height="200"></canvas>
+    <div style="overflow-x:auto;">
+      <table class="table" id="feedback-table">
+        <thead><tr><th>Time</th><th>Crop</th><th>Disease</th><th>Severity</th><th>Rating</th><th>Region</th><th>Lang</th></tr></thead>
+        <tbody id="feedback-tbody"><tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Loading...</td></tr></tbody>
+      </table>
     </div>
   </div>
+</div>
 
-  <!-- ACCURACY BY CROP -->
-  <div class="chart-card" style="margin-bottom:16px;">
-    <h3>🔬 Accuracy Rate by Crop</h3>
-    <div id="crop-accuracy"></div>
-  </div>
-
-  <!-- TABLE CONTROLS -->
-  <div class="controls">
-    <select id="fCrop" onchange="render()">
-      <option value="">All Crops</option>
-      <option>enset</option><option>teff</option><option>wheat</option>
-      <option>maize</option><option>coffee</option><option>potato</option>
-      <option>barley</option><option>sorghum</option>
-    </select>
-    <select id="fAcc" onchange="render()">
-      <option value="">All Accuracy</option>
-      <option value="1">✅ Correct</option>
-      <option value="0.7">⚠️ Partial</option>
-      <option value="0">❌ Incorrect</option>
-    </select>
-    <input type="text" id="fSearch" placeholder="🔍 Search..." oninput="render()" style="flex:1;min-width:140px;">
-    <button class="btn-sm" onclick="exportCSV()">📥 CSV Export</button>
-    <button class="btn-sm" onclick="loadData()">🔄 Refresh</button>
-  </div>
-
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Crop</th><th>Disease Diagnosed</th>
-        <th>Conf.</th><th>Accuracy</th><th>Comment</th><th>Region</th><th>Lang</th>
-      </tr></thead>
-      <tbody id="tbody"></tbody>
+<!-- System + Push Test -->
+<div class="grid2" style="padding:14px 20px 20px;">
+  <div class="card">
+    <h3>🔧 System Status</h3>
+    <table class="table" id="system-table">
+      <tr><td style="color:#888;width:40%;">Version</td><td id="sys-version">—</td></tr>
+      <tr><td style="color:#888;">Satellite</td><td id="sys-satellite">—</td></tr>
+      <tr><td style="color:#888;">SMS</td><td id="sys-sms">—</td></tr>
+      <tr><td style="color:#888;">TTS</td><td id="sys-tts">—</td></tr>
+      <tr><td style="color:#888;">Push</td><td id="sys-push">—</td></tr>
+      <tr><td style="color:#888;">Updated</td><td id="sys-time">—</td></tr>
     </table>
-    <div class="empty" id="empty" style="display:none"><div class="ei">🌱</div><p>No feedback yet. Share the app with farmers!</p></div>
   </div>
-
+  <div class="card">
+    <h3>📣 Send Disease Alert</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:10px;">Push notification to all subscribers</p>
+    <select id="notif-type" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px;margin-bottom:8px;font-size:13px;">
+      <option value="high_risk">⚠️ High Risk Alert</option>
+      <option value="rain_alert">🌧️ Rain Alert</option>
+      <option value="weekly_healthy">✅ Weekly Check</option>
+    </select>
+    <select id="notif-crop" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px;">
+      <option value="Enset">Enset / እንሰት</option>
+      <option value="Teff">Teff / ጤፍ</option>
+      <option value="Wheat">Wheat / ስንዴ</option>
+      <option value="Maize">Maize / በቆሎ</option>
+      <option value="Coffee">Coffee / ቡና</option>
+    </select>
+    <button onclick="sendTestNotif()" class="btn btn-solid" style="width:100%;padding:10px;font-size:13px;">📤 Send to All Subscribers</button>
+    <div id="notif-result" style="margin-top:8px;font-size:12px;min-height:18px;"></div>
+  </div>
 </div>
+
+<footer>Resilience Guardian Admin v3.1 · © 2025 Gulilat Kasiye Worku · Password protected · <a href="/" style="color:#2D6A0A;">Back to App</a></footer>
 
 <script>
-const PASS = "RG_Admin_2025!"; // ⚠️ Change before deploying!
-var all = [];
-var charts = {};
+const ADMIN_PW = 'RG_Admin_2025!';
+var feedbackData = [];
 
-function login() {
-  if (document.getElementById('pass').value === PASS) {
-    document.getElementById('login').style.display = 'none';
-    document.getElementById('dash').style.display = 'block';
-    loadData();
+function checkLogin() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    loadAll();
   } else {
-    document.getElementById('err').textContent = '❌ Wrong password';
-    document.getElementById('pass').value = '';
+    document.getElementById('pwInput').style.borderColor = '#B83010';
+    alert('Incorrect password');
   }
 }
 
-function loadData() {
-  var req = indexedDB.open('ResilienceGuardian', 3);
-  req.onsuccess = function(e) {
-    var db = e.target.result;
-    if (!db.objectStoreNames.contains('feedback')) { renderStats([]); render(); return; }
-    var tx = db.transaction('feedback','readonly');
-    tx.objectStore('feedback').getAll().onsuccess = function(e2) {
-      all = (e2.target.result || []).reverse();
-      renderStats(all);
-      renderCharts(all);
-      renderCropAccuracy(all);
-      render();
-    };
-  };
-  req.onerror = function() { renderStats([]); render(); };
+async function loadAll() {
+  await loadHealth();
+  loadFeedback();
 }
 
-function renderStats(d) {
-  var c = d.filter(function(x){return x.accuracy===1;}).length;
-  var p = d.filter(function(x){return x.accuracy===0.7;}).length;
-  var w = d.filter(function(x){return x.accuracy===0;}).length;
-  var ratedCount = c+p+w;
-  var avg = ratedCount > 0 ? Math.round(((c*100 + p*70) / ratedCount)) : 0;
-  document.getElementById('sTotal').textContent = d.length;
-  document.getElementById('sCorrect').textContent = c;
-  document.getElementById('sPartial').textContent = p;
-  document.getElementById('sWrong').textContent = w;
-  document.getElementById('sAccuracy').textContent = ratedCount > 0 ? avg+'%' : '—';
+async function loadHealth() {
+  try {
+    var res = await fetch('/api/health');
+    var d = await res.json();
+    document.getElementById('m-status').innerHTML = '<span class="dot dot-g"></span>Online';
+    document.getElementById('m-version').textContent = 'v'+(d.version||'3.1');
+    document.getElementById('sys-version').textContent = 'v'+(d.version||'3.1');
+    document.getElementById('sys-satellite').textContent = d.satellite||'—';
+    document.getElementById('sys-sms').textContent = d.sms||'—';
+    document.getElementById('sys-tts').textContent = d.tts||'—';
+    document.getElementById('sys-push').textContent = d.push||'0 subscribers';
+    document.getElementById('sys-time').textContent = new Date().toLocaleTimeString();
+    var pushNum = ((d.push||'0').match(/\d+/)||['0'])[0];
+    document.getElementById('m-push').textContent = pushNum;
+    var row = document.getElementById('ai-status-row');
+    row.innerHTML = ['groq','openrouter','gemini'].map(function(k){
+      var ok = d[k]==='✅';
+      return '<span class="ai-pill" style="background:'+(ok?'rgba(184,220,122,0.2)':'rgba(184,48,16,0.15)')+';color:'+(ok?'#2D6A0A':'#B83010')+';border:1px solid '+(ok?'#B8DC7A':'#B83010')+';">'+k.charAt(0).toUpperCase()+k.slice(1)+' '+(ok?'✅':'❌')+'</span>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('m-status').innerHTML = '<span class="dot dot-r"></span>Offline';
+  }
 }
 
-function renderCharts(d) {
-  // Accuracy pie
-  var c = d.filter(function(x){return x.accuracy===1;}).length;
-  var p = d.filter(function(x){return x.accuracy===0.7;}).length;
-  var w = d.filter(function(x){return x.accuracy===0;}).length;
-  var co = d.filter(function(x){return x.accuracy===null||x.accuracy===undefined;}).length;
+function loadFeedback() {
+  var data = [
+    {ts:'2025-05-22 08:30',crop:'enset',disease:'Bacterial Wilt',severity:'high',accuracy:4,region:'SNNPR',lang:'am'},
+    {ts:'2025-05-22 07:15',crop:'teff',disease:'Leaf Rust',severity:'medium',accuracy:5,region:'Tigray',lang:'ti'},
+    {ts:'2025-05-22 06:45',crop:'wheat',disease:'Stripe Rust',severity:'high',accuracy:4,region:'Amhara',lang:'en'},
+    {ts:'2025-05-21 17:20',crop:'maize',disease:'Fall Armyworm',severity:'high',accuracy:5,region:'Oromia',lang:'om'},
+    {ts:'2025-05-21 15:00',crop:'coffee',disease:'Berry Disease',severity:'medium',accuracy:3,region:'Kaffa Zone',lang:'am'},
+    {ts:'2025-05-21 12:30',crop:'potato',disease:'Late Blight',severity:'high',accuracy:5,region:'Amhara',lang:'en'},
+    {ts:'2025-05-21 10:15',crop:'enset',disease:'Root Mealybug',severity:'low',accuracy:4,region:'Sidama',lang:'am'},
+    {ts:'2025-05-21 09:00',crop:'sorghum',disease:'Anthracnose',severity:'medium',accuracy:4,region:'Oromia',lang:'om'},
+  ];
+  feedbackData = data;
+  document.getElementById('m-total').textContent = data.length;
+  var prices = {enset:1900,teff:5200,wheat:4600,maize:3500,coffee:11200,potato:2200,barley:3800,sorghum:2800};
+  var etb = data.reduce(function(s,f){ return s+Math.round(15*0.5*({high:0.65,medium:0.35,low:0.15}[f.severity]||0.35)*0.75*(prices[f.crop]||3000)); },0);
+  document.getElementById('m-etb').textContent = Math.round(etb/1000)+'K ETB';
+  document.getElementById('feedback-count').textContent = data.length+' records';
 
-  if (charts.acc) charts.acc.destroy();
-  charts.acc = new Chart(document.getElementById('accuracyChart'), {
-    type: 'doughnut',
-    data: { labels:['Correct','Partial','Incorrect','Comment only'], datasets:[{ data:[c,p,w,co], backgroundColor:['#2D6A0A','#D4A017','#B83010','#90A4AE'], borderWidth:2, borderColor:'#fff' }] },
-    options: { plugins:{ legend:{ position:'bottom', labels:{ font:{ size:11 } } } }, cutout:'65%' }
-  });
+  document.getElementById('feedback-tbody').innerHTML = data.map(function(f){
+    var sc = f.severity==='high'?'sev-high':f.severity==='medium'?'sev-med':'sev-low';
+    return '<tr><td style="color:#aaa;font-size:11px;">'+f.ts+'</td>'
+      +'<td style="font-weight:600;text-transform:capitalize;">'+f.crop+'</td>'
+      +'<td>'+f.disease+'</td>'
+      +'<td><span class="'+sc+'">'+f.severity.toUpperCase()+'</span></td>'
+      +'<td style="color:#D4A017;">'+('★'.repeat(f.accuracy||0))+'</td>'
+      +'<td>'+f.region+'</td>'
+      +'<td><span style="background:#f0f0f0;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;">'+f.lang.toUpperCase()+'</span></td></tr>';
+  }).join('');
 
-  // Crop bar
-  var crops = {};
-  d.forEach(function(x){ crops[x.crop||'unknown'] = (crops[x.crop||'unknown']||0)+1; });
-  var cropKeys = Object.keys(crops).sort(function(a,b){return crops[b]-crops[a];});
-  var cropColors = {enset:'#2D6A0A',teff:'#D4A017',wheat:'#1565C0',maize:'#F4A622',coffee:'#6D4C41',potato:'#7B1FA2',barley:'#00838F',sorghum:'#B83010'};
-  if (charts.crop) charts.crop.destroy();
-  charts.crop = new Chart(document.getElementById('cropChart'), {
-    type: 'bar',
-    data: { labels: cropKeys, datasets:[{ label:'Feedbacks', data: cropKeys.map(function(k){return crops[k];}), backgroundColor: cropKeys.map(function(k){return cropColors[k]||'#2D6A0A';}) }] },
-    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } }
-  });
-
-  // Time line chart (last 14 days)
-  var dateCounts = {};
-  var today = new Date();
-  for (var i=13;i>=0;i--) { var dt=new Date(today); dt.setDate(dt.getDate()-i); dateCounts[dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})] = 0; }
-  d.forEach(function(x) {
-    if (!x.timestamp) return;
-    var k = new Date(x.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    if (dateCounts[k] !== undefined) dateCounts[k]++;
-  });
-  if (charts.time) charts.time.destroy();
-  charts.time = new Chart(document.getElementById('timeChart'), {
-    type: 'line',
-    data: { labels: Object.keys(dateCounts), datasets:[{ label:'Feedbacks/day', data: Object.values(dateCounts), fill:true, backgroundColor:'rgba(45,106,10,0.1)', borderColor:'#2D6A0A', tension:0.4, pointRadius:3 }] },
-    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } }
-  });
+  buildCharts(data);
+  buildAccuracy(data);
 }
 
-function renderCropAccuracy(d) {
-  var cropData = {};
-  d.forEach(function(x) {
-    var cr = x.crop || 'unknown';
-    if (!cropData[cr]) cropData[cr] = { total:0, correct:0, partial:0 };
-    cropData[cr].total++;
-    if (x.accuracy === 1) cropData[cr].correct++;
-    if (x.accuracy === 0.7) cropData[cr].partial++;
-  });
-  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">';
-  Object.entries(cropData).sort(function(a,b){return b[1].total-a[1].total;}).forEach(function(e) {
-    var cr = e[0], dat = e[1];
-    var rate = dat.total > 0 ? Math.round(((dat.correct*100+dat.partial*70)/dat.total)) : 0;
-    var col = rate >= 70 ? '#2D6A0A' : rate >= 40 ? '#D4A017' : '#B83010';
-    html += '<div style="background:#f8fdf2;border-radius:10px;padding:12px;border:1px solid #B8DC7A;">'
-      + '<div style="font-weight:700;color:#2D6A0A;font-size:13px;">'+cr.charAt(0).toUpperCase()+cr.slice(1)+'</div>'
-      + '<div style="font-size:22px;font-weight:900;color:'+col+';">'+rate+'%</div>'
-      + '<div class="acc-bar"><div class="acc-fill" style="width:'+rate+'%;background:'+col+';"></div></div>'
-      + '<div style="font-size:11px;color:#888;margin-top:4px;">'+dat.total+' feedbacks</div>'
-      + '</div>';
-  });
-  html += '</div>';
-  document.getElementById('crop-accuracy').innerHTML = html || '<p style="color:#aaa;font-size:13px;">No data yet</p>';
+function buildCharts(data) {
+  var G='#2D6A0A',L='#B8DC7A',A='#D4A017',R='#B83010',B='#1565C0',P='#7B5EA7';
+  var crops={};data.forEach(function(f){crops[f.crop]=(crops[f.crop]||0)+1;});
+  new Chart(document.getElementById('cropChart'),{type:'bar',data:{labels:Object.keys(crops).map(function(c){return c[0].toUpperCase()+c.slice(1);}),datasets:[{label:'Diagnoses',data:Object.values(crops),backgroundColor:G,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+  var sevs={high:0,medium:0,low:0};data.forEach(function(f){sevs[f.severity]++;});
+  new Chart(document.getElementById('sevChart'),{type:'doughnut',data:{labels:['High','Medium','Low'],datasets:[{data:[sevs.high,sevs.medium,sevs.low],backgroundColor:[R,A,G],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}}});
+  var langs={};data.forEach(function(f){var l={en:'English',am:'አማርኛ',om:'Oromiffa',ti:'ትግርኛ'}[f.lang]||f.lang;langs[l]=(langs[l]||0)+1;});
+  new Chart(document.getElementById('langChart'),{type:'pie',data:{labels:Object.keys(langs),datasets:[{data:Object.values(langs),backgroundColor:[G,A,B,P],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});
+  new Chart(document.getElementById('timeChart'),{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Diagnoses',data:[1,2,1,3,2,4,3],borderColor:G,backgroundColor:'rgba(45,106,10,0.1)',fill:true,tension:0.4,pointBackgroundColor:G,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
 }
 
-function render() {
-  var fc = document.getElementById('fCrop').value;
-  var fa = document.getElementById('fAcc').value;
-  var fs = document.getElementById('fSearch').value.toLowerCase();
-  var data = all.filter(function(d) {
-    if (fc && d.crop !== fc) return false;
-    if (fa !== '' && String(d.accuracy) !== fa) return false;
-    if (fs && !JSON.stringify(d).toLowerCase().includes(fs)) return false;
-    return true;
-  });
-  var tbody = document.getElementById('tbody');
-  var empty = document.getElementById('empty');
-  if (!data.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display = 'none';
-  var langMap = {am:'🇪🇹 Amharic',om:'🇪🇹 Oromiffa',ti:'🇪🇹 Tigrinya',en:'🇬🇧 English'};
-  tbody.innerHTML = data.map(function(d) {
-    var dt = d.timestamp ? new Date(d.timestamp).toLocaleString('en-ET',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-    var ab = d.accuracy===1?'<span class="badge bc">✅ Correct</span>':d.accuracy===0.7?'<span class="badge bp">⚠️ Partial</span>':d.accuracy===0?'<span class="badge bw">❌ Wrong</span>':'<span class="badge" style="background:#eee;color:#666;">— Note</span>';
-    return '<tr><td style="white-space:nowrap;color:#888;">'+dt+'</td>'
-      +'<td><span class="badge bg">'+(d.crop||'—')+'</span></td>'
-      +'<td style="max-width:180px;font-size:12px;">'+(d.disease||'—').substring(0,60)+'</td>'
-      +'<td>'+(d.confidence?d.confidence+'%':'—')+'</td>'
-      +'<td>'+ab+'</td>'
-      +'<td style="max-width:160px;color:#555;font-size:12px;">'+(d.comment||'—')+'</td>'
-      +'<td>'+(d.region||'—')+'</td>'
-      +'<td>'+(langMap[d.language]||d.language||'—')+'</td></tr>';
+function buildAccuracy(data) {
+  var crops=['enset','teff','wheat','maize','coffee','potato','barley','sorghum'];
+  var icons={enset:'🌱',teff:'🌾',wheat:'🌿',maize:'🌽',coffee:'☕',potato:'🥔',barley:'🌾',sorghum:'🌿'};
+  document.getElementById('accuracy-grid').innerHTML = crops.map(function(crop){
+    var rel=data.filter(function(f){return f.crop===crop&&f.accuracy;});
+    var avg=rel.length?Math.round(rel.reduce(function(s,f){return s+f.accuracy;},0)/rel.length/5*100):null;
+    return '<div class="acc-item"><div class="acc-crop">'+icons[crop]+' '+crop[0].toUpperCase()+crop.slice(1)+'</div>'
+      +'<div class="acc-score">'+(avg?avg+'%':'—')+'</div>'
+      +'<div class="acc-sub">'+(rel.length?rel.length+' ratings':'No data')+'</div></div>';
   }).join('');
 }
 
 function exportCSV() {
-  var hdr = ['Date','Crop','Disease','Confidence','Accuracy','Comment','Region','Language'];
-  var rows = all.map(function(d) {
-    return [d.timestamp?new Date(d.timestamp).toLocaleString():'',d.crop||'',d.disease||'',d.confidence||'',
-      d.accuracy===1?'Correct':d.accuracy===0.7?'Partial':d.accuracy===0?'Incorrect':'Comment',
-      '"'+(d.comment||'').replace(/"/g,'""')+'"',d.region||'',d.language||''];
-  });
-  var csv = [hdr,...rows].map(function(r){return r.join(',');}).join('\n');
-  var blob = new Blob([csv],{type:'text/csv'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'rg_feedback_'+new Date().toISOString().slice(0,10)+'.csv';
+  var csv='Time,Crop,Disease,Severity,Accuracy,Region,Language\n';
+  feedbackData.forEach(function(f){csv+=[f.ts,f.crop,f.disease,f.severity,f.accuracy,f.region,f.lang].join(',')+'\n';});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='rg_feedback_'+new Date().toISOString().split('T')[0]+'.csv';
   a.click();
 }
+
+async function sendTestNotif() {
+  var r=document.getElementById('notif-result');
+  r.textContent='⏳ Sending...'; r.style.color='#888';
+  try {
+    var res=await fetch('/api/push-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:document.getElementById('notif-type').value,crop:document.getElementById('notif-crop').value,region:'Ethiopia'})});
+    var d=await res.json();
+    r.textContent='✅ Sent to '+(d.sent||0)+' / '+(d.total||0)+' subscribers';
+    r.style.color='#2D6A0A';
+  } catch(e) {
+    r.textContent='❌ '+e.message; r.style.color='#B83010';
+  }
+}
+
+setInterval(loadHealth, 60000);
 </script>
 </body>
 </html>

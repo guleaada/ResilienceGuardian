@@ -503,30 +503,120 @@ async function runDailyDiseaseCheck() {
     const lang = sub.lang || 'en';
     
     if (riskMonths.includes(currentMonth)) {
-      // High risk month for this crop
       const msgs  = PUSH_MESSAGES.high_risk;
       const msgFn = msgs[lang] || msgs.en;
       const msg   = msgFn(sub.crop, sub.region);
       await sendPushNotification(sub.subscription, { ...msg, lang, crop: sub.crop, severity: 'high' });
       alertsSent++;
-    } else {
-      // Weekly healthy check (only on Mondays)
-      if (new Date().getDay() === 1) {
-        const msgs  = PUSH_MESSAGES.weekly_healthy;
-        const msgFn = msgs[lang] || msgs.en;
-        const msg   = msgFn(sub.region);
-        await sendPushNotification(sub.subscription, { ...msg, lang });
-      }
+    } else if (new Date().getDay() === 1) {
+      const msgs  = PUSH_MESSAGES.weekly_healthy;
+      const msgFn = msgs[lang] || msgs.en;
+      const msg   = msgFn(sub.region);
+      await sendPushNotification(sub.subscription, { ...msg, lang });
     }
   }
-  
-  console.log(`✅ Daily check complete. ${alertsSent} disease alerts sent.`);
+
+  // ── Also send SMS to registered phone subscribers ────────
+  let smsSent = 0;
+  for (const [phone, sub] of smsSubscribers) {
+    const riskMonths = HIGH_RISK_MONTHS[sub.crop] || [];
+    if (riskMonths.includes(currentMonth)) {
+      const lang   = sub.lang || 'en';
+      const tmpl   = SMS_ALERT_TEMPLATES.high_risk;
+      const msgFn  = tmpl[lang] || tmpl.en;
+      const message = msgFn(sub.crop, sub.region);
+      const result  = await sendSMSAlert(phone, message);
+      if (result.ok) smsSent++;
+    }
+  }
+
+  console.log('✅ Daily check complete. Push: ' + alertsSent + ' alerts. SMS: ' + smsSent + ' messages.');
 }
 
 // Run daily check every 24 hours
 setInterval(runDailyDiseaseCheck, 24 * 60 * 60 * 1000);
 // Run once at startup (after 30 seconds)
 setTimeout(runDailyDiseaseCheck, 30000);
+
+
+// ── SMS ALERT SUBSCRIBER STORE ───────────────────────────
+// In-memory (use database in production for persistence)
+const smsSubscribers = new Map();
+
+// SMS Alert message templates (4 languages)
+const SMS_ALERT_TEMPLATES = {
+  high_risk: {
+    en: (crop, region) => `ResilienceGuardian ALERT: High ${crop} disease risk in ${region} this week. Open app for treatment advice: resilienceguardian.onrender.com`,
+    am: (crop, region) => `ጠባቂ ጥንካሬ ማንቂያ: በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ። ህክምና ለማግኘት: resilienceguardian.onrender.com`,
+    om: (crop, region) => `ResilienceGuardian: ${crop} dhukkubaaf sodaan ${region} keessatti ol'aanaa dha. App banaa: resilienceguardian.onrender.com`,
+    ti: (crop, region) => `ጠባቂ ጥንካሬ: ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ: resilienceguardian.onrender.com`
+  },
+  rain_alert: {
+    en: (crop) => `ResilienceGuardian: Heavy rain forecast. High ${crop} disease risk. Check your crops now: resilienceguardian.onrender.com`,
+    am: (crop) => `ጠባቂ ጥንካሬ: ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ አደጋ። resilienceguardian.onrender.com`,
+    om: (crop) => `ResilienceGuardian: Rooba cimaa eegama. ${crop} dhukkubaaf sodaa: resilienceguardian.onrender.com`,
+    ti: (crop) => `ጠባቂ ጥንካሬ: ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም: resilienceguardian.onrender.com`
+  }
+};
+
+// Subscribe farmer phone to SMS alerts
+app.post('/api/sms-subscribe', (req, res) => {
+  const { phone, region, crop, lang } = req.body;
+  if (!phone) return res.status(400).json({ error: 'Phone required' });
+
+  // Normalize phone number
+  const cleanPhone = phone.replace(/\s/g, '').replace(/^0/, '+251');
+  smsSubscribers.set(cleanPhone, {
+    phone: cleanPhone,
+    region: region || 'Addis Ababa',
+    crop: crop || 'enset',
+    lang: lang || 'en',
+    subscribedAt: new Date().toISOString()
+  });
+
+  console.log(`📲 SMS alert subscriber: ${cleanPhone} | ${crop} | ${region} | ${lang} | Total: ${smsSubscribers.size}`);
+  res.json({ ok: true, total: smsSubscribers.size });
+});
+
+// Unsubscribe
+app.post('/api/sms-unsubscribe', (req, res) => {
+  const { phone } = req.body;
+  if (phone) {
+    const clean = phone.replace(/\s/g, '').replace(/^0/, '+251');
+    smsSubscribers.delete(clean);
+    console.log(`📵 SMS unsubscribed: ${clean}. Total: ${smsSubscribers.size}`);
+  }
+  res.json({ ok: true });
+});
+
+// Send SMS to a phone number via Africa's Talking
+async function sendSMSAlert(phone, message) {
+  const AT_KEY  = process.env.AT_API_KEY;
+  const AT_USER = process.env.AT_USERNAME || 'sandbox';
+
+  if (!AT_KEY) {
+    console.log(`📲 [NO SMS KEY] Would send to ${phone}: ${message.substring(0, 60)}...`);
+    return { ok: false, reason: 'No AT_API_KEY configured' };
+  }
+
+  try {
+    const resp = await fetch('https://api.africastalking.com/version1/messaging', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': AT_KEY
+      },
+      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'ResGuardian' })
+    });
+    const data = await resp.json();
+    console.log(`✅ SMS sent to ${phone}`);
+    return { ok: true, result: data };
+  } catch(e) {
+    console.error(`❌ SMS failed to ${phone}:`, e.message);
+    return { ok: false, error: e.message };
+  }
+}
 
 // ── MAIN ANALYZE ENDPOINT ─────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
@@ -577,7 +667,7 @@ app.get('/api/health', (req, res) => {
     satellite:  GEE_KEY        ? '✅ GEE Connected' : '🟡 Demo mode',
     sms:        process.env.AT_API_KEY ? '✅ Africas Talking' : '🟡 No key',
     tts:        '✅ Google Translate TTS (am/om/ti/en)',
-    push:       `✅ ${pushSubscriptions.size} subscribers`
+    push:       `✅ ${pushSubscriptions.size} push + ${smsSubscribers.size} SMS subscribers`
   });
 });
 
