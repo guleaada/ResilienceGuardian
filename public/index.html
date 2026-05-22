@@ -1150,6 +1150,73 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 .yield-bar-wrap { background: #F0EBE0; border-radius: 20px; height: 10px; margin: 8px 0; overflow: hidden; }
 .yield-bar { height: 100%; border-radius: 20px; transition: width 0.8s ease; }
 
+
+/* ─── TUTORIAL MODAL ─── */
+.tut-lang-btn {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #B8DC7A;
+  background: white;
+  color: #2D6A0A;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tut-lang-btn.active {
+  background: #2D6A0A;
+  color: white;
+  border-color: #2D6A0A;
+}
+.tut-card {
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s;
+  border: 1px solid #EAE4DC;
+}
+.tut-card:hover { transform: translateY(-2px); }
+.tut-thumb {
+  width: 100%;
+  background: linear-gradient(135deg, #1a3a05, #2D6A0A);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  cursor: pointer;
+}
+.tut-play-btn {
+  width: 52px; height: 52px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  transition: transform 0.2s;
+}
+.tut-thumb:hover .tut-play-btn { transform: scale(1.1); }
+.tut-step-badge {
+  position: absolute;
+  top: 10px; left: 10px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tut-duration {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
 /* ─── COST CALCULATOR ─────────────────────────────────── */
 .cost-card {
   background: #F0F7E8;
@@ -1795,6 +1862,9 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </button>
   <button class="nav-tab" id="tab-research" onclick="switchTab('research')">
     <span class="nav-icon">📚</span><span id="nav-research">Research</span>
+  </button>
+  <button class="nav-tab" id="tab-tutorials" onclick="switchTab('tutorials')">
+    <span class="nav-icon">🎬</span><span id="nav-tutorials">Tutorials</span>
   </button>
   <button class="nav-tab" id="tab-about" onclick="switchTab('about')">
     <span class="nav-icon">👤</span><span id="nav-about">About</span>
@@ -5081,6 +5151,234 @@ window.addEventListener('load', function() {
   }, 1500);
 });
 
+
+// ==================== VIDEO TUTORIALS ====================
+
+var SELAM_VIDEOS = {
+  en: [
+    {
+      step: 1, title: 'How to Take a Good Plant Photo',
+      desc: 'Learn how to capture clear photos of leaves, stems, and roots for accurate AI diagnosis.',
+      duration: '~45 sec', icon: '📷', color: '#1565C0',
+      url: '', // ← paste your video URL here when ready
+      tips: ['Take photo in natural daylight', 'Hold camera steady, 20-30cm from plant', 'Capture both sides of the leaf', 'Include both healthy and infected parts']
+    },
+    {
+      step: 2, title: 'How to Get an AI Diagnosis',
+      desc: 'Step-by-step guide: select your crop, describe symptoms, upload photo, and tap Analyze.',
+      duration: '~60 sec', icon: '🤖', color: '#2D6A0A',
+      url: '',
+      tips: ['Select the correct crop first', 'Tap all symptoms you can see', 'Upload at least one clear photo', 'Add any extra context about your field']
+    },
+    {
+      step: 3, title: 'Understanding Your Action Plan',
+      desc: 'How to read and follow the 7-day treatment plan with research-backed timelines.',
+      duration: '~50 sec', icon: '📋', color: '#D4A017',
+      url: '',
+      tips: ['Start with Day 1 actions immediately', 'Follow the monitoring schedule', 'Tap 🔊 to hear the plan read aloud', 'Share results with your Development Agent']
+    },
+    {
+      step: 4, title: 'Using the App Without Internet',
+      desc: 'How to use Resilience Guardian fully offline — disease lookup, action plans, and contacts.',
+      duration: '~40 sec', icon: '📴', color: '#7B1FA2',
+      url: '',
+      tips: ['Tap "📴 Offline DB" button', 'Select your crop and tap Analyze', 'All 42 diseases work offline', 'Weather shows last cached data']
+    },
+    {
+      step: 5, title: 'Reading the Weather Risk Calendar',
+      desc: 'How to use the 7-day and 30-day disease risk forecasts to plan preventive action.',
+      duration: '~35 sec', icon: '📅', color: '#00838F',
+      url: '',
+      tips: ['🔴 Red = spray/inspect today', '🟡 Yellow = monitor closely', '🟢 Green = good time to prevent', 'Risk updates automatically every 30 min']
+    },
+    {
+      step: 6, title: 'Giving Feedback to Improve the App',
+      desc: 'How your feedback helps train the AI to be more accurate for Ethiopian farmers.',
+      duration: '~30 sec', icon: '🌾', color: '#B83010',
+      url: '',
+      tips: ['Rate each diagnosis after getting results', 'Tell us the actual disease if AI was wrong', 'Feedback syncs automatically when online', 'Your data stays anonymous']
+    },
+  ],
+  am: [
+    {
+      step: 1, title: 'ጥሩ የተክል ፎቶ እንዴት ማንሳት',
+      desc: 'ትክክለኛ AI ምርመራ ለማግኘት የቅጠል፣ ግንድ እና ሥር ፎቶ ማንሳት።',
+      duration: '~45 ሰከንድ', icon: '📷', color: '#1565C0', url: '',
+      tips: ['ፎቶ በተፈጥሮ ብርሃን ያንሱ', 'ካሜራ 20-30 ሴ.ሜ ርቀት ያዙ', 'ሁለቱም ቅጠል ጎኖች ያስቅሉ', 'ጤናማ እና የታመሙ ክፍሎችን ያካትቱ']
+    },
+    {
+      step: 2, title: 'AI ምርመራ እንዴት ማግኘት',
+      desc: 'ሰብል ምረጡ፣ ምልክቶቹን ግለጹ፣ ፎቶ ያስቅሉ፣ ትንተና ይጫኑ።',
+      duration: '~60 ሰከንድ', icon: '🤖', color: '#2D6A0A', url: '',
+      tips: ['መጀመሪያ ትክክለኛ ሰብሉን ምረጡ', 'ሁሉንም የሚያዩትን ምልክቶች ይምረጡ', 'ቢያንስ አንድ ፎቶ ያስቅሉ', 'ስለ ማሳዎ ተጨማሪ መረጃ ያክሉ']
+    },
+    {
+      step: 3, title: 'የድርጊት እቅዱን እንዴት መረዳት',
+      desc: '7 ቀን የህክምና እቅዱን ከምርምር ማስረጃ ጋር ማንበብ።',
+      duration: '~50 ሰከንድ', icon: '📋', color: '#D4A017', url: '',
+      tips: ['ቀን 1 እርምጃዎችን ወዲያው ጀምሩ', 'የክትትል ሰሌዳ ይከተሉ', '🔊 ይጫኑ ለድምጽ ማካካሻ', 'ውጤቱን ከDA ጋር ያጋሩ']
+    },
+    {
+      step: 4, title: 'ያለ ኢንተርኔት አፕ እንዴት መጠቀም',
+      desc: '42 በሽታዎች ያለ ኢንተርኔት ይሰራሉ — ሙሉ ኦፍላይን ሁነታ።',
+      duration: '~40 ሰከንድ', icon: '📴', color: '#7B1FA2', url: '',
+      tips: ['"📴 Offline DB" ይጫኑ', 'ሰብሉን ምርጡ እና ትንተና ይጫኑ', '42 በሽታዎች ኦፍላይን ይሰራሉ', 'አየር ሁኔታ የቅርብ ጊዜ መረጃ ያሳያል']
+    },
+    {
+      step: 5, title: 'የአየር ሁኔታ አደጋ ቀን ቀን',
+      desc: '7 እና 30 ቀን የበሽታ አደጋ ትንበያ ለመከላከያ ዕቅድ።',
+      duration: '~35 ሰከንድ', icon: '📅', color: '#00838F', url: '',
+      tips: ['🔴 ቀይ = ዛሬ ህክምና', '🟡 ቢጫ = በቅርቡ ክትትል', '🟢 አረንጓዴ = ለመከላከያ ጥሩ ጊዜ', 'ዝማኔ ሁልጊዜ ራስሰር']
+    },
+    {
+      step: 6, title: 'አስተያየት ሰጥቶ አፑን ማሻሻል',
+      desc: 'አስተያየትዎ AI ምርመራ ለኢትዮጵያ ገበሬዎች ሙሉ ትክክለኛ ያደርጋል።',
+      duration: '~30 ሰከንድ', icon: '🌾', color: '#B83010', url: '',
+      tips: ['ምርመራ ካገኙ በኋላ ይመዝኑ', 'AI ስህተት ቢሆን ትክክሉን ንገሩን', 'ኦንላይን ሲሆን ራስሰር ይልካል', 'ማንነትዎ ምስጢራዊ ነው']
+    },
+  ],
+  om: [
+    {
+      step: 1, title: 'Suuraa Biqiltuu Gaarii Akkam Kaasu',
+      desc: 'Dhukkuba sirriitti adda baasuuf suuraa ifaa kaasuu baradhu.',
+      duration: '~45 daqiiqaa', icon: '📷', color: '#1565C0', url: '',
+      tips: ['Iftii uumamaa keessatti kaasi', 'Kaameeraa sentimeetira 20-30 qabadhu', 'Lamaanuu gama foliichaa kaasi', 'Kutaa fayyaa fi dhukkubsataa']
+    },
+    {
+      step: 2, title: 'Mirkaneessa AI Akkam Argatu',
+      desc: 'Midhaan filadhu, mallattoolee ibsi, suuraa feli, xinxali tuqi.',
+      duration: '~60 daqiiqaa', icon: '🤖', color: '#2D6A0A', url: '',
+      tips: ['Dursa midhaan sirrii filadhu', 'Mallattoolee argitu hunda tuqi', 'Xiqqaatuu suuraa tokko kaasi', 'Odeeffannoo dabalataa galchi']
+    },
+    { step: 3, title: 'Karoora Tarsiimoo Kee Akkam Hubatu', desc: 'Karoora walaansaa guyyaa 7 dubbisuu.', duration: '~50 daqiiqaa', icon: '📋', color: '#D4A017', url: '', tips: ['Tarkaanfii guyyaa 1 hatattamaan jalqabi', 'Sagantaa hordoffii hordofi'] },
+    { step: 4, title: 'App Interneetii Malee Akkam Fayyadamu', desc: 'Dhukkuba 42 interneetii malee hojjetu.', duration: '~40 daqiiqaa', icon: '📴', color: '#7B1FA2', url: '', tips: ['"📴 Offline DB" tuqi', 'Midhaan filadhu xinxali tuqi'] },
+    { step: 5, title: 'Kaalaandaraa Gaagaa Dhukkubaa', desc: 'Tilmaama gaagaa guyyoota 7 fi 30.', duration: '~35 daqiiqaa', icon: '📅', color: '#00838F', url: '', tips: ['🔴 Diimsaa = haraa walaani', '🟢 Magariisa = yeroo ittisaa'] },
+    { step: 6, title: 'Deebii Kennuun App Fooyyessuu', desc: 'Yaada keessan AI Ethiopian qotee bulaa gargaara.', duration: '~30 daqiiqaa', icon: '🌾', color: '#B83010', url: '', tips: ['Mirkaneessa argattee booda madaali'] },
+  ],
+  ti: [
+    {
+      step: 1, title: 'ጽቡቕ ስእሊ ተኽሊ ከመይ ምውሳድ',
+      desc: 'ዕቱብ ምርመራ AI ንምርካብ ናይ ቅጠል፣ ዕምሪ፣ ሱር ስእሊ ምውሳድ።',
+      duration: '~45 ካልኢት', icon: '📷', color: '#1565C0', url: '',
+      tips: ['ስእሊ ብተፈጥሮ ብርሃን ውሰድ', 'ካሜራ 20-30 ሴ.ሜ ሓዝ']
+    },
+    { step: 2, title: 'ምርመራ AI ከመይ ምርካብ', desc: 'ሰብሊ ምረጽ፣ ምልክታት ግለጽ፣ ስእሊ ጽዓን፣ ምፍታሽ ጠውቕ።', duration: '~60 ካልኢት', icon: '🤖', color: '#2D6A0A', url: '', tips: ['ቅድም ትኽክለኛ ሰብሊ ምረጽ'] },
+    { step: 3, title: 'መደብ ስጉምቲ ምርዳእ', desc: 'ናይ 7 መዓልቲ መሳርሒ ፕላን ምንባብ።', duration: '~50 ካልኢት', icon: '📋', color: '#D4A017', url: '', tips: ['መዓልቲ 1 ስጉምቲ ብቕልጡፍ ጀምር'] },
+    { step: 4, title: 'ብዘይ ኢንተርኔት ኣፕ ምጥቃም', desc: '42 ሕማማት ብዘይ ኢንተርኔት ይሰርሑ።', duration: '~40 ካልኢት', icon: '📴', color: '#7B1FA2', url: '', tips: ['"📴 Offline DB" ጠውቕ'] },
+    { step: 5, title: 'ካለንደር ሓደጋ ሕማም', desc: 'ትንበያ ሓደጋ ናይ 7 ን 30 መዓልቲ።', duration: '~35 ካልኢት', icon: '📅', color: '#00838F', url: '', tips: ['🔴 ቀይሕ = ሎሚ ሕክምና'] },
+    { step: 6, title: 'ርእይቶ ሃብ ኣፕ ምምሕያሽ', desc: 'ርእይቶኻ AI ዝሓሸ ይገብሮ።', duration: '~30 ካልኢት', icon: '🌾', color: '#B83010', url: '', tips: ['ምርመራ ምስ ረኸብካ ሃብ'] },
+  ]
+};
+
+var _currentTutLang = 'en';
+
+function showTutorials() {
+  document.getElementById('tutorialModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  loadTutorials(currentLang in SELAM_VIDEOS ? currentLang : 'en');
+}
+
+function closeTutorials() {
+  document.getElementById('tutorialModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function loadTutorials(lang) {
+  _currentTutLang = lang;
+  ['en','am','om','ti'].forEach(function(l) {
+    var btn = document.getElementById('tut-btn-' + l);
+    if (btn) btn.className = 'tut-lang-btn' + (l === lang ? ' active' : '');
+  });
+
+  var videos = SELAM_VIDEOS[lang] || SELAM_VIDEOS.en;
+  var grid = document.getElementById('tut-grid');
+  var comingSoon = document.getElementById('tut-coming-soon');
+  var hasAnyVideo = videos.some(function(v) { return v.url && v.url.length > 0; });
+  if (comingSoon) comingSoon.style.display = hasAnyVideo ? 'none' : 'block';
+
+  grid.innerHTML = '';
+
+  videos.forEach(function(v) {
+    var hasVideo = v.url && v.url.length > 0;
+    var card = document.createElement('div');
+    card.className = 'tut-card';
+
+    // Thumbnail area
+    var thumbDiv = document.createElement('div');
+    if (hasVideo) {
+      var vid = document.createElement('video');
+      vid.controls = true;
+      vid.style.cssText = 'width:100%;display:block;max-height:200px;object-fit:cover;';
+      var src = document.createElement('source');
+      src.src = v.url; src.type = 'video/mp4';
+      vid.appendChild(src);
+      thumbDiv.appendChild(vid);
+    } else {
+      thumbDiv.className = 'tut-thumb';
+      thumbDiv.setAttribute('data-step', v.step);
+      thumbDiv.onclick = function() { showTutTips(this.getAttribute('data-step')); };
+      thumbDiv.innerHTML = '<div class="tut-step-badge">Step ' + v.step + '</div>'
+        + '<div style="text-align:center;">'
+        + '<div style="font-size:48px;margin-bottom:8px;">' + v.icon + '</div>'
+        + '<div class="tut-play-btn">&#9654;</div>'
+        + '</div>'
+        + '<div class="tut-duration">&#9201; ' + v.duration + '</div>';
+    }
+    card.appendChild(thumbDiv);
+
+    // Content area
+    var body = document.createElement('div');
+    body.style.padding = '14px';
+
+    // Badge row
+    var badgeRow = document.createElement('div');
+    badgeRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+    badgeRow.innerHTML = '<span style="background:' + v.color + ';color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">Step ' + v.step + '</span>'
+      + '<span style="font-size:11px;color:#999;">&#9201; ' + v.duration + '</span>';
+    body.appendChild(badgeRow);
+
+    // Title
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;font-size:14px;color:#1a1a1a;margin-bottom:4px;';
+    title.textContent = v.title;
+    body.appendChild(title);
+
+    // Description
+    var desc = document.createElement('div');
+    desc.style.cssText = 'font-size:12px;color:#666;line-height:1.5;margin-bottom:10px;';
+    desc.textContent = v.desc;
+    body.appendChild(desc);
+
+    // Tips div
+    var tipsDiv = document.createElement('div');
+    tipsDiv.id = 'tut-tips-' + v.step;
+    tipsDiv.style.cssText = 'display:none;background:#f8fdf2;border-radius:10px;padding:10px;border:1px solid #B8DC7A;margin-bottom:8px;';
+    tipsDiv.innerHTML = '<div style="font-size:12px;font-weight:700;color:#2D6A0A;margin-bottom:6px;">&#128161; Key Tips:</div>'
+      + (v.tips || []).map(function(t){ return '<div style="font-size:12px;color:#4A3728;margin-bottom:3px;">&#8226; ' + t + '</div>'; }).join('');
+    body.appendChild(tipsDiv);
+
+    // View button
+    var btn = document.createElement('button');
+    btn.className = 'tut-view-btn';
+    btn.setAttribute('data-step', v.step);
+    btn.style.cssText = 'background:#f0f8eb;color:#2D6A0A;border:1.5px solid #B8DC7A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;';
+    btn.textContent = hasVideo ? '&#128161; View Tips' : '&#128214; View Step Guide';
+    btn.onclick = function() { showTutTips(this.getAttribute('data-step')); };
+    body.appendChild(btn);
+
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+}
+
+
+function showTutTips(step, lang) {
+  var tipsDiv = document.getElementById('tut-tips-' + step);
+  if (!tipsDiv) return;
+  var isHidden = tipsDiv.style.display === 'none' || tipsDiv.style.display === '';
+  tipsDiv.style.display = isHidden ? 'block' : 'none';
+}
+
 // ==================== SEASONAL DISEASE RISK ====================
 var CROP_RISK_PROFILES = {
   enset:   { months: [6,7,8,9], disease: 'Bacterial Wilt (Xcm)', trigger: 'Humidity > 70% + tool sharing', peak: 'July-September' },
@@ -6061,6 +6359,8 @@ function switchTab(tab) {
   } else if (tab === 'about') {
     showAbout();
     setLanguage(currentLang);
+  } else if (tab === 'tutorials') {
+    showTutorials();
   }
 }
 </script>
@@ -6417,6 +6717,48 @@ function closeIOSPopup() {
     <div id="citation-body" style="padding:16px;overflow-y:auto;flex:1;"></div>
     <div style="padding:12px 16px;border-top:1px solid #eee;">
       <button onclick="document.getElementById('citation-modal').style.display='none'" style="background:#2D6A0A;color:white;border:none;border-radius:10px;padding:10px;width:100%;font-size:14px;cursor:pointer;">✓ Close</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- TUTORIAL MODAL -->
+<div class="modal-overlay" id="tutorialModal" onclick="if(event.target===this)closeTutorials()">
+  <div class="modal-box" style="max-height:92vh;overflow:hidden;display:flex;flex-direction:column;">
+
+    <!-- Header -->
+    <div class="modal-header" style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);flex-shrink:0;">
+      <h2>🎬 <span id="tut-title">Learn from Salem</span></h2>
+      <p id="tut-sub">Your friendly Ethiopian guide — watch short tutorials in your language</p>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px;">
+
+      <!-- Language tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+        <button onclick="loadTutorials('en')" id="tut-btn-en" class="tut-lang-btn active">🇬🇧 English</button>
+        <button onclick="loadTutorials('am')" id="tut-btn-am" class="tut-lang-btn">🇪🇹 አማርኛ</button>
+        <button onclick="loadTutorials('om')" id="tut-btn-om" class="tut-lang-btn">🇪🇹 Oromiffa</button>
+        <button onclick="loadTutorials('ti')" id="tut-btn-ti" class="tut-lang-btn">🇪🇹 ትግርኛ</button>
+      </div>
+
+      <!-- Coming soon notice -->
+      <div id="tut-coming-soon" style="background:linear-gradient(135deg,#e8f5e0,#f0f8eb);border-radius:14px;padding:16px;margin-bottom:16px;border:1.5px solid #B8DC7A;display:none;">
+        <div style="font-weight:700;color:#2D6A0A;margin-bottom:6px;">🌱 Videos Coming Soon!</div>
+        <div style="font-size:13px;color:#4A3728;line-height:1.6;">
+          Short tutorial videos with Salem, your Ethiopian farming guide, are being recorded.<br>
+          Each video will be 30–90 seconds in your language.<br><br>
+          <strong>For now:</strong> Read the step-by-step guides below. ⬇️
+        </div>
+      </div>
+
+      <!-- Video grid -->
+      <div id="tut-grid" style="display:grid;grid-template-columns:1fr;gap:14px;"></div>
+
+    </div>
+
+    <div style="padding:12px 16px;border-top:1px solid #eee;flex-shrink:0;">
+      <button onclick="closeTutorials()" style="background:#2D6A0A;color:white;border:none;border-radius:10px;padding:10px;width:100%;font-size:14px;font-weight:600;cursor:pointer;">✓ Close</button>
     </div>
   </div>
 </div>
