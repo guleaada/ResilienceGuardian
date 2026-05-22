@@ -2424,6 +2424,10 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
         <h3 id="about-ver-title" id="about-version-title">Current Version</h3>
         <div style="background:#F5F5F0;border-radius:12px;padding:14px 16px;font-size:13px;color:var(--bark);line-height:1.8;">
           <div><strong>Version:</strong> v3.0 &nbsp;·&nbsp; <strong>Knowledge base:</strong> 23+ peer-reviewed papers &amp; institutional sources (updated 2025)</div>
+          <div style="margin-top:10px;padding:10px;background:#f0f8eb;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:12px;color:#2D6A0A;">🔐 No tracking · No ads · Data on your device</span>
+            <a href="/privacy.html" target="_blank" style="font-size:12px;color:#2D6A0A;font-weight:700;text-decoration:none;border:1px solid #B8DC7A;border-radius:8px;padding:4px 10px;">Privacy Policy</a>
+          </div>
           <div><strong>Languages:</strong> 4 &nbsp;·&nbsp; <strong>Crops:</strong> 8</div>
           <div><strong>Status:</strong> Online prototype — seeking agronomist validation and farmer testing</div>
           <div><strong>Goal:</strong> Test with 20–50 real farmers across Kaffa, Siltie, Gurage, Arsi, Tigray, Jimma, Oromia, Amhara, and SNNPR zones</div>
@@ -4154,10 +4158,18 @@ function setLanguage(lang) {
   const rWheat = document.getElementById('res-section-wheat');
   const rHow   = document.getElementById('res-section-how');
   const resLabels = {
-    en: { enset: '🌱 Enset Research — 5 Papers', teff: '🌾 Teff Research — 2 Papers', wheat: '🌿 Wheat Research — 1 Paper', how: 'How Research Becomes Advice' },
-    am: { enset: '🌱 የእንሰት ምርምር — 5 ጽሑፎች', teff: '🌾 የጤፍ ምርምር — 2 ጽሑፎች', wheat: '🌿 የስንዴ ምርምር — 1 ጽሑፍ', how: 'ምርምር ምክር እንዴት ይሆናል' },
-    om: { enset: '🌱 Qorannoo Ensete — Barreeffama 5', teff: '🌾 Qorannoo Teff — Barreeffama 2', wheat: '🌿 Qorannoo Qamadii — Barreeffama 1', how: "Qorannoon Gorsa Akkamitti Taaa" },
-    ti: { enset: '🌱 መጽናዕቲ እንሰት — 5 ጽሑፋት', teff: '🌾 መጽናዕቲ ጤፍ — 2 ጽሑፋት', wheat: '🌿 መጽናዕቲ ስርናይ — 1 ጽሑፍ', how: 'መጽናዕቲ ናብ ምኽሪ ኸመይ ይቕየር' },
+    en: { enset: '🌱 Enset Research — 5 Papers', teff: '🌾 Teff Research — 2 Papers', wheat: '🌿 Wheat Research — 1 Paper', how: 'How Research Becomes Advice' 
+    ,
+      profTitle:"My Farmer Profile",profSubtitle:"Your info personalises diagnosis and cost estimates.",profName:"Full Name",profRegion:"Region",profWoreda:"Woreda / District",profFarm:"Farm Size (hectares)",profCrops:"Primary Crops",profPhone:"Phone Number (for SMS)",profPhoneHint:"Used to send your diagnosis via SMS",profSave:"Save Profile",profSaved:"Profile Saved",smsTitle:"Send SMS Diagnosis",smsDesc:"Send diagnosis to a phone number",smsSend:"Send SMS",smsCancel:"Cancel",smsUseMyNum:"Use My Number",outbreakBtn:"Report a Disease Outbreak" },
+    am: { enset: '🌱 የእንሰት ምርምር — 5 ጽሑፎች', teff: '🌾 የጤፍ ምርምር — 2 ጽሑፎች', wheat: '🌿 የስንዴ ምርምር — 1 ጽሑፍ', how: 'ምርምር ምክር እንዴት ይሆናል' 
+    ,
+      profTitle:"የእኔ የገበሬ መገለጫ",profSubtitle:"መረጃዎ ምርመራ ያሻሽላል።",profName:"ሙሉ ስም",profRegion:"ክልል",profWoreda:"ወረዳ / ዲስትሪክት",profFarm:"የእርሻ ስፋት (ሄክታር)",profCrops:"ዋና ሰብሎች",profPhone:"ስልክ ቁጥር (ለ SMS)",profPhoneHint:"ሪፖርት ለመላክ ይጠቅማል",profSave:"መገለጫ ቀምጥ",profSaved:"መገለጫ ተቀምጧል",smsTitle:"SMS ሪፖርት ላክ",smsDesc:"ምርመራ ወደ ስልክ ቁጥር ይላካል",smsSend:"SMS ላክ",smsCancel:"ሰርዝ",smsUseMyNum:"የእኔን ቁጥር ተጠቀም",outbreakBtn:"የበሽታ ወረርሽኝ ሪፖርት አድርግ" },
+    om: { enset: '🌱 Qorannoo Ensete — Barreeffama 5', teff: '🌾 Qorannoo Teff — Barreeffama 2', wheat: '🌿 Qorannoo Qamadii — Barreeffama 1', how: "Qorannoon Gorsa Akkamitti Taaa" 
+    ,
+      profTitle:"Profaayilii Qonnaan Bulaa Koo",profSubtitle:"Odeeffannoon fooyya'uu gargaara.",profName:"Maqaa Guutuu",profRegion:"Naannoo",profWoreda:"Woreda / Aanaa",profFarm:"Bal'ina Lafa (heekitaara)",profCrops:"Midhaan Ijoo",profPhone:"Lakkoofsa Bilbilaa",profPhoneHint:"Gabaasa erguu dhaaf",profSave:"Profaayilii Kuusi",profSaved:"Profaayiliin kuufame",smsTitle:"SMS Ergi",smsDesc:"Mirkaneessa gara bilbilaa ergi",smsSend:"SMS Ergi",smsCancel:"Haquu",smsUseMyNum:"Lakkoofsa Koo Fayyadami",outbreakBtn:"Dhukkuba Gabaasi" },
+    ti: { enset: '🌱 መጽናዕቲ እንሰት — 5 ጽሑፋት', teff: '🌾 መጽናዕቲ ጤፍ — 2 ጽሑፋት', wheat: '🌿 መጽናዕቲ ስርናይ — 1 ጽሑፍ', how: 'መጽናዕቲ ናብ ምኽሪ ኸመይ ይቕየር' 
+    ,
+      profTitle:"ናይ ሓረስታይ ፕሮፋይለይ",profSubtitle:"ሓበሬታኻ ምርመራ የመሓይሽ።",profName:"ምሉእ ሽም",profRegion:"ክልል",profWoreda:"ወረዳ",profFarm:"ስፍሓት ሕርሻ (ሄክታር)",profCrops:"ዋና ሰብልታት",profPhone:"ቁጽሪ ስልኪ",profPhoneHint:"ሪፖርት ንምልኣኽ",profSave:"ፕሮፋይል ዓቅብ",profSaved:"ፕሮፋይል ተዓቂቡ",smsTitle:"SMS ስደድ",smsDesc:"ምርመራ ናብ ስልኪ ይስደድ",smsSend:"SMS ስደድ",smsCancel:"ሰርዝ",smsUseMyNum:"ቁጽረይ ተጠቐም",outbreakBtn:"ናይ ሕማም ወረርሽኝ ሪፖርት" },
   };
   const rl = resLabels[lang] || resLabels.en;
   if (rEnset) rEnset.textContent = rl.enset;
@@ -4208,6 +4220,33 @@ function setLanguage(lang) {
 
   setText('howto-steps-label', t.howtoStepsLabel || (lang === 'am' ? '6 ደረጃዎች ለምርመራ' : lang === 'om' ? 'Tarkaanfii 6 Xiinxalaaf' : lang === 'ti' ? '6 ስጉምቲ ንምርመራ' : '6 Steps to a Diagnosis'));
   setText('howto-results-title', t.howtoResultsTitle || (lang === 'am' ? 'AI ውጤቱ የሚያካትተው' : lang === 'om' ? 'AI Deebii Keessatti Maal Jira' : lang === 'ti' ? 'ውጺኢት AI እንታይ ይሓዝ' : 'What the AI Result Includes'));
+
+  // Translate profile modal labels
+  var tLang = T[lang] || T.en;
+  ['prof-subtitle-text','prof-label-name','prof-label-region','prof-label-woreda','prof-label-farm','prof-label-crops','prof-label-phone','prof-phone-hint','prof-save-label'].forEach(function(id) {
+    var key = {'prof-subtitle-text':'profSubtitle','prof-label-name':'profName','prof-label-region':'profRegion','prof-label-woreda':'profWoreda','prof-label-farm':'profFarm','prof-label-crops':'profCrops','prof-label-phone':'profPhone','prof-phone-hint':'profPhoneHint','prof-save-label':'profSave'}[id];
+    var el = document.getElementById(id);
+    if (el && tLang[key]) el.textContent = tLang[key];
+  });
+  var smsD2 = document.getElementById('sms-desc');
+  if (smsD2 && tLang.smsDesc) smsD2.textContent = tLang.smsDesc;
+
+  // Translate privacy notice in profile modal
+  var privacyTitles = {
+    en:'Your data stays on your device', am:'ውሂብዎ በስልክዎ ላይ ይቀራል',
+    om:'Deetaan keessan bilbila keessanitti tuura', ti:'ውሂብካ ኣብ ስልክኻ ይቕንዕ'
+  };
+  var privacySubs = {
+    en:'No tracking · No ads · Never shared', am:'ምንም ክትትል · ምንም ማስታወቂያ · ፈጽሞ አይጋራም',
+    om:'Hordoffii hin jiru · Beeksisa hin jiru · Hin qoodamu', ti:'ክትትል የለን · ፈጺሙ ኣይካፈልን'
+  };
+  var privacyLinks = { en:'Privacy Policy', am:'የምስጢራዊነት ፖሊሲ', om:'Imaammata Icciitii', ti:'ፖሊሲ ሽምዓ' };
+  var pTitle = document.getElementById('prof-privacy-title');
+  var pSub   = document.getElementById('prof-privacy-sub');
+  var pLink  = document.getElementById('prof-privacy-link');
+  if (pTitle) pTitle.textContent = privacyTitles[lang] || privacyTitles.en;
+  if (pSub)   pSub.textContent   = privacySubs[lang]   || privacySubs.en;
+  if (pLink)  pLink.textContent  = privacyLinks[lang]  || privacyLinks.en;
 }
 
 function setText(id, val) {
@@ -4698,15 +4737,29 @@ async function analyze() {
   // ONLINE
   hideOfflineBanner();
 
-  var promptText = 'You are an expert Ethiopian agricultural plant pathologist.\n\n'
+  var langFull = currentLang === 'am' ? 'Amharic (አማርኛ)' :
+                  currentLang === 'om' ? 'Afaan Oromo (Oromiffa)' :
+                  currentLang === 'ti' ? 'Tigrinya (ትግርኛ)' : 'English';
+
+  var promptText = 'You are an expert Ethiopian agricultural plant pathologist and extension advisor.\n\n'
     + 'CROP: ' + currentCrop.toUpperCase() + '\n'
-    + 'FARMER: ' + (farmerProfile.name || 'Smallholder') + ' | ' + (farmerProfile.region || 'Ethiopia') + ' | ' + (farmerProfile.farmSizeHa || 0.5) + ' ha\n'
+    + 'FARMER: ' + (farmerProfile.name || 'Smallholder') + ' | Region: ' + (farmerProfile.region || 'Ethiopia') + ' | Farm: ' + (farmerProfile.farmSizeHa || 0.5) + ' ha\n'
     + 'SYMPTOMS: ' + symptoms + '\n'
     + 'CONTEXT: ' + (ctx || 'None') + '\n'
-    + 'RESPONSE LANGUAGE: ' + langName + '\n\n'
-    + 'CRITICAL: Write ALL fields in the RESPONSE LANGUAGE.\n\n'
-    + 'Respond ONLY with valid JSON (no markdown):\n'
-    + '{"disease_name":"name","confidence":85,"severity":"high|medium|low","diagnosis":"explanation","immediate_actions":["a1","a2","a3"],"preventive_measures":["m1","m2"],"local_summary":"summary"}';
+    + '\n'
+    + '⚠️ RESPONSE LANGUAGE: ' + langFull + '\n'
+    + '⚠️ CRITICAL INSTRUCTION: You MUST write EVERY single field — disease_name, diagnosis, immediate_actions, preventive_measures, local_summary — ENTIRELY in ' + langFull + '. Do NOT use English for any field when language is not English. Native speakers will read this directly.\n'
+    + '\n'
+    + 'Respond ONLY with valid JSON (no markdown, no code blocks):\n'
+    + '{\n'
+    + '  "disease_name": "disease name in ' + langFull + '",\n'
+    + '  "confidence": 85,\n'
+    + '  "severity": "high|medium|low",\n'
+    + '  "diagnosis": "2-3 sentence explanation in ' + langFull + '",\n'
+    + '  "immediate_actions": ["action 1 in ' + langFull + '", "action 2", "action 3", "action 4"],\n'
+    + '  "preventive_measures": ["measure 1 in ' + langFull + '", "measure 2", "measure 3"],\n'
+    + '  "local_summary": "1-sentence farmer-friendly summary in ' + langFull + '"\n'
+    + '}';
 
   var parts = [{ text: promptText }];
   if (typeof multiImages !== 'undefined' && multiImages.length > 0) {
@@ -6212,6 +6265,20 @@ function setObLang(lang) {
     if (b) b.className = 'ob-lang-btn' + (l===lang?' active':'');
   });
   var t = OB_TEXTS[lang] || OB_TEXTS.en;
+  var consentTexts = {
+    en: 'I agree to the Privacy Policy. My data stays on my device. No tracking. Free forever.',
+    am: 'የምስጢራዊነት ፖሊሲውን እቀበላለሁ። ውሂቤ በስልኬ ላይ ይቀራል። ምንም ክትትል የለም። ሁልጊዜ ነፃ።',
+    om: "Imaammata Icciitii nan fudhata. Deetaan koo bilbila koo irra tuura. Hordoffii hin jiru. Yeroo hundaa bilisaa.",
+    ti: 'ፖሊሲ ሽምዓ እቕበሎ። ውሂበይ ኣብ ስልከይ ይቕንዕ። ክትትል የለን። ሓልዩ ናጻ።'
+  };
+  var consentEl = document.getElementById('ob-consent-text');
+  if (consentEl) {
+    var cText = consentTexts[lang] || consentTexts.en;
+    consentEl.innerHTML = cText.replace('Privacy Policy', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Privacy Policy</a>')
+                               .replace('የምስጢራዊነት ፖሊሲውን', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">የምስጢራዊነት ፖሊሲውን</a>')
+                               .replace('Imaammata Icciitii', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Imaammata Icciitii</a>')
+                               .replace('ፖሊሲ ሽምዓ', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">ፖሊሲ ሽምዓ</a>');
+  }
   var els = {
     'ob-title': t.title, 'ob-sub': t.sub,
     'ob-s1t': t.s1t, 'ob-s1d': t.s1d,
@@ -6228,12 +6295,39 @@ function showOnboarding() {
   var overlay = document.getElementById('onboarding-overlay');
   if (overlay) { overlay.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
   setObLang(currentLang || 'en');
+  // Reset consent state
+  var cb = document.getElementById('ob-consent');
+  var btn = document.getElementById('ob-start-btn');
+  if (cb) cb.checked = false;
+  if (btn) { btn.disabled = true; btn.style.background = '#888'; btn.style.opacity = '0.6'; btn.style.cursor = 'not-allowed'; }
+}
+
+function toggleObCTA() {
+  var cb = document.getElementById('ob-consent');
+  var btn = document.getElementById('ob-start-btn');
+  if (!btn) return;
+  var checked = cb && cb.checked;
+  btn.disabled = !checked;
+  btn.style.background = checked ? '#B8DC7A' : '#888';
+  btn.style.color = checked ? '#1a3a05' : '#fff';
+  btn.style.opacity = checked ? '1' : '0.6';
+  btn.style.cursor = checked ? 'pointer' : 'not-allowed';
 }
 
 function closeOnboarding() {
+  var cb = document.getElementById('ob-consent');
+  if (cb && !cb.checked) {
+    alert(currentLang === 'am'
+      ? 'እባክዎ ፖሊሲውን ያንብቡ እና ይቀበሉ።'
+      : 'Please read and accept the Privacy Policy to continue.');
+    return;
+  }
   var overlay = document.getElementById('onboarding-overlay');
   if (overlay) { overlay.style.display = 'none'; document.body.style.overflow = ''; }
-  try { localStorage.setItem('rg_onboarded', '1'); } catch(e) {}
+  try {
+    localStorage.setItem('rg_onboarded', '1');
+    localStorage.setItem('rg_privacy_accepted', new Date().toISOString());
+  } catch(e) {}
 }
 
 function checkOnboarding() {
@@ -6977,19 +7071,94 @@ function _doSpeak(text, lang, onDone) {
   _keepAlive();
 }
 
+// ==================== SERVER TTS (Amharic/Oromiffa/Tigrinya) ====================
+var _audioCache = {};
+
+async function speakWithServerTTS(text, lang) {
+  if (!text || !text.trim()) return;
+  var cacheKey = lang + '_' + text.substring(0,30);
+  try {
+    // Show speaking indicator
+    var btn = document.getElementById('voiceBtn');
+    var origText = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = '🔊 <span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>';
+
+    var res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.substring(0, 500), lang: lang })
+    });
+
+    if (!res.ok) throw new Error('TTS failed');
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var audio = new Audio(url);
+    audio.onended = function() {
+      if (btn) btn.innerHTML = origText;
+      URL.revokeObjectURL(url);
+    };
+    audio.play();
+    if (btn) btn.innerHTML = '🔊 ▶ Playing...';
+    return true;
+  } catch(e) {
+    console.warn('Server TTS failed, falling back to Web Speech:', e.message);
+    return false;
+  }
+}
+
+// Smart speak — uses server TTS for non-English, Web Speech for English
+async function smartSpeak(text, lang) {
+  if (!text) return;
+  lang = lang || currentLang || 'en';
+
+  // For Amharic, Oromiffa, Tigrinya — use server TTS (Google Translate)
+  if (lang !== 'en') {
+    var ok = await speakWithServerTTS(text, lang);
+    if (ok) return;
+  }
+
+  // English or fallback — use Web Speech API
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var utter = new SpeechSynthesisUtterance(text);
+  utter.lang = lang === 'am' ? 'am-ET' : lang === 'om' ? 'om-ET' : lang === 'ti' ? 'ti-ET' : 'en-US';
+  utter.rate = 0.9;
+  utter.pitch = 1.0;
+  var voice = _getBestVoice(lang);
+  if (voice) utter.voice = voice;
+  window.speechSynthesis.speak(utter);
+}
+
 function speakDiagnosis(r) {
-  if (!r || !window.speechSynthesis) return;
+  if (!r) return;
   stopSpeaking();
 
-  // Build ONE clean text string
+  // Build full text in current language
   var lines = [];
-  if (currentLang === 'am') {
+  var isAm = currentLang === 'am';
+  var isOm = currentLang === 'om';
+  var isTi = currentLang === 'ti';
+
+  if (isAm) {
     lines.push('ምርመራ። ' + stripHTML(r.disease_name || ''));
     if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
-    lines.push('ወዲያውኑ ምክር።');
+    lines.push('ወዲያውኑ መደረግ ያለባቸው ነገሮች።');
     (r.immediate_actions || []).forEach(function(a,i){ lines.push((i+1)+'. '+stripHTML(a)); });
     lines.push('መከላከያ ዘዴዎች።');
     (r.preventive_measures || []).forEach(function(p,i){ lines.push((i+1)+'. '+stripHTML(p)); });
+    if (r.local_summary) lines.push(stripHTML(r.local_summary));
+  } else if (isOm) {
+    lines.push('Mirkaneessa. ' + stripHTML(r.disease_name || ''));
+    if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
+    lines.push('Tarkaanfiiwwan hatattamaa.');
+    (r.immediate_actions || []).forEach(function(a,i){ lines.push((i+1)+'. '+stripHTML(a)); });
+    if (r.local_summary) lines.push(stripHTML(r.local_summary));
+  } else if (isTi) {
+    lines.push('ምርመራ። ' + stripHTML(r.disease_name || ''));
+    if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
+    lines.push('ህጹጽ ስጉምቲታት።');
+    (r.immediate_actions || []).forEach(function(a,i){ lines.push((i+1)+'. '+stripHTML(a)); });
+    if (r.local_summary) lines.push(stripHTML(r.local_summary));
   } else {
     lines.push('Diagnosis. ' + stripHTML(r.disease_name || ''));
     if (r.diagnosis) lines.push(stripHTML(r.diagnosis));
@@ -7000,19 +7169,34 @@ function speakDiagnosis(r) {
   }
 
   var fullText = lines.join('. ').replace(/\.\./g, '.').replace(/\s+/g,' ');
-  var lang = currentLang === 'am' ? 'am-ET' : currentLang === 'om' ? 'om-ET' : currentLang === 'ti' ? 'ti-ET' : 'en-US';
 
   // Show playing state
   var btns = document.querySelectorAll('[onclick*="speakDiagnosis"]');
-  btns.forEach(function(b){ b.textContent = '⏹ Stop'; b.setAttribute('onclick','stopSpeaking()'); });
+  btns.forEach(function(b){
+    b.innerHTML = '⏹ '+(isAm?'አቁም':isOm?'Dhaabi':isTi?'ደው':'Stop');
+    b.setAttribute('onclick','stopSpeaking()');
+  });
 
-  _doSpeak(fullText, lang, function() {
+  var onDone = function() {
     var btns2 = document.querySelectorAll('[onclick*="stopSpeaking"]');
     btns2.forEach(function(b){
-      b.innerHTML = '🔊 '+(currentLang==='am'?'ምርመራ አንብብ':'Listen to Diagnosis');
+      b.innerHTML = '🔊 '+(isAm?'ምርመራ አንብብ':isOm?'Dhaggeeffadhu':isTi?'ስማዕ':'Listen to Diagnosis');
       b.setAttribute('onclick','speakDiagnosis(window._lastResult)');
     });
-  });
+  };
+
+  // Use server TTS for Amharic/Oromiffa/Tigrinya (Google Translate TTS)
+  if (currentLang !== 'en') {
+    speakWithServerTTS(fullText, currentLang).then(function(ok) {
+      if (!ok) {
+        // Fallback to Web Speech
+        var lang = isAm?'am-ET':isOm?'om-ET':isTi?'ti-ET':'en-US';
+        _doSpeak(fullText, lang, onDone);
+      }
+    });
+  } else {
+    _doSpeak(fullText, 'en-US', onDone);
+  }
 }
 
 function stopSpeaking() {
@@ -7352,16 +7536,24 @@ function switchTab(tab) {
         <input id="prof-farm" type="number" placeholder="e.g. 0.5" step="0.1" min="0.1">
       </div>
       <div class="profile-field">
-        <label>Primary Crops</label>
+        <label id="prof-label-crops">Primary Crops</label>
         <input id="prof-crops" type="text" placeholder="e.g. Enset, Teff, Wheat">
       </div>
       <div class="profile-field">
-        <label>📲 Phone Number <span style="color:#2D6A0A;font-weight:700;">(for SMS diagnosis)</span></label>
+        <label id="prof-label-phone">📲 Phone Number <span style="color:#2D6A0A;font-weight:700;">(for SMS diagnosis)</span></label>
         <input id="prof-phone" type="tel" placeholder="+251 9XX XXX XXX" style="font-size:16px;">
-        <small style="color:#888;font-size:11px;margin-top:4px;display:block;">Used to send your diagnosis report via SMS</small>
+        <small id="prof-phone-hint" style="color:#888;font-size:11px;margin-top:4px;display:block;">Used to send your diagnosis report via SMS</small>
       </div>
-      <button class="modal-close" style="background:var(--leaf);" onclick="saveProfile()">💾 Save Profile</button>
-      <button class="modal-close" style="background:#888;margin-top:8px;" onclick="closeProfile()">✕ Close</button>
+      <!-- Privacy notice in profile -->
+      <div style="background:#f0f8eb;border:1px solid #B8DC7A;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#2D6A0A;">🔐 <span id="prof-privacy-title">Your data stays on your device</span></div>
+          <div style="font-size:11px;color:#666;margin-top:2px;" id="prof-privacy-sub">No tracking · No ads · Never shared</div>
+        </div>
+        <a href="/privacy.html" target="_blank" style="flex-shrink:0;font-size:12px;color:#2D6A0A;font-weight:700;text-decoration:none;border:1.5px solid #B8DC7A;border-radius:8px;padding:6px 10px;white-space:nowrap;" id="prof-privacy-link">Privacy Policy</a>
+      </div>
+      <button class="modal-close" style="background:var(--leaf);" onclick="saveProfile()">💾 <span id="prof-save-label">Save Profile</span></button>
+      <button class="modal-close" style="background:#888;margin-top:8px;" onclick="closeProfile()">✕ <span id="prof-close-label">Close</span></button>
     </div>
   </div>
 </div>
@@ -7760,7 +7952,16 @@ function closeIOSPopup() {
     </div>
     <!-- CTA -->
     <div style="padding:0 20px 24px;">
-      <button onclick="closeOnboarding()" style="width:100%;background:#B8DC7A;color:#1a3a05;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;">
+      <!-- Privacy consent -->
+      <label style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.08);border-radius:12px;padding:12px;margin-bottom:12px;cursor:pointer;">
+        <input type="checkbox" id="ob-consent" onchange="toggleObCTA()" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:#B8DC7A;cursor:pointer;">
+        <span id="ob-consent-text" style="font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">
+          I agree to the <a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Privacy Policy</a>. 
+          My data stays on my device. No tracking. Free forever.
+        </span>
+      </label>
+      <button onclick="closeOnboarding()" id="ob-start-btn" disabled
+        style="width:100%;background:#888;color:#fff;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:not-allowed;transition:all 0.3s;opacity:0.6;">
         <span id="ob-cta">🚀 Start Diagnosing</span>
       </button>
       <div style="text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);" id="ob-offline">Works offline • Free forever • 4 languages</div>
