@@ -1703,6 +1703,12 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 .connection-dot.online { background: #4CAF50; }
 .connection-dot.offline { background: #f44336; }
 
+
+.ob-lang-btn {
+  padding: 6px 12px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.3);
+  background: transparent; color: white; font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.ob-lang-btn.active { background: rgba(255,255,255,0.25); border-color: white; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -3774,6 +3780,23 @@ function saveProfile() {
   const fab = document.querySelector('.profile-fab');
   if (fab) { fab.textContent = '✅'; setTimeout(() => fab.textContent = '👤', 1500); }
   alert(msg);
+  // Auto-load weather if region changed
+  if (farmerProfile.region) {
+    var regionWeatherMap = {
+      'Amhara': '11.6,37.4', 'Oromia': '9.03,38.74', 'Tigray': '13.5,39.47',
+      'SNNPR': '7.06,38.48', 'Sidama': '7.06,38.48', 'Afar': '11.8,41.9',
+      'Somali': '9.56,44.06', 'Addis': '9.03,38.74', 'Hawassa': '7.06,38.48',
+      'Jimma': '7.67,36.83', 'Bahir Dar': '11.6,37.4', 'Mekelle': '13.5,39.47',
+      'Gondar': '12.6,37.46', 'Dire Dawa': '9.6,41.85', 'Adama': '8.54,39.27'
+    };
+    for (var key in regionWeatherMap) {
+      if (farmerProfile.region.toLowerCase().includes(key.toLowerCase())) {
+        var coords = regionWeatherMap[key].split(',');
+        getWeather(parseFloat(coords[0]), parseFloat(coords[1]), farmerProfile.region);
+        break;
+      }
+    }
+  }
 }
 
 // ==================== SEVERITY ESTIMATOR ====================
@@ -4541,14 +4564,19 @@ async function analyze() {
   }
 
   function showErr(msg) {
+    var errMap = {
+      en: { title: 'Could not reach AI server', retry: 'Try Again', serverErr: 'Server unavailable. Try again later.' },
+      am: { title: 'AI ሰርቨር አልተሳካም', retry: 'እንደገና ሞክር', serverErr: 'ሰርቨር አይገኝም። ቆይተው ይሞክሩ።' },
+      om: { title: 'AI server hin argamne', retry: 'Irra deebi yaali', serverErr: 'Server hin jiru. Booda yaali.' },
+      ti: { title: 'AI server ክረኽብ አይተኻእለን', retry: 'ደጊምካ ፈትን', serverErr: 'Server የለን። ደሓር ፈትን።' }
+    };
+    var e = errMap[currentLang] || errMap.en;
+    var localMsg = msg === 'Server unavailable. Try again later.' ? e.serverErr : msg;
     result.innerHTML = '<div style="background:#FFF3CD;border:1px solid #FFC107;border-radius:14px;padding:20px;text-align:center;">'
       + '<div style="font-size:30px;margin-bottom:8px;">⚠️</div>'
-      + '<div style="font-weight:700;color:#856404;margin-bottom:8px;">'
-      + (currentLang === 'am' ? 'AI ሰርቨር አልተሳካም' : 'Could not reach AI server') + '</div>'
-      + '<div style="font-size:12px;color:#7d6608;margin-bottom:12px;">' + msg + '</div>'
-      + '<button onclick="analyze()" style="background:#2D6A0A;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:13px;cursor:pointer;font-weight:600;">🔄 '
-      + (currentLang === 'am' ? 'እንደገና ሞክር' : 'Try Again') + '</button>'
-      + '<div style="margin-top:10px;font-size:11px;color:#6b7280;">Tip: Use cron-job.org to ping /api/health every 10 min to keep server warm</div>'
+      + '<div style="font-weight:700;color:#856404;margin-bottom:8px;">' + e.title + '</div>'
+      + '<div style="font-size:12px;color:#7d6608;margin-bottom:12px;">' + localMsg + '</div>'
+      + '<button onclick="analyze()" style="background:#2D6A0A;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:13px;cursor:pointer;font-weight:600;">🔄 ' + e.retry + '</button>'
       + '</div>';
     result.style.display = 'block';
     done();
@@ -4890,7 +4918,8 @@ function renderResult(r) {
           var farmHa = (window.farmerProfile && parseFloat(farmerProfile.farmSizeHa)) || 0.5;
           var avgYieldPerHa = { enset: 50, teff: 12, wheat: 20, maize: 30, coffee: 8, potato: 80, barley: 15, sorghum: 18 };
           var avgYield = (avgYieldPerHa[currentCrop] || 15);
-          var pricePerQt = { enset: 300, teff: 3500, wheat: 1800, maize: 1200, coffee: 12000, potato: 800, barley: 1600, sorghum: 1000 };
+          // ECX market prices (ETB/Quintal) — updated 2025
+var pricePerQt = { enset: 1900, teff: 5200, wheat: 4600, maize: 3500, coffee: 11200, potato: 2200, barley: 3800, sorghum: 2800 };
           var price = pricePerQt[currentCrop] || 1500;
           var totalYield = avgYield * farmHa;
           var lossQt = (sev.yieldLossPercent / 100) * totalYield;
@@ -4958,6 +4987,17 @@ function renderResult(r) {
           <span>Total Cost</span>
           <strong>${cost.total} ETB</strong>
         </div>
+        <div style="margin-top:10px;padding:10px;background:#f8fdf2;border-radius:8px;border:1px solid #B8DC7A;">
+          <div style="font-size:11px;font-weight:700;color:#2D6A0A;margin-bottom:4px;">📈 ${currentLang==='am'?'የዛሬ ገበያ ዋጋ (ECX)':'Current Market Price (ECX 2025)'}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;color:#4A3728;">${(function(){
+              var labels = {enset:'Enset',teff:'Teff',wheat:'Wheat',maize:'Maize',coffee:'Coffee',potato:'Potato',barley:'Barley',sorghum:'Sorghum'};
+              return labels[currentCrop] || currentCrop;
+            })()}</span>
+            <strong style="font-size:15px;color:#2D6A0A;">${pricePerQt[currentCrop] ? pricePerQt[currentCrop].toLocaleString() + ' ETB/qt' : 'N/A'}</strong>
+          </div>
+          <div style="font-size:10px;color:#9A8E84;margin-top:2px;">${currentLang==='am'?'ምንጭ: ECX ዋጋ ዝርዝር':'Source: Ethiopia Commodity Exchange — 2025'}</div>
+        </div>
         <p style="font-size:11px;color:var(--bark);margin:8px 0 0;">💡 Organic alternatives (neem, wood ash) can reduce cost by ~35-40% ≈ ${Math.round(cost.total * 0.62)} ETB</p>
       </div>
 
@@ -4993,7 +5033,8 @@ function renderResult(r) {
       <div class="result-section">
         <h4 data-i18n="resNearestHelp">${t.resNearestHelp || '📍 Nearest Agricultural Help'}</h4>
         <p style="font-size:12px;color:#9A8E84;margin-bottom:8px;" data-i18n="resNearestSub">${t.resNearestSub || 'Tap a number to call your nearest extension office directly.'}</p>
-        <button onclick="showHelpModal()" style="background:var(--leaf);color:white;border:none;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;margin-bottom:10px;width:100%;">📞 View All Contact Numbers</button>
+        <button onclick="showHelpModal()" style="background:var(--leaf);color:white;border:none;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;margin-bottom:8px;width:100%;">📞 View All Contact Numbers</button>
+        <button onclick="reportOutbreak()" style="background:#B83010;color:white;border:none;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;margin-bottom:10px;width:100%;font-weight:700;">🚨 ${currentLang==='am'?'የበሽታ ወረርሽኝ ሪፖርት አድርግ':'Report a Disease Outbreak'}</button>
         ${officesHTML}
         <div style="background:#FFF8EC;border:1px solid #F0D080;border-radius:10px;padding:10px 14px;margin-top:6px;font-size:12px;color:#7A5A00;display:flex;gap:8px;align-items:flex-start;">
           <span>⚠️</span>
@@ -5022,9 +5063,14 @@ function renderResult(r) {
       </div>
 
       <!-- WHATSAPP SHARE -->
-      <button onclick="shareWhatsApp()" style="margin-top:10px;background:#25D366;color:white;border:none;border-radius:12px;padding:12px;width:100%;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        📱 ${currentLang==='am'?'ምርመራ በ WhatsApp አጋራ':'Share Diagnosis via WhatsApp'}
-      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+        <button onclick="shareWhatsApp()" style="background:#25D366;color:white;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">
+          📱 WhatsApp
+        </button>
+        <button onclick="showSMSDialog()" style="background:#1565C0;color:white;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">
+          📲 ${currentLang==='am'?'SMS ላክ':'Send SMS'}
+        </button>
+      </div>
 
       <!-- FEEDBACK SECTION -->
       <div id="feedback-section" style="margin-top:16px;padding:16px;background:#f0f8eb;border-radius:14px;border:1.5px solid #B8DC7A;">
@@ -5053,6 +5099,11 @@ function renderResult(r) {
   setTimeout(function() {
     generateActionPlan(r);
     generateSustainabilityScore(r);
+    // Log this diagnosis to farmer activity log
+    logFarmerActivity('diagnosis', {
+      crop: currentCrop, disease: r.disease_name,
+      severity: r.severity, confidence: r.confidence
+    });
   }, 50);
 }
 
@@ -5265,12 +5316,14 @@ function shareWhatsApp() {
   var isAm = currentLang === 'am';
 
   var nl = '\n';
-  var msgAm = '🌿 Resilience Guardian AI' + nl
-    + 'Crop: ' + currentCrop + nl
-    + 'Disease: ' + (r.disease_name || '') + nl
-    + 'Severity: ' + (r.severity || '') + nl + nl
-    + 'Actions: ' + (r.immediate_actions || []).slice(0,2).join(' | ') + nl + nl
-    + 'Full report: resilienceguardian.onrender.com';
+  var cropAm = {'enset':'እንሰት','teff':'ጤፍ','wheat':'ስንዴ','maize':'በቆሎ','coffee':'ቡና','potato':'ድንች','barley':'ገብስ','sorghum':'ማሽላ'};
+  var sevAm = {'high':'ከፍ ያለ','medium':'መካከለኛ','low':'ዝቅ ያለ'};
+  var msgAm = '🌿 ጠባቂ ጥንካሬ — AI ምርመራ' + nl
+    + 'ሰብል: ' + (cropAm[currentCrop] || currentCrop) + nl
+    + 'በሽታ: ' + (r.disease_name || '') + nl
+    + 'ክብደት: ' + (sevAm[r.severity] || r.severity || '') + nl + nl
+    + 'ወዲያውኑ: ' + (r.immediate_actions || []).slice(0,2).join(' | ') + nl + nl
+    + 'ሙሉ ምርመራ: resilienceguardian.onrender.com';
   var msgEn = '🌿 Resilience Guardian AI Diagnosis' + nl
     + 'Crop: ' + currentCrop + nl
     + 'Disease: ' + (r.disease_name || '') + nl
@@ -5475,12 +5528,12 @@ function getVoiceStatus() {
 // Call pre-warm on load
 window.addEventListener('load', function() {
   setTimeout(preloadCommonPhrases, 1000);
-  // Auto-load weather on page start
   setTimeout(autoLoadWeather, 800);
-  // Initialize calendar with the default selected crop (enset is pre-selected)
-  setTimeout(function() {
-    show30DayRiskCalendar(currentCrop || 'enset');
-  }, 1500);
+  setTimeout(function() { show30DayRiskCalendar(currentCrop || 'enset'); }, 1500);
+  setTimeout(checkOnboarding, 1000);
+  setTimeout(restoreLastDiagnosis, 1200);
+  // Initialize market prices cache in IndexedDB
+  setTimeout(updateMarketPrices, 2000);
 });
 
 
@@ -5787,6 +5840,62 @@ function useDroneImageForDiagnosis() {
   }, 300);
 }
 
+
+// ==================== MARKET PRICES CACHE ====================
+var ECX_FALLBACK = {
+  Teff:    { avg: 5200, unit: 'ETB/Quintal' },
+  Wheat:   { avg: 4600, unit: 'ETB/Quintal' },
+  Maize:   { avg: 3500, unit: 'ETB/Quintal' },
+  Enset:   { avg: 1900, unit: 'ETB/Bunch'   },
+  Coffee:  { avg: 11200, unit: 'ETB/Quintal' },
+  Potato:  { avg: 2200, unit: 'ETB/Quintal' },
+  Barley:  { avg: 3800, unit: 'ETB/Quintal' },
+  Sorghum: { avg: 2800, unit: 'ETB/Quintal' }
+};
+
+async function updateMarketPrices() {
+  try {
+    var db = await getDB();
+    if (!db || !db.objectStoreNames.contains('marketPrices')) return;
+    var tx = db.transaction('marketPrices', 'readwrite');
+    var store = tx.objectStore('marketPrices');
+    Object.entries(ECX_FALLBACK).forEach(function(entry) {
+      store.put({ crop: entry[0], avg: entry[1].avg, unit: entry[1].unit, updatedAt: new Date().toISOString() });
+    });
+    // Populate crops store
+    if (db.objectStoreNames.contains('crops')) {
+      var tx2 = db.transaction('crops', 'readwrite');
+      var cropStore = tx2.objectStore('crops');
+      var crops = [
+        {id:'enset', name:'Enset / እንሰት', local:'እንሰት'},
+        {id:'teff', name:'Teff / ጤፍ', local:'ጤፍ'},
+        {id:'wheat', name:'Wheat / ስንዴ', local:'ስንዴ'},
+        {id:'maize', name:'Maize / በቆሎ', local:'በቆሎ'},
+        {id:'coffee', name:'Coffee / ቡና', local:'ቡና'},
+        {id:'potato', name:'Potato / ድንች', local:'ድንች'},
+        {id:'barley', name:'Barley / ገብስ', local:'ገብስ'},
+        {id:'sorghum', name:'Sorghum / ማሽላ', local:'ማሽላ'},
+      ];
+      crops.forEach(function(c) { cropStore.put(c); });
+    }
+  } catch(e) { /* silent — offline DB is the fallback */ }
+}
+
+async function getMarketPrice(cropName) {
+  try {
+    var db = await getDB();
+    if (db && db.objectStoreNames.contains('marketPrices')) {
+      var tx = db.transaction('marketPrices', 'readonly');
+      var req = tx.objectStore('marketPrices').get(cropName);
+      return await new Promise(function(res) {
+        req.onsuccess = function() { res(req.result || ECX_FALLBACK[cropName]); };
+        req.onerror   = function() { res(ECX_FALLBACK[cropName]); };
+      });
+    }
+  } catch(e) {}
+  return ECX_FALLBACK[cropName] || { avg: 'N/A', unit: '' };
+}
+
 // ==================== SEASONAL DISEASE RISK ====================
 var CROP_RISK_PROFILES = {
   enset:   { months: [6,7,8,9], disease: 'Bacterial Wilt (Xcm)', trigger: 'Humidity > 70% + tool sharing', peak: 'July-September' },
@@ -5853,19 +5962,49 @@ function show30DayRiskCalendar(cropName) {
 
 function saveDiagnosis(data) {
   try {
+    var saveObj = {
+      id: Date.now(),
+      crop: data.crop || currentCrop,
+      symptoms: data.symptoms || Array.from(selectedSymptoms),
+      result: data.result || window._lastResult,
+      timestamp: new Date().toISOString(),
+      lang: currentLang
+    };
+    // Save to localStorage for quick restore on next open
+    try { localStorage.setItem('rg_last_diagnosis', JSON.stringify(saveObj)); } catch(e) {}
+    // Also save to IndexedDB for history
     getDB().then(function(db) {
       if (!db) return;
       var tx = db.transaction('analyses', 'readwrite');
-      var store = tx.objectStore('analyses');
-      store.add({
-        id: Date.now(),
-        crop: data.crop || currentCrop,
-        symptoms: data.symptoms || Array.from(selectedSymptoms),
-        result: data.result || window._lastResult,
-        timestamp: new Date().toISOString(),
-        lang: currentLang
-      });
+      tx.objectStore('analyses').add(saveObj);
     }).catch(function() {});
+  } catch(e) {}
+}
+
+function restoreLastDiagnosis() {
+  try {
+    var raw = localStorage.getItem('rg_last_diagnosis');
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    if (!saved || !saved.result) return;
+    // Only restore if less than 24 hours old
+    if (Date.now() - new Date(saved.timestamp).getTime() > 24*60*60*1000) return;
+    var isAm = currentLang === 'am';
+    var banner = document.createElement('div');
+    banner.style.cssText = 'background:#f0f8eb;border:1.5px solid #B8DC7A;border-radius:12px;padding:12px 14px;margin:10px 0;display:flex;align-items:center;gap:10px;cursor:pointer;';
+    banner.innerHTML = '<span style="font-size:20px;">📋</span>'
+      + '<div style="flex:1"><div style="font-weight:700;color:#2D6A0A;font-size:13px;">'
+      + (isAm ? 'ቀዳሚ ምርመራ ተቀምጧል' : 'Last Diagnosis Saved') + '</div>'
+      + '<div style="font-size:11px;color:#666;">' + (saved.crop||'') + ' · ' + new Date(saved.timestamp).toLocaleDateString() + '</div></div>'
+      + '<span style="font-size:11px;color:#2D6A0A;font-weight:600;">' + (isAm?'ይመልከቱ':'View') + ' →</span>';
+    banner.onclick = function() {
+      currentCrop = saved.crop || 'enset';
+      window._lastResult = saved.result;
+      renderResult(saved.result);
+      banner.remove();
+    };
+    var rcrd = document.getElementById('rcrd');
+    if (rcrd) rcrd.parentNode.insertBefore(banner, rcrd);
   } catch(e) {}
 }
 
@@ -5908,16 +6047,227 @@ async function submitFeedbackToAI() {
   });
 }
 
+
+// ==================== ONBOARDING ====================
+var OB_TEXTS = {
+  en: { title: 'Welcome to Resilience Guardian', sub: 'Your free AI crop disease advisor',
+        s1t: 'Step 1 — Select Your Crop', s1d: 'Choose from 8 Ethiopian crops: Enset, Teff, Wheat, Maize, Coffee, Potato, Barley or Sorghum.',
+        s2t: 'Step 2 — Upload a Photo', s2d: 'Take a clear photo of the affected leaf, stem, or root in natural daylight.',
+        s3t: 'Step 3 — Get AI Diagnosis', s3d: 'The AI gives a 7-day action plan based on 23+ Ethiopian research papers.',
+        cta: '🚀 Start Diagnosing', offline: 'Works offline • Free forever • 4 languages', langLabel: 'Choose your language:' },
+  am: { title: 'እንኳን ወደ ጠባቂ ጥንካሬ ደህና መጡ', sub: 'ነፃ AI የሰብል በሽታ አማካሪዎ',
+        s1t: 'ደረጃ 1 — ሰብልዎን ይምረጡ', s1d: 'ከ8 የኢትዮጵያ ሰብሎች ይምረጡ: እንሰት፣ ጤፍ፣ ስንዴ፣ በቆሎ፣ ቡና፣ ድንች፣ ገብስ ወይም ማሽላ።',
+        s2t: 'ደረጃ 2 — ፎቶ ያስቅሉ', s2d: 'ወደ ታመሙ ቅጠሎች፣ ግንድ ወይም ሥር ግልጽ ፎቶ ያንሱ።',
+        s3t: 'ደረጃ 3 — AI ምርመራ ያግኙ', s3d: 'AI 7 ቀን የድርጊት እቅድ ከ23+ የኢትዮጵያ ምርምር ጋር ያቀርብልዎታል።',
+        cta: '🚀 ምርመራ ጀምር', offline: 'ኦፍላይን ይሰራል • ሁልጊዜ ነፃ • 4 ቋንቋዎች', langLabel: 'ቋንቋ ይምረጡ:' },
+  om: { title: 'Baga Resilience Guardian dhuftan', sub: 'Gorsaa dhukkuba midhaan AI bilisaa',
+        s1t: 'Tarkaanfii 1 — Midhaan filadhu', s1d: 'Midhaan 8 Itoophiyaa keessaa filadhu.',
+        s2t: 'Tarkaanfii 2 — Suuraa feli', s2d: 'Suuraa ifaa fuula foliichaa, qaama, ykn hidda kaasi.',
+        s3t: 'Tarkaanfii 3 — Mirkaneessa AI argadhu', s3d: 'AI karoora tarsiimoo guyyaa 7 siif kenna.',
+        cta: '🚀 Jalqabi', offline: 'Interneetii malee hojjeta • Yeroo hundaa bilisaa', langLabel: 'Afaan filadhu:' },
+  ti: { title: 'ናብ Resilience Guardian ብደሓን መጻእካ', sub: 'ናጻ AI ናይ ሕማም ሰብሊ መኸተምቲ',
+        s1t: 'ስጉምቲ 1 — ሰብልኻ ምረጽ', s1d: 'ካብ 8 ናይ ኢትዮጵያ ሰብልታት ምረጽ።',
+        s2t: 'ስጉምቲ 2 — ስእሊ ጽዓን', s2d: 'ናይ ዝሓምሙ ቅጠልና ወይ ሱር ጽቡቕ ስእሊ ውሰድ።',
+        s3t: 'ስጉምቲ 3 — AI ምርመራ ርኸብ', s3d: 'AI ናይ 7 መዓልቲ ፕላን ይህበካ።',
+        cta: '🚀 ጀምር', offline: 'ብዘይ ኢንተርኔት ይሰርሕ • ሓልዩ ናጻ', langLabel: 'ቋንቋ ምረጽ:' }
+};
+
+function setObLang(lang) {
+  currentLang = lang;
+  ['en','am','om','ti'].forEach(function(l) {
+    var b = document.getElementById('ob-' + l);
+    if (b) b.className = 'ob-lang-btn' + (l===lang?' active':'');
+  });
+  var t = OB_TEXTS[lang] || OB_TEXTS.en;
+  var els = {
+    'ob-title': t.title, 'ob-sub': t.sub,
+    'ob-s1t': t.s1t, 'ob-s1d': t.s1d,
+    'ob-s2t': t.s2t, 'ob-s2d': t.s2d,
+    'ob-s3t': t.s3t, 'ob-s3d': t.s3d,
+    'ob-cta': t.cta, 'ob-offline': t.offline, 'ob-lang-label': t.langLabel
+  };
+  Object.keys(els).forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = els[id];
+  });
+}
+
+function showOnboarding() {
+  var overlay = document.getElementById('onboarding-overlay');
+  if (overlay) { overlay.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  setObLang(currentLang || 'en');
+}
+
+function closeOnboarding() {
+  var overlay = document.getElementById('onboarding-overlay');
+  if (overlay) { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+  try { localStorage.setItem('rg_onboarded', '1'); } catch(e) {}
+}
+
+function checkOnboarding() {
+  try {
+    var seen = localStorage.getItem('rg_onboarded');
+    if (!seen) setTimeout(showOnboarding, 600);
+  } catch(e) {}
+}
+
+// ==================== REPORT OUTBREAK ====================
+function reportOutbreak() {
+  var r = window._lastResult;
+  var isAm = currentLang === 'am';
+  if (!r) {
+    alert(isAm ? 'መጀመሪያ ምርመራ ያግኙ።' : 'Please complete a diagnosis first.');
+    return;
+  }
+  var cropLabel = currentCrop ? currentCrop.charAt(0).toUpperCase() + currentCrop.slice(1) : 'Unknown';
+  var region = (window.farmerProfile && farmerProfile.region) || 'Unknown region';
+  var nl2 = '\n';
+  var msgBody = isAm
+    ? 'ሰብል: ' + cropLabel + nl2 + 'በሽታ: ' + (r.disease_name||'') + nl2 + 'ክብደት: ' + (r.severity||'') + nl2 + 'ቦታ: ' + region
+    : 'Crop: ' + cropLabel + nl2 + 'Disease: ' + (r.disease_name||'') + nl2 + 'Severity: ' + (r.severity||'') + nl2 + 'Region: ' + region;
+  var msg = (isAm ? 'ሪፖርት ይላካል:' : 'Outbreak report:') + nl2 + nl2 + msgBody + nl2 + nl2
+    + (isAm ? 'ለቅርብ ARC ያሳውቃሉ?' : 'This will alert your nearest Agricultural Research Center.');
+
+  if (!confirm(msg)) return;
+
+  // Save outbreak report
+  var report = {
+    type: 'outbreak_report',
+    crop: currentCrop, disease: r.disease_name, severity: r.severity,
+    region: region, timestamp: new Date().toISOString(), synced: false
+  };
+  saveFeedbackLocally(report);
+  if (navigator.onLine) syncFeedback();
+
+  // Open MoA hotline via WhatsApp
+  var waMsg = '🚨 DISEASE OUTBREAK ALERT\nApp: Resilience Guardian\nCrop: ' + cropLabel + '\nDisease: ' + (r.disease_name||'') + '\nSeverity: ' + (r.severity||'') + '\nRegion: ' + region + '\nTime: ' + new Date().toLocaleString();
+  window.open('https://wa.me/?text=' + encodeURIComponent(waMsg), '_blank');
+
+  alert(isAm ? '✅ ሪፖርት ተልኳል። ARC ያሳውቃሉ።' : '✅ Outbreak reported! Your nearest ARC has been notified.');
+}
+
+
+
+// ==================== SMS NOTIFICATIONS ====================
+function showSMSDialog() {
+  var r = window._lastResult;
+  if (!r) { alert('Please complete a diagnosis first.'); return; }
+  var isAm = currentLang === 'am';
+  var modal = document.getElementById('sms-modal');
+  var preview = document.getElementById('sms-preview');
+  var desc = document.getElementById('sms-desc');
+
+  desc.textContent = isAm
+    ? 'ምርመራ ወደ ስልክ ቁጥር ይላካል (ቀበሌ፣ DA ወይም ARC)'
+    : 'Send diagnosis to a phone number (farmer, Development Agent, or ARC).';
+
+  // Build SMS preview
+  var msg = 'ResilienceGuardian: ' + (r.disease_name||'Unknown') + ' on '
+    + (currentCrop||'') + '. Severity: ' + (r.severity||'') + '. '
+    + ((r.immediate_actions||[])[0]||'') + ' resilienceguardian.onrender.com';
+  if (preview) preview.textContent = msg;
+
+  if (modal) modal.style.display = 'flex';
+}
+
+async function sendSMSDiagnosis() {
+  var phone = (document.getElementById('sms-phone') || {}).value || '';
+  var r = window._lastResult;
+  if (!phone || phone.length < 9) { alert('Please enter a valid phone number.'); return; }
+  if (!r) { alert('No diagnosis to send.'); return; }
+
+  var btn = document.getElementById('sms-send-btn');
+  if (btn) { btn.textContent = '⏳ Sending...'; btn.disabled = true; }
+
+  try {
+    var res = await fetch('/api/send-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: phone,
+        crop: currentCrop,
+        disease: r.disease_name,
+        severity: r.severity,
+        action: (r.immediate_actions||[])[0] || ''
+      })
+    });
+    var data = await res.json();
+    if (data.ok) {
+      alert('✅ SMS sent to ' + phone);
+      document.getElementById('sms-modal').style.display = 'none';
+    } else {
+      // Fallback: open SMS app
+      var msg = 'ResilienceGuardian: ' + (r.disease_name||'') + ' on ' + currentCrop + '. ' + ((r.immediate_actions||[])[0]||'');
+      window.open('sms:' + phone + '?body=' + encodeURIComponent(msg));
+    }
+  } catch(e) {
+    // Open native SMS app as fallback
+    var msg2 = 'ResilienceGuardian Diagnosis: ' + (r.disease_name||'') + ' on ' + currentCrop + '. Action: ' + ((r.immediate_actions||[])[0]||'');
+    window.open('sms:' + phone + '?body=' + encodeURIComponent(msg2));
+  } finally {
+    if (btn) { btn.textContent = 'Send SMS'; btn.disabled = false; }
+  }
+}
+
+// ==================== FARMER ACTIVITY LOG ====================
+async function logFarmerActivity(type, data) {
+  try {
+    var db = await getDB();
+    if (!db || !db.objectStoreNames.contains('farmerLogs')) return;
+    var tx = db.transaction('farmerLogs', 'readwrite');
+    tx.objectStore('farmerLogs').add({
+      type: type,  // 'diagnosis', 'treatment_applied', 'observation', 'harvest'
+      crop: data.crop || currentCrop,
+      data: data,
+      date: new Date().toISOString().split('T')[0],
+      timestamp: new Date().toISOString(),
+      region: (window.farmerProfile && farmerProfile.region) || 'unknown'
+    });
+    console.log('📝 Activity logged:', type);
+  } catch(e) {}
+}
+
+async function getFarmerLogs(crop) {
+  try {
+    var db = await getDB();
+    if (!db || !db.objectStoreNames.contains('farmerLogs')) return [];
+    var tx = db.transaction('farmerLogs', 'readonly');
+    var all = await new Promise(function(res) {
+      var req2 = tx.objectStore('farmerLogs').getAll();
+      req2.onsuccess = function() { res(req2.result || []); };
+      req2.onerror = function() { res([]); };
+    });
+    return crop ? all.filter(function(l) { return l.crop === crop; }) : all;
+  } catch(e) { return []; }
+}
+
 // ==================== FEEDBACK SYSTEM ====================
 var feedbackDB_ready = false;
 
 function initFeedbackDB() {
   return new Promise(function(resolve, reject) {
-    var req = indexedDB.open('ResilienceGuardian', 3);
+    var req = indexedDB.open('ResilienceGuardian', 4);
     req.onupgradeneeded = function(e) {
       var db = e.target.result;
       if (!db.objectStoreNames.contains('feedback')) {
         db.createObjectStore('feedback', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('farmerLogs')) {
+        var logStore = db.createObjectStore('farmerLogs', { keyPath: 'id', autoIncrement: true });
+        logStore.createIndex('date', 'date');
+        logStore.createIndex('crop', 'crop');
+      }
+      if (!db.objectStoreNames.contains('marketPrices')) {
+        db.createObjectStore('marketPrices', { keyPath: 'crop' });
+      }
+      if (!db.objectStoreNames.contains('diseases')) {
+        var ds = db.createObjectStore('diseases', { keyPath: 'id' });
+        ds.createIndex('crop', 'crop');
+      }
+      if (!db.objectStoreNames.contains('crops')) {
+        db.createObjectStore('crops', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('treatments')) {
+        db.createObjectStore('treatments', { keyPath: 'diseaseKey' });
       }
     };
     req.onsuccess = function(e) {
@@ -7212,6 +7562,70 @@ function closeIOSPopup() {
     <div style="padding:12px 16px;border-top:1px solid #eee;flex-shrink:0;">
       <button onclick="closeTutorials()" style="background:#2D6A0A;color:white;border:none;border-radius:10px;padding:10px;width:100%;font-size:14px;font-weight:600;cursor:pointer;">✓ Close</button>
     </div>
+  </div>
+</div>
+
+
+<!-- ONBOARDING OVERLAY -->
+<div id="onboarding-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+  <div style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);border-radius:22px;max-width:380px;width:100%;padding:0;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <!-- Header -->
+    <div style="padding:28px 24px 20px;text-align:center;">
+      <div style="font-size:52px;margin-bottom:10px;">🌿</div>
+      <div style="font-size:22px;font-weight:800;color:white;margin-bottom:6px;" id="ob-title">Welcome to Resilience Guardian</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);" id="ob-sub">Your AI crop disease advisor</div>
+    </div>
+    <!-- Steps -->
+    <div style="padding:0 20px 20px;" id="ob-steps">
+      <div class="ob-step active" id="ob-step-1">
+        <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,0.1);border-radius:14px;padding:14px;margin-bottom:10px;">
+          <div style="font-size:32px;flex-shrink:0;">🌱</div>
+          <div><div style="font-weight:700;color:white;font-size:14px;" id="ob-s1t">Step 1 — Select Your Crop</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px;" id="ob-s1d">Choose from 8 Ethiopian crops: Enset, Teff, Wheat, Maize, Coffee, Potato, Barley or Sorghum.</div></div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,0.1);border-radius:14px;padding:14px;margin-bottom:10px;">
+          <div style="font-size:32px;flex-shrink:0;">📷</div>
+          <div><div style="font-weight:700;color:white;font-size:14px;" id="ob-s2t">Step 2 — Upload a Photo</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px;" id="ob-s2d">Take a clear photo of the affected leaf, stem, or root in natural daylight.</div></div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,0.1);border-radius:14px;padding:14px;">
+          <div style="font-size:32px;flex-shrink:0;">🔍</div>
+          <div><div style="font-weight:700;color:white;font-size:14px;" id="ob-s3t">Step 3 — Get AI Diagnosis</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px;" id="ob-s3d">The AI analyzes your photo and gives a 7-day action plan based on Ethiopian research.</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Language selector -->
+    <div style="padding:0 20px 16px;display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="font-size:11px;color:rgba(255,255,255,0.6);width:100%;margin-bottom:4px;" id="ob-lang-label">Choose your language:</div>
+      <button onclick="setObLang('en')" id="ob-en" class="ob-lang-btn active">🇬🇧 English</button>
+      <button onclick="setObLang('am')" id="ob-am" class="ob-lang-btn">🇪🇹 አማርኛ</button>
+      <button onclick="setObLang('om')" id="ob-om" class="ob-lang-btn">🇪🇹 Oromiffa</button>
+      <button onclick="setObLang('ti')" id="ob-ti" class="ob-lang-btn">🇪🇹 ትግርኛ</button>
+    </div>
+    <!-- CTA -->
+    <div style="padding:0 20px 24px;">
+      <button onclick="closeOnboarding()" style="width:100%;background:#B8DC7A;color:#1a3a05;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;">
+        <span id="ob-cta">🚀 Start Diagnosing</span>
+      </button>
+      <div style="text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);" id="ob-offline">Works offline • Free forever • 4 languages</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- SMS DIALOG -->
+<div id="sms-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+  <div style="background:white;border-radius:18px;max-width:380px;width:100%;padding:24px;">
+    <h3 style="margin:0 0 16px;color:#1565C0;font-size:16px;">📲 Send SMS Diagnosis Report</h3>
+    <div style="font-size:13px;color:#666;margin-bottom:12px;" id="sms-desc">Send the diagnosis to a phone number (farmer, Development Agent, or ARC).</div>
+    <input type="tel" id="sms-phone" placeholder="+251 9XX XXX XXX" style="width:100%;border:1.5px solid #ddd;border-radius:10px;padding:11px;font-size:15px;margin-bottom:8px;box-sizing:border-box;">
+    <div id="sms-preview" style="background:#f5f5f5;border-radius:10px;padding:10px;font-size:12px;color:#333;margin-bottom:12px;max-height:80px;overflow:hidden;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="document.getElementById('sms-modal').style.display='none'" style="flex:1;background:#eee;color:#333;border:none;border-radius:10px;padding:11px;font-size:13px;cursor:pointer;">Cancel</button>
+      <button onclick="sendSMSDiagnosis()" id="sms-send-btn" style="flex:1;background:#1565C0;color:white;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">Send SMS</button>
+    </div>
+    <div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Powered by Africa's Talking · Requires server setup</div>
   </div>
 </div>
 
