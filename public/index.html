@@ -4537,11 +4537,28 @@ async function analyze() {
   var barEl = document.getElementById('loading-bar');
   if (barEl) { barEl.style.animation = 'none'; barEl.offsetHeight; barEl.style.animation = 'loadProgress 3s ease-in-out forwards'; }
   var plantStages = ['🌱','🌿','🍃','🌾','🔬'];
+  var loadMsgs = [
+    'Analyzing image with AI...',
+    'Checking Ethiopian research database...',
+    'Calculating climate resilience...',
+    'Estimating yield impact...',
+    'Preparing treatment plan...'
+  ];
+  var loadMsgsAm = [
+    'AI ምስሉን እየመረመረ ነው...',
+    'የኢትዮጵያ ምርምር ቤተ-መጻሕፍት እየፈለገ...',
+    'የአየር ንብረት መቋቋም አቅም እየሰላ...',
+    'የምርት ኪሳራ እየገመተ...',
+    'የህክምና እቅድ እያዘጋጀ...'
+  ];
   var stageIdx = 0;
   var plantTimer = setInterval(function() {
     stageIdx = (stageIdx + 1) % plantStages.length;
     if (plantEl) plantEl.textContent = plantStages[stageIdx];
-  }, 800);
+    var msgs = currentLang === 'am' ? loadMsgsAm : loadMsgs;
+    var sub = document.getElementById('loading-sub');
+    if (sub) sub.textContent = msgs[stageIdx] || msgs[0];
+  }, 900);
   window._plantTimer = plantTimer;
 
   var symptoms = Array.from(selectedSymptoms).join(', ') || 'None specified';
@@ -5029,6 +5046,29 @@ function renderResult(r) {
         </div>
         <button onclick="showCitationsForCrop(currentCrop)" style="margin-top:8px;background:#2D6A0A;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">📚 View All Citations</button>
       </div>
+
+      <!-- CLIMATE RESILIENCE + LOCAL REMEDIES CARD -->
+      ${(function(){
+        try {
+          var res = calculateClimateResilienceScore(currentCrop, (window.farmerProfile&&farmerProfile.region)||'Sidama', r);
+          var yld = simulateYieldImpact(currentCrop, r.severity||'medium');
+          var remedies = getLocalRemedies(r.disease_name||'');
+          var scoreCol = res.score>=70 ? '#2D6A0A' : res.score>=50 ? '#D4A017' : '#B83010';
+          var isAm = currentLang==='am';
+          return '<div style="background:linear-gradient(135deg,#f0f8eb,#e6f4dc);border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #B8DC7A;">'
+            + '<div style="font-weight:800;color:#2D6A0A;font-size:13px;margin-bottom:10px;">🌡️ '+(isAm?'የአየር ንብረት ጠንካርነት':'Climate Resilience Score')+'</div>'
+            + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">'
+            + '<div style="width:52px;height:52px;border-radius:50%;background:'+scoreCol+';color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0;">'+res.score+'</div>'
+            + '<div><div style="font-weight:700;color:'+scoreCol+';font-size:14px;">'+res.level+'</div>'
+            + '<div style="font-size:11px;color:#666;">'+(isAm?'ህክምና ቢጀምሩ':'With treatment could save')+' '+yld.etbSaved.toLocaleString()+' ETB</div></div></div>'
+            + res.adaptationPlan.map(function(p){ return '<div style="display:flex;gap:8px;margin-bottom:5px;align-items:flex-start;"><span style="color:#2D6A0A;flex-shrink:0;font-weight:700;">✓</span><span style="font-size:12px;color:#333;line-height:1.5;">'+p.action+'</span></div>'; }).join('')
+            + '</div>'
+            + '<div style="background:#FFFBF0;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #F0D080;">'
+            + '<div style="font-weight:800;color:#856404;font-size:13px;margin-bottom:8px;">🌿 '+(isAm?'የሀገር ውስጥ ባህላዊ መድሃኒቶች':'Traditional Local Remedies')+'</div>'
+            + remedies.map(function(rem){ return '<div style="font-size:12px;color:#4A3728;padding:6px 0;border-bottom:1px solid #f0ede8;line-height:1.5;">'+rem+'</div>'; }).join('')
+            + '</div>';
+        } catch(ex) { return ''; }
+      })()}
 
       <div class="result-section">
         <h4 data-i18n="resNearestHelp">${t.resNearestHelp || '📍 Nearest Agricultural Help'}</h4>
@@ -5840,6 +5880,99 @@ function useDroneImageForDiagnosis() {
   }, 300);
 }
 
+
+
+// ==================== CLIMATE RESILIENCE + YIELD SIMULATOR ====================
+
+// Ethiopian climate zones and disease risk factors
+var ETHIOPIA_CLIMATE_ZONES = {
+  highland:  { zones: ['Amhara','Tigray','North Shewa','Arsi','Bale'], rainfall: 'bimodal', temp: 'cool', risk: 0.7 },
+  midland:   { zones: ['Addis Ababa','West Shewa','Jimma','Kaffa','Sidama','SNNPR'], rainfall: 'reliable', temp: 'moderate', risk: 0.5 },
+  lowland:   { zones: ['Afar','Somali','Dire Dawa','East Hararghe'], rainfall: 'erratic', temp: 'hot', risk: 0.9 },
+  wetforest: { zones: ['Kaffa','Illubabor','Bench Maji'], rainfall: 'high', temp: 'warm', risk: 0.6 }
+};
+
+var CROP_CLIMATE_RESILIENCE = {
+  enset:   { drought: 85, flood: 60, heat: 55, cold: 70, baseScore: 75 },
+  teff:    { drought: 80, flood: 50, heat: 65, cold: 60, baseScore: 70 },
+  wheat:   { drought: 45, flood: 55, heat: 35, cold: 75, baseScore: 55 },
+  maize:   { drought: 50, flood: 45, heat: 55, cold: 40, baseScore: 50 },
+  coffee:  { drought: 40, flood: 55, heat: 35, cold: 50, baseScore: 48 },
+  potato:  { drought: 35, flood: 40, heat: 30, cold: 80, baseScore: 50 },
+  barley:  { drought: 70, flood: 50, heat: 50, cold: 85, baseScore: 65 },
+  sorghum: { drought: 90, flood: 55, heat: 85, cold: 35, baseScore: 72 }
+};
+
+async function calculateClimateResilienceScore(crop, region, diseaseResult) {
+  var cropData = CROP_CLIMATE_RESILIENCE[crop] || CROP_CLIMATE_RESILIENCE.enset;
+  var sevPenalty = diseaseResult && diseaseResult.severity === 'high' ? 20 :
+                   diseaseResult && diseaseResult.severity === 'medium' ? 10 : 0;
+
+  // Get current weather context if available
+  var weatherBonus = 0;
+  if (window._lastWeatherRisk) {
+    weatherBonus = window._lastWeatherRisk === 'Low' ? 5 :
+                   window._lastWeatherRisk === 'High' ? -10 : 0;
+  }
+
+  var score = Math.max(0, Math.min(100, cropData.baseScore - sevPenalty + weatherBonus));
+  var level = score >= 70 ? 'Good' : score >= 50 ? 'Moderate' : 'At Risk';
+
+  // Generate adaptation plan based on disease + climate
+  var plans = [];
+  if (crop === 'enset' || crop === 'teff') {
+    plans.push({ action: 'Plant disease-resistant variety (EBW-resistant enset clones from ARARI)', priority: 'high' });
+  }
+  if (diseaseResult && diseaseResult.severity === 'high') {
+    plans.push({ action: 'Apply biocontrol agents — neem extract or Trichoderma (reduces fungal spread 40-60%)', priority: 'high' });
+  }
+  plans.push({ action: 'Use mulching to retain soil moisture during dry spells (reduces water stress 30%)', priority: 'medium' });
+  plans.push({ action: 'Intercrop with legumes (faba bean / chickpea) — improves soil nitrogen by 40 kg/ha', priority: 'medium' });
+  plans.push({ action: 'Collect rainwater during Kiremt for irrigation in dry periods', priority: 'low' });
+
+  return { score, level, cropData, adaptationPlan: plans.slice(0, 3) };
+}
+
+// ── YIELD IMPACT SIMULATOR ────────────────────────────────
+var BASE_YIELDS = { enset: 50, teff: 12, wheat: 20, maize: 30, coffee: 8, potato: 80, barley: 15, sorghum: 18 };
+
+function simulateYieldImpact(crop, severityLevel) {
+  var farmHa   = (window.farmerProfile && parseFloat(farmerProfile.farmSizeHa)) || 0.5;
+  var baseYield = BASE_YIELDS[crop] || 15;
+  var prices    = window.PRICE_PER_QT || { enset:1900, teff:5200, wheat:4600, maize:3500, coffee:11200, potato:2200, barley:3800, sorghum:2800 };
+  var price     = prices[crop] || 2000;
+
+  var lossRates = { high: 0.65, medium: 0.35, low: 0.15 };
+  var lossRate  = lossRates[severityLevel] || 0.35;
+
+  var totalYield   = baseYield * farmHa;
+  var lossWithout  = Math.round(totalYield * lossRate);
+  var lossWithTx   = Math.round(totalYield * lossRate * 0.25); // 75% reduction with treatment
+  var etbLost      = Math.round(lossWithout * price);
+  var etbSaved     = Math.round((lossWithout - lossWithTx) * price);
+  var treatmentROI = etbSaved > 0 ? Math.round((etbSaved / Math.max(200, etbSaved * 0.15)) * 100) / 100 : 0;
+
+  return { totalYield, lossWithout, lossWithTx, etbLost, etbSaved, treatmentROI, farmHa, price };
+}
+
+// ── LOCAL TRADITIONAL REMEDIES ────────────────────────────
+var LOCAL_REMEDIES = {
+  'Bacterial Wilt':    ['🌿 Rogue infected plants immediately and burn away from field', 'Wash tools with bleach solution (1:9 ratio) after each plant', 'Apply wood ash around plant base to discourage soil bacteria spread'],
+  'Leaf Rust':         ['🌿 Spray neem leaf extract (boil 500g leaves in 5L water) every 3 days', 'Apply garlic extract diluted 1:10 — natural antifungal', 'Remove lower infected leaves and compost away from field'],
+  'Late Blight':       ['🌿 Copper sulphate + lime (Bordeaux mixture) applied weekly', 'Plant on raised beds to improve drainage and airflow', 'Avoid overhead irrigation — water at base of plant'],
+  'Fall Armyworm':     ['🌿 Early morning hand-pick larvae into bucket of soapy water', 'Mix ash + sand and apply to leaf whorl — deters egg laying', 'Attract natural predators: plant sunflower strips around field boundaries'],
+  'Berry Borer':       ['🌿 Harvest all ripe berries weekly — do not leave overripe on tree', 'Red soil (iron-rich) mulch around tree base disrupts pupation', 'Set alcohol traps: mix brown sugar + water + yeast in bottle'],
+  'Head Smudge':       ['🌿 Crop rotation — avoid planting teff on same land 2 consecutive years', 'Deep plough after harvest to expose fungal spores to sunlight', 'Soak seeds in 50°C water for 15 minutes before planting'],
+  'default':           ['🌿 Improve field drainage — excess moisture promotes most diseases', 'Apply compost to strengthen plant immune response', 'Remove and burn infected plant material — never leave in field']
+};
+
+function getLocalRemedies(diseaseName) {
+  if (!diseaseName) return LOCAL_REMEDIES.default;
+  var key = Object.keys(LOCAL_REMEDIES).find(function(k) {
+    return k !== 'default' && diseaseName.toLowerCase().includes(k.toLowerCase());
+  });
+  return LOCAL_REMEDIES[key] || LOCAL_REMEDIES.default;
+}
 
 // ==================== MARKET PRICES CACHE ====================
 var ECX_FALLBACK = {
