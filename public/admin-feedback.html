@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resilience Guardian — Admin Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f7e8; min-height: 100vh; }
+  .header { background: linear-gradient(135deg,#1a3a05,#2D6A0A); color:white; padding:18px 28px; display:flex; align-items:center; justify-content:space-between; }
+  .header h1 { font-size:20px; font-weight:800; }
+  .header p { font-size:12px; opacity:0.75; margin-top:2px; }
+  .dot { width:8px;height:8px;border-radius:50%;background:#B8DC7A;display:inline-block;margin-right:6px;animation:pulse 2s infinite; }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+  .login { display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 70px);padding:20px; }
+  .login-card { background:white;border-radius:20px;padding:36px;max-width:380px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center; }
+  .login-card .icon { font-size:44px;margin-bottom:14px; }
+  .login-card h2 { color:#2D6A0A;margin-bottom:6px; }
+  .login-card p { color:#888;font-size:13px;margin-bottom:22px; }
+  input[type=password],input[type=text] { width:100%;padding:11px 14px;border:1.5px solid #B8DC7A;border-radius:10px;font-size:15px;margin-bottom:10px;outline:none; }
+  input:focus { border-color:#2D6A0A; }
+  .btn { width:100%;padding:12px;background:#2D6A0A;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer; }
+  .btn:hover { background:#1a3a05; }
+  .err { color:#B83010;font-size:13px;margin-top:6px; }
+
+  .dash { display:none;padding:20px 28px;max-width:1440px;margin:0 auto; }
+
+  .stats { display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px; }
+  .stat { background:white;border-radius:14px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:4px solid #B8DC7A; }
+  .stat .n { font-size:32px;font-weight:900;color:#2D6A0A; }
+  .stat .l { font-size:12px;color:#888;margin-top:3px; }
+
+  .charts { display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px; }
+  .chart-card { background:white;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .chart-card h3 { font-size:13px;font-weight:700;color:#2D6A0A;margin-bottom:14px; }
+
+  .controls { display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center; }
+  .controls select,.controls input[type=text] { padding:8px 12px;border:1.5px solid #B8DC7A;border-radius:8px;font-size:13px;background:white;margin:0; }
+  .btn-sm { padding:8px 14px;background:white;color:#2D6A0A;border:2px solid #2D6A0A;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer; }
+
+  .tbl-wrap { background:white;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden; }
+  table { width:100%;border-collapse:collapse; }
+  th { background:#1a3a05;color:white;padding:11px 13px;font-size:11px;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.05em; }
+  td { padding:10px 13px;font-size:12px;border-bottom:1px solid #f0f0f0;vertical-align:top; }
+  tr:hover td { background:#f8fdf2; }
+  tr:last-child td { border-bottom:none; }
+
+  .badge { display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700; }
+  .bc { background:#d4edda;color:#155724; }
+  .bp { background:#fff3cd;color:#856404; }
+  .bw { background:#f8d7da;color:#721c24; }
+  .bg { background:#e8f4e0;color:#2D6A0A; }
+
+  .empty { text-align:center;padding:50px 20px;color:#bbb; }
+  .empty .ei { font-size:44px;margin-bottom:10px; }
+
+  .acc-bar { height:6px;background:#eee;border-radius:3px;margin-top:4px;overflow:hidden; }
+  .acc-fill { height:100%;border-radius:3px;transition:width .5s; }
+
+  @media(max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}.charts{grid-template-columns:1fr 1fr}.dash{padding:14px}}
+  @media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div><h1>🌿 Resilience Guardian Admin</h1><p><span class="dot"></span>Farmer Feedback Analytics Dashboard</p></div>
+  <div style="font-size:11px;opacity:.7;text-align:right;">Gulilat Kasiye Worku<br>Admin Console v2.0</div>
+</div>
+
+<div class="login" id="login">
+  <div class="login-card">
+    <div class="icon">🔐</div>
+    <h2>Admin Access</h2>
+    <p>View farmer feedback analytics and diagnosis accuracy data</p>
+    <input type="password" id="pass" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn" onclick="login()">🔓 Login</button>
+    <div class="err" id="err"></div>
+    <p style="margin-top:18px;font-size:11px;color:#bbb;">Data stored in browser IndexedDB — same device as app</p>
+  </div>
+</div>
+
+<div class="dash" id="dash">
+
+  <!-- STATS ROW -->
+  <div class="stats">
+    <div class="stat"><div class="n" id="sTotal">0</div><div class="l">Total Feedback</div></div>
+    <div class="stat" style="border-top-color:#2D6A0A"><div class="n" style="color:#2D6A0A" id="sCorrect">0</div><div class="l">✅ Correct</div></div>
+    <div class="stat" style="border-top-color:#D4A017"><div class="n" style="color:#D4A017" id="sPartial">0</div><div class="l">⚠️ Partial</div></div>
+    <div class="stat" style="border-top-color:#B83010"><div class="n" style="color:#B83010" id="sWrong">0</div><div class="l">❌ Incorrect</div></div>
+    <div class="stat" style="border-top-color:#1565C0"><div class="n" style="color:#1565C0" id="sAccuracy">—</div><div class="l">Avg Accuracy</div></div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="charts">
+    <div class="chart-card">
+      <h3>🎯 Diagnosis Accuracy</h3>
+      <canvas id="accuracyChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>🌱 Feedback by Crop</h3>
+      <canvas id="cropChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📈 Feedback Over Time</h3>
+      <canvas id="timeChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- ACCURACY BY CROP -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h3>🔬 Accuracy Rate by Crop</h3>
+    <div id="crop-accuracy"></div>
+  </div>
+
+  <!-- TABLE CONTROLS -->
+  <div class="controls">
+    <select id="fCrop" onchange="render()">
+      <option value="">All Crops</option>
+      <option>enset</option><option>teff</option><option>wheat</option>
+      <option>maize</option><option>coffee</option><option>potato</option>
+      <option>barley</option><option>sorghum</option>
+    </select>
+    <select id="fAcc" onchange="render()">
+      <option value="">All Accuracy</option>
+      <option value="1">✅ Correct</option>
+      <option value="0.7">⚠️ Partial</option>
+      <option value="0">❌ Incorrect</option>
+    </select>
+    <input type="text" id="fSearch" placeholder="🔍 Search..." oninput="render()" style="flex:1;min-width:140px;">
+    <button class="btn-sm" onclick="exportCSV()">📥 CSV Export</button>
+    <button class="btn-sm" onclick="loadData()">🔄 Refresh</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Crop</th><th>Disease Diagnosed</th>
+        <th>Conf.</th><th>Accuracy</th><th>Comment</th><th>Region</th><th>Lang</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none"><div class="ei">🌱</div><p>No feedback yet. Share the app with farmers!</p></div>
+  </div>
+
+</div>
+
+<script>
+const PASS = "RG_Admin_2025!"; // ⚠️ Change before deploying!
+var all = [];
+var charts = {};
+
+function login() {
+  if (document.getElementById('pass').value === PASS) {
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('err').textContent = '❌ Wrong password';
+    document.getElementById('pass').value = '';
+  }
+}
+
+function loadData() {
+  var req = indexedDB.open('ResilienceGuardian', 3);
+  req.onsuccess = function(e) {
+    var db = e.target.result;
+    if (!db.objectStoreNames.contains('feedback')) { renderStats([]); render(); return; }
+    var tx = db.transaction('feedback','readonly');
+    tx.objectStore('feedback').getAll().onsuccess = function(e2) {
+      all = (e2.target.result || []).reverse();
+      renderStats(all);
+      renderCharts(all);
+      renderCropAccuracy(all);
+      render();
+    };
+  };
+  req.onerror = function() { renderStats([]); render(); };
+}
+
+function renderStats(d) {
+  var c = d.filter(function(x){return x.accuracy===1;}).length;
+  var p = d.filter(function(x){return x.accuracy===0.7;}).length;
+  var w = d.filter(function(x){return x.accuracy===0;}).length;
+  var ratedCount = c+p+w;
+  var avg = ratedCount > 0 ? Math.round(((c*100 + p*70) / ratedCount)) : 0;
+  document.getElementById('sTotal').textContent = d.length;
+  document.getElementById('sCorrect').textContent = c;
+  document.getElementById('sPartial').textContent = p;
+  document.getElementById('sWrong').textContent = w;
+  document.getElementById('sAccuracy').textContent = ratedCount > 0 ? avg+'%' : '—';
+}
+
+function renderCharts(d) {
+  // Accuracy pie
+  var c = d.filter(function(x){return x.accuracy===1;}).length;
+  var p = d.filter(function(x){return x.accuracy===0.7;}).length;
+  var w = d.filter(function(x){return x.accuracy===0;}).length;
+  var co = d.filter(function(x){return x.accuracy===null||x.accuracy===undefined;}).length;
+
+  if (charts.acc) charts.acc.destroy();
+  charts.acc = new Chart(document.getElementById('accuracyChart'), {
+    type: 'doughnut',
+    data: { labels:['Correct','Partial','Incorrect','Comment only'], datasets:[{ data:[c,p,w,co], backgroundColor:['#2D6A0A','#D4A017','#B83010','#90A4AE'], borderWidth:2, borderColor:'#fff' }] },
+    options: { plugins:{ legend:{ position:'bottom', labels:{ font:{ size:11 } } } }, cutout:'65%' }
+  });
+
+  // Crop bar
+  var crops = {};
+  d.forEach(function(x){ crops[x.crop||'unknown'] = (crops[x.crop||'unknown']||0)+1; });
+  var cropKeys = Object.keys(crops).sort(function(a,b){return crops[b]-crops[a];});
+  var cropColors = {enset:'#2D6A0A',teff:'#D4A017',wheat:'#1565C0',maize:'#F4A622',coffee:'#6D4C41',potato:'#7B1FA2',barley:'#00838F',sorghum:'#B83010'};
+  if (charts.crop) charts.crop.destroy();
+  charts.crop = new Chart(document.getElementById('cropChart'), {
+    type: 'bar',
+    data: { labels: cropKeys, datasets:[{ label:'Feedbacks', data: cropKeys.map(function(k){return crops[k];}), backgroundColor: cropKeys.map(function(k){return cropColors[k]||'#2D6A0A';}) }] },
+    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } }
+  });
+
+  // Time line chart (last 14 days)
+  var dateCounts = {};
+  var today = new Date();
+  for (var i=13;i>=0;i--) { var dt=new Date(today); dt.setDate(dt.getDate()-i); dateCounts[dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})] = 0; }
+  d.forEach(function(x) {
+    if (!x.timestamp) return;
+    var k = new Date(x.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    if (dateCounts[k] !== undefined) dateCounts[k]++;
+  });
+  if (charts.time) charts.time.destroy();
+  charts.time = new Chart(document.getElementById('timeChart'), {
+    type: 'line',
+    data: { labels: Object.keys(dateCounts), datasets:[{ label:'Feedbacks/day', data: Object.values(dateCounts), fill:true, backgroundColor:'rgba(45,106,10,0.1)', borderColor:'#2D6A0A', tension:0.4, pointRadius:3 }] },
+    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } }
+  });
+}
+
+function renderCropAccuracy(d) {
+  var cropData = {};
+  d.forEach(function(x) {
+    var cr = x.crop || 'unknown';
+    if (!cropData[cr]) cropData[cr] = { total:0, correct:0, partial:0 };
+    cropData[cr].total++;
+    if (x.accuracy === 1) cropData[cr].correct++;
+    if (x.accuracy === 0.7) cropData[cr].partial++;
+  });
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">';
+  Object.entries(cropData).sort(function(a,b){return b[1].total-a[1].total;}).forEach(function(e) {
+    var cr = e[0], dat = e[1];
+    var rate = dat.total > 0 ? Math.round(((dat.correct*100+dat.partial*70)/dat.total)) : 0;
+    var col = rate >= 70 ? '#2D6A0A' : rate >= 40 ? '#D4A017' : '#B83010';
+    html += '<div style="background:#f8fdf2;border-radius:10px;padding:12px;border:1px solid #B8DC7A;">'
+      + '<div style="font-weight:700;color:#2D6A0A;font-size:13px;">'+cr.charAt(0).toUpperCase()+cr.slice(1)+'</div>'
+      + '<div style="font-size:22px;font-weight:900;color:'+col+';">'+rate+'%</div>'
+      + '<div class="acc-bar"><div class="acc-fill" style="width:'+rate+'%;background:'+col+';"></div></div>'
+      + '<div style="font-size:11px;color:#888;margin-top:4px;">'+dat.total+' feedbacks</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('crop-accuracy').innerHTML = html || '<p style="color:#aaa;font-size:13px;">No data yet</p>';
+}
+
+function render() {
+  var fc = document.getElementById('fCrop').value;
+  var fa = document.getElementById('fAcc').value;
+  var fs = document.getElementById('fSearch').value.toLowerCase();
+  var data = all.filter(function(d) {
+    if (fc && d.crop !== fc) return false;
+    if (fa !== '' && String(d.accuracy) !== fa) return false;
+    if (fs && !JSON.stringify(d).toLowerCase().includes(fs)) return false;
+    return true;
+  });
+  var tbody = document.getElementById('tbody');
+  var empty = document.getElementById('empty');
+  if (!data.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  var langMap = {am:'🇪🇹 Amharic',om:'🇪🇹 Oromiffa',ti:'🇪🇹 Tigrinya',en:'🇬🇧 English'};
+  tbody.innerHTML = data.map(function(d) {
+    var dt = d.timestamp ? new Date(d.timestamp).toLocaleString('en-ET',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    var ab = d.accuracy===1?'<span class="badge bc">✅ Correct</span>':d.accuracy===0.7?'<span class="badge bp">⚠️ Partial</span>':d.accuracy===0?'<span class="badge bw">❌ Wrong</span>':'<span class="badge" style="background:#eee;color:#666;">— Note</span>';
+    return '<tr><td style="white-space:nowrap;color:#888;">'+dt+'</td>'
+      +'<td><span class="badge bg">'+(d.crop||'—')+'</span></td>'
+      +'<td style="max-width:180px;font-size:12px;">'+(d.disease||'—').substring(0,60)+'</td>'
+      +'<td>'+(d.confidence?d.confidence+'%':'—')+'</td>'
+      +'<td>'+ab+'</td>'
+      +'<td style="max-width:160px;color:#555;font-size:12px;">'+(d.comment||'—')+'</td>'
+      +'<td>'+(d.region||'—')+'</td>'
+      +'<td>'+(langMap[d.language]||d.language||'—')+'</td></tr>';
+  }).join('');
+}
+
+function exportCSV() {
+  var hdr = ['Date','Crop','Disease','Confidence','Accuracy','Comment','Region','Language'];
+  var rows = all.map(function(d) {
+    return [d.timestamp?new Date(d.timestamp).toLocaleString():'',d.crop||'',d.disease||'',d.confidence||'',
+      d.accuracy===1?'Correct':d.accuracy===0.7?'Partial':d.accuracy===0?'Incorrect':'Comment',
+      '"'+(d.comment||'').replace(/"/g,'""')+'"',d.region||'',d.language||''];
+  });
+  var csv = [hdr,...rows].map(function(r){return r.join(',');}).join('\n');
+  var blob = new Blob([csv],{type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rg_feedback_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
