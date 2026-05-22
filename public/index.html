@@ -4918,8 +4918,7 @@ function renderResult(r) {
           var farmHa = (window.farmerProfile && parseFloat(farmerProfile.farmSizeHa)) || 0.5;
           var avgYieldPerHa = { enset: 50, teff: 12, wheat: 20, maize: 30, coffee: 8, potato: 80, barley: 15, sorghum: 18 };
           var avgYield = (avgYieldPerHa[currentCrop] || 15);
-          // ECX market prices (ETB/Quintal) — updated 2025
-var pricePerQt = { enset: 1900, teff: 5200, wheat: 4600, maize: 3500, coffee: 11200, potato: 2200, barley: 3800, sorghum: 2800 };
+          var pricePerQt = { enset: 1900, teff: 5200, wheat: 4600, maize: 3500, coffee: 11200, potato: 2200, barley: 3800, sorghum: 2800 };
           var price = pricePerQt[currentCrop] || 1500;
           var totalYield = avgYield * farmHa;
           var lossQt = (sev.yieldLossPercent / 100) * totalYield;
