@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Resilience Guardian — Ethiopian Crop AI Advisor</title>
 <meta name="description" content="Offline AI Advisor for Enset, Teff, Wheat, Maize, Coffee, Potato, Barley and Sorghum">
 <meta name="theme-color" content="#2D6A0A">
@@ -1694,6 +1697,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 </style>
 </head>
 <body>
+<noscript><div style="padding:20px;text-align:center;font-family:sans-serif;"><h2>🌿 Resilience Guardian</h2><p>Please enable JavaScript to use this app.</p></div></noscript>
 
 
 <header class="header">
@@ -5674,13 +5678,19 @@ function getVoiceStatus() {
 
 // Call pre-warm on load
 window.addEventListener('load', function() {
-  setTimeout(preloadCommonPhrases, 1000);
-  setTimeout(autoLoadWeather, 800);
-  setTimeout(function() { show30DayRiskCalendar(currentCrop || 'enset'); }, 1500);
-  setTimeout(checkOnboarding, 1000);
-  setTimeout(restoreLastDiagnosis, 1200);
-  // Initialize market prices cache in IndexedDB
-  setTimeout(updateMarketPrices, 2000);
+  // Wrap all init in try-catch to prevent black screen from JS errors
+  function safeInit(fn, delay) {
+    setTimeout(function() {
+      try { fn(); } catch(e) { console.error('Init error:', e.message); }
+    }, delay);
+  }
+  safeInit(preloadCommonPhrases, 1000);
+  safeInit(autoLoadWeather, 800);
+  safeInit(function() { show30DayRiskCalendar(currentCrop || 'enset'); }, 1500);
+  safeInit(checkOnboarding, 1000);
+  safeInit(restoreLastDiagnosis, 1200);
+  safeInit(updateMarketPrices, 2000);
+  safeInit(loadImpactData, 500);
 });
 
 
@@ -5938,7 +5948,7 @@ async function handleDroneUpload(input) {
     var res = await fetch('/api/drone-upload', {
       method: 'POST',
       body: formData,
-      signal: AbortSignal.timeout(30000)
+      signal: (function(){ var c=new AbortController(); setTimeout(function(){c.abort();},30000); return c.signal; })()
     });
 
     if (!res.ok) throw new Error('Server error ' + res.status);
@@ -7161,8 +7171,8 @@ async function showHistory() {
     list.innerHTML = items.map(item => {
       const d = new Date(item.timestamp).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
       const crop = item.crop ? item.crop.charAt(0).toUpperCase() + item.crop.slice(1) : 'Unknown';
-      const disease = item.result?.disease_name || 'Unknown';
-      const sev = item.result?.severity || 'medium';
+      const disease = item.result && item.result.disease_name || 'Unknown';
+      const sev = item.result && item.result.severity || 'medium';
       const sevColor = { low: '#6EE37A', medium: '#D4A017', high: '#C0521A' }[sev];
       const symptoms = (item.symptoms || []).slice(0, 2).join(', ') || '—';
       return `
@@ -7388,7 +7398,7 @@ Keep answers under 4 sentences. Use simple language the farmer can understand.`;
     clearTimeout(chatTimeout);
 
     const data    = await response.json();
-    const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
+    const aiReply = data.candidates?.[0]?.(content && content.parts)?.[0]?.text || 'Sorry, I could not get a response.';
 
     // Remove thinking indicator
     const thinkingEl = document.getElementById(thinkingId);
@@ -7540,10 +7550,10 @@ async function speakWithServerTTS(text, lang) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: text.substring(0, 500), lang: lang }),
-      signal: AbortSignal.timeout(8000)
+      signal: (function(){ var c=new AbortController(); setTimeout(function(){c.abort();},8000); return c.signal; })()
     });
 
-    if (!res.ok || res.headers.get('content-type')?.includes('json')) throw new Error('TTS failed');
+    if (!res.ok || res.headers.get('content-type') && res.headers.get('content-type').includes('json')) throw new Error('TTS failed');
     var blob = await res.blob();
     var url  = URL.createObjectURL(blob);
     var audio = new Audio(url);
@@ -7746,7 +7756,7 @@ async function translateOfflineResult(resultObj) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ parts: [{ text: prompt }] }),
-      signal: AbortSignal.timeout(20000)
+      signal: (function(){ var c=new AbortController(); setTimeout(function(){c.abort();},20000); return c.signal; })()
     });
     if (!res.ok) return;
     var data = await res.json();
