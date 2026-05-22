@@ -63,7 +63,7 @@ Enset, Teff, Wheat, Maize, Coffee, Potato, Barley, Sorghum
 - Sustainability score (chemical use, climate resilience, soil health)
 - Treatment cost in Ethiopian Birr
 - WhatsApp share + PDF report download
-- Research citation export (18+ Ethiopian papers)
+- Research citation export (23+ Ethiopian papers)
 
 ### 📴 Offline-First
 - 42 diseases work without any internet
@@ -107,7 +107,7 @@ node server.js
 
 ---
 
-## 🔬 Research Foundation — 18+ Ethiopian Papers
+## 🔬 Research Foundation — 23+ Ethiopian Papers
 
 | Research | Institution | Year |
 |---|---|---|
@@ -116,7 +116,12 @@ node server.js
 | Enset CNN Detection (98.87% accuracy) | Jimma University | 2021 |
 | Major Tef Diseases in Ethiopia | EIAR Debre Zeit ARC | 2021 |
 | Early Warning System for Wheat Rust (Ug99) | Cambridge / CIMMYT / EIAR | 2019 |
-| Ethiopian Maize Disease & Management | MoA / FAO Ethiopia | — |
+| Ethiopian Maize Disease & Management | MoA / FAO Ethiopia |
+| Community Based EBW Management — Updated Results | Journal of Life Science and Biomedicine (2024) |
+| Economic Loss from Enset Wilting Disease, Sidama | Trends in Agricultural Economics (2024) |
+| Major Tef Diseases — Updated Review | EIAR Debre Zeit ARC (2025) |
+| Teff: A Healthy Crop of the Century | Discover Crops, Springer (2025) |
+| Geographical Distribution of Tef Diseases | EIAR Debre Zeit ARC (2025) | — |
 
 ---
 
