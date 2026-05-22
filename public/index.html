@@ -786,7 +786,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   transition: all 0.2s ease;
   letter-spacing: 0.02em;
 }
-.nav-tab .nav-icon { font-size: 20px; line-height: 1; }
+.nav-tab .nav-icon { font-size: 18px; line-height: 1; }
 .nav-tab:hover { color: var(--sprout); }
 .nav-tab.active { color: var(--sprout); border-top: 2px solid var(--sprout); margin-top: -2px; }
 
@@ -1210,25 +1210,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 
 
 /* ─── FARMER PROFILE ─────────────────────────────────── */
-.profile-fab {
-  position: fixed;
-  bottom: 146px;
-  right: 16px;
-  width: 46px;
-  height: 46px;
-  background: #7B5EA7;
-  border-radius: 50%;
-  border: none;
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 150;
-  transition: all 0.2s ease;
-}
+.profile-fab { display: none; }
 .profile-fab:hover { background: #6a4f92; transform: scale(1.08); }
 
 /* ─── SEVERITY + YIELD CARD ──────────────────────────── */
@@ -1775,7 +1757,10 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </div>
 
   
-  <p class="slabel" id="label-crop">Select Crop</p>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <p class="slabel" style="margin:0;" id="label-crop">Select Crop</p>
+    <button onclick="showHistory()" style="background:rgba(45,106,10,0.08);border:1.5px solid #B8DC7A;border-radius:20px;padding:4px 12px;font-size:12px;color:#2D6A0A;cursor:pointer;font-weight:600;">📋 History</button>
+  </div>
   <div class="crop-grid">
     <div class="crop-card selected" data-crop="enset" onclick="selectCrop(this)">
       <span class="crop-icon"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCACFAMgDASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAABAUAAwYCAQf/xAA3EAACAQMDAQYEBQMFAQEBAAABAgMABBEFEiExBhMiQVFhFHGBkSMyobHBFULwJGLR4fFSM3L/xAAZAQADAQEBAAAAAAAAAAAAAAABAgMEAAX/xAAkEQACAgIDAAIDAQEBAAAAAAAAAQIRAyESMUEiMhNRYUIjcf/aAAwDAQACEQMRAD8A2mg6UrXBcC4jKqDG7c4PmpHQjmm8lhfwSo9u26Hq0CSlefMgn9q+fDX7pp0eNUgiUgmOLwhiPUjrz5U6i17V9VlBkumhhJ5EIwce3n+tJaqjOpxqhhLp97NO73aXRbyJG7PtkUvvrAQrGzyJmQbgqHPh9c+5/mtlpL2Rt9lrKzlfzmQ5cn3rN9ppLZ74/DupbaBJt6Aim82GUUlZlpJkg1KGWMeGFgHPrk8/SnlzoizkfCrhz0QHh/l6GkRiiaaQS7irKQApxz5VodNllm022uUOWQAtz0K8GlpNNMVU4iW5svh1B7xhKP7duNpom07UXlsQl2nxKDjJOHA+fn9as13UmvNSlfuyoOAMemKUSxg9CCfapXx+pN6eh8JrDUJDPZNtl6vERhvn7/MVVcuUgcqpZgDgDrms4k8lncpNGPEhzj19RWnYpcwR3ER8Ei7gf4+lVjNyX9Ctg9nenT9It4JEPfOuQrHHQ9f1ry4VvhhcMgXvCegwKp1btLHHYpb6dayvIo7tZpIsYJ/aq7ntHBZQDRUszeOqojy95giQ+nHUfzSS2uxmv6LromQ5z0pVfJm0kI5wQT7Ypwy7hu6Z9aW3a4hlXA8Q86wKWyS0z20RplQoFzjGWOOfnTO1ElvqIhnfMm3egJz7GkmnSBrTBGSOMevFG2IQX5mnmO4LtQHqoHT506dNq6G6CO0E34aRDAMr5OB5ClXxDWqCQKTnkjHQdT+lXaxcJdakqwuHUKFBU8ZJr3UWNnpr3KgblICgjrz0plG3TOXQRJY211pcl+l0IyoVwrLwysOMe+QRis8TiYf/ANCi7y7N53TLIBbIPBEg2qvrx60ulfa5Pyq8kvBqD1OYzjGat1WX/Swxg+OVR9qrsoRIN7kADnBoe5uRc3ryDAVPCoA4qa7BRU3DKoHhX09aLt5Iy6oGGScAY5+1V28YMm5/7ecmtLaaF3Wn/wBVmfxAjuowuDg8En+KLbp14GilImRBkckc1K6fBHVqlZW29sQbXvZ3UIbpigV0Y4B3D9qbaLo0VzZyNcAiQP4Ujm4wPUD1OaPiWVXkE87zRtyN2AU+R61R8ZZWNsk8cRlEZKh1xuTPka9b8ai7KJJMfaRNbWyfDrCkQ6BwMZPv70v13s8QWubJCynlolHI9x/xSfTtUe5nuJSgUO2QucjGMYp/p2voilJ2JQcBupU+hppRTVlE01TMa8PcJPc3CMiwrzxyWPAA98n9K60HURbiW1O7Y/4iBjz0w38Gr+1Wpf1GZYYFYQBt7Ert3N8qzt6jLbd5GSskJ3qR196jaixI1yocXRBumGRyAce1BT3KW7qr8Ix27v8A5NepqFvPp8buT8QH8lz4SB/OaVa1PuROCpLcZpNXQij8qYbPHv8AyYYeo6U50R47WAW89wgLnKbztAPoM/es3HdGC1jIGTgcfSqprlri3LvLGWQYSNTkjPrSt8HYFo1HanTLl9KeXTmLyeEZD5AGedvvSHQYVCXWpXEm/wCGGSW5JYg8/P8A5oO3W4tUW4idk2EH8xAPtii75Rcq91ZbkSZR30Q6H3x6g0yyKe14Ndo5sbqSW2VTnI/mrbiHIyfMYNLLKeKCde8DgdCU6j6U2nv7m1lLW6xMFPBkiBJ/WsmSPzteiUKNPBV5I/fBpgscRI3AAevr9KX9+8t9PLIEDyneQowMn0o2O6t4kMkh3BeSEGcUs1vQz7KGgUawUT8kZz+n/JqzWo3utMMMbjK5kKjzAq20Y3Rub512bjwB6en7V4HHfoT55U1WNpo6+hDp8Xe2L7m//N8D5EVRdqEY8cY8jRgjTT70/iBopcrkeXmM0LeL3gLqcgHmq75DVYULlDpcbR534wSOPF6VRZwF5dp8utC27uisgyR5CnmhaebtwjOyBzjI6n2FdVdHUabsf2XGoQ3N5Mm5IkLRgj8z+Q9//KZvvvoHhXLFhjhcAU0tLmPRbZBFuQKuETr96HMr20cd0YpVW5DFN3mM+laYx+NMbwyLqykqRgg4OalFaiAt85I/P4hUrz3Di6ZF9mzkJdpIwBmM7XV8Hj6UvurMBWazhQSsCDl9q488jz+VCXe5But32ece08An2r0TzL4tyhAOAwzjnqfX5eZr0FkUtMraO7LS7iNTmNY1Pmr5P2xQl4TZyuobkcOv80+iu3wqGP8AEbkDHRff3pbqz2SmaWZVJXwsQvPHXn2qvgWLI5Bcx78g4ODx0/8AaHuoRsJxx0NQW5so/j7SYT2zDLKeu0/vXN3dqLRZpHWNH4APJx6+wqGRVsRoUWLJFI8EjAGNvB70PrUgZ48njJx713qOIJBKrDDD82fT/qgNSmF0Im38qp9MZ+lRXyakN3LkFxLJc28KR4JIA5OKV3jvBemGKXDo2C6HpVxupbWKJ1BVkXKgjyoBGMkskzfnck8eVUS9Zy/Y2i1KWaQRTOXXoC3lTvTb2G2jZJ9q9cEMDgfLOazunwPK6pFGXfP5V5NOdIuLUX09hd26xTv4UZhyT/8AP8ikWOn8dC1Z1cS6axL2RgmnLcpuYY+QqyESXFuS6jvE4ITpjypXqlg1tc97E53KcnA5HvTHTLpJoSoXZOfzY4wQOv1qOVOqYKAriHZdLuXG4YGatvj3elhEAUFhkAfPrXOoTGSGKcpsdH2sB5VbqIU6euDyzg/pUUm6sH8CNO2/00w58X5mwaFn/CO4Z8JB+1BPPPaywtzsMoBGOq9KNuCGXoeeDT7u0FqgDWUiRpTu27wMY9Tn/j9aCFyk8EKlVBV8sWA5zgH9qK1OKa4hhZIXkyuCVUnBH/VKWWRT+IGBiblSMGtiSpM0Ri9BSIVkmVG65UH1Ga2XZuGNWLMCSkYKgfqayaL+LGGJ/FO3cR6HJrR6ZqMVvPKiDcNuDhc5NdFLlsXj3ZsNMin1jUFhG2GMcuxU7sDyGfWtXrEWmx6bm9jUQwnKAHbg+2KxOjqtvcC+72SGYcHqRICOhHscGrte1ZtVhuL4sVtbbwW6dDI58/p1PoKb8lixmqBNRktD+DDE7Tu29gSQIk8gAeT6mpWVklmiJuUdmmHiDdSxqVmlHHkdsn2a+aWGRY2R03Z8UYfJX2oa9fNnJhcHaTnNBRTCPu9ok3Scflxn296vmlWWNoyhUspGfSo/m3chb2OLU5QMwPrnd1NKu04Pw3wawosk5BYg5KoDnA+ZpjZzItvGWAbavPPtQsdu+pX/AFDO55J/tA862Y/krsbsSxWF+1mO4tmmtwdjqD0PkcdfrXeqWLQWkax3jid+FSRBg+mMjit7FpaRwhYvw1UeFgcH5mk15It5E0cyCZlOIwBlic9c1WVJbHqj5r3t7cWr286q3cNkDbhs8gj7Zoe2TfbvCqF2Ybojn7/pmtBd2q20sveXGELFkzgEnGVyPXPX6GkQeOF2ljDqwJYf7TnkfekWynDRRO8s8ShAzIoVScdT5DPpR1v2f1Bd4ljWJkQuUZuSAcHGPMUFHeteTPEVEfesiIFGFUDA6V9LsNEd7eKK3jVi/gR2YE4/uPPXjJoytWLx2LI9MsNKFp3UbM0kYka4Uh92ehAHT5UF2o0dLhFuoAVmj5yMjcB6+9ajWbaGCbTjYuY7dY3hCgYAbqCR5nIP3oXVbaSfS45YACZlIKscbWHUV0XUaZ0o0Yk6jJe2gfehvIB40Jx3y+fHnx1qm2u1WQT27HAPh3dfcH5UHeW4SSZkOwxNjcGBGfXI6V7pU0tzDPauMtEe8Qn+3yI+RzU8nyjsXjY3vGWa1d0OQyhj7Ef+13G6XVhbb3wykYX1HTP3x96WNcFUZY1JV1OQKJspQIFd1GVgYKfTmoqHSYcceTGSn4ySS1kAKLko3RgB1/5rm+iCO0RK8AEFfMEZBqhI91rFKsjR5LKWB5wQBUi71rpknYTowwrsPyH0+Vc465IE1+gtbqOx7PgnliXkx6CstskuEWbcN75LEdSfetDIqajOumpshMiCOMyHAzk9fnV1v2QkttQhM8sJtchZe7lwyZ4zyOef0q60jZFaSEUgW3uVV0ZS8YYc9D5j64rRaDHBFA5Y+MEF8eWeRRN92RjmghFpfKjIoC9+R4sHpke/tSlbG60nWrmK7kQO8SSAxMGXbyOfTpSzT42Tyx+LZo7m+WHTHdJCJJWIVcdBgUqvroTCC3RsLaqQRnq55LD9B9Kuj/Et4r9o0NuXPdLIPFJjz9gDS1F7x9hVQc5cqMZ/9rPzqNemNaL4lG3cfPpUoi2ga5uFiTG49RjoPWpUlGUtpBO7SDVo7T8S1dI+ocoMkegJ5+lGxSrdxEbXDLw2ef1ribs89jFE6X7MocIiNnw5PzxUtt1vdzq4TaE715QQUKjjdkf5mncX4gNFtoynT4TwHxgnHPHBphoTH491ZzhozyAPUV3Y9n5DYC4S5Ub8usbx+RORznirYrR7Z0mIKOeCoA9fP0rXCPFIanYwks23ExzKiMMHG4Zz7Diu7e0W1kVVwfDl5COR/wAUNbSXM26CaWMPHn8RFJ+Q59q9tY44zK4lleZhtZpHyD8h0FUlkj4itMzHbLR7ZojqcV2ZCoJl3Rlc+jf+Vmbfs9rE9qw+AdBKNys+Bxjnz9q13bh7prqytrdy+Y22QRpu37eWJPQcYAGKCfUvi+zc/cYWRrV+7bOPLH3oqTNKjcdma0fRZIdYtnmQTxBhMGTlXCqWx8zgV9At2n7l5YYnbEaxnacqG4LYPkckVk7dreHXtLt4X70xW5R4snG8KRnj2BH/ALTjRpIYba/t5JdskVwC25ioG5c8jzxU8rbRGap0gm4knZ1h8Pwsa94GGSHYkHg9eOlVz3bQmWCZWjAQyxqwI4x0H2pbq2pG3SGWF0nhtZG3BTgHIGVI8wM44ptIYtRspLyZQItolAlbk8cBceWOKWvjXhOXVHzS6XbaPydxOKqsZvgZre4AJLgiQZ6r0rWa5Zx3FgJ0jVXVGkEcaDaB/uIrKJ+K8S7eBxx5cdcfKqxScaY8VaGs4SGV4yQSw3xkHrXjSbbWIBVDbCNvQHzxT9jZ2/Y2Eohl75diPLEvectj3weD9qTQ6PPqdxDBYSpI4zsV227s8kc+Y5qVJMtDFxdjPSo2l0i4ClHLwAxLjOD1++KGtJLeeF7aSNEd1O1jnLelNrPszqdnYCSZwoiVkASXdj0JH6VmXDwXBDAq0bc460n1dGaceMgnVreSyeKRS26GJZMg4wylTWn164gHZ2W53hWCK2c9SWyBWdtY21CW4eV+8LqWX09cfoKt7QXLSaTbW2PzQh29zjirJraNcXvRqrS8idu8yMGMSqD0XPWsYs1xquvXTKw/1O5Mt5IpGD9qdG6B09USLbKkfdt/uO2k3Z+YrqxAQNglQSOFHSkyuoOhMr0NNRf4XuLQvmO2twoOMeZJP60D3ncQ7jwzcn29qp17U1bUNjKC0TFPCeGAPFX2b25tP6hMMzBtvdnonox9Rn7VkadWzHRpOysbwxS3V0nil8KDzC+9SvIpnuQs1tF3SFAolkHikGfT0qVJ5JRdXQboINvqUrw2MlpGsgYEMswIAHJPNIe0N+oRdMsF22/eF5Duz3jZJJz6ZPAprdXW2RCz7UiwwKqSxB4OSOuazrq1/qTiMcRoD963OSi3Qrf6NJo3aaRbqGKeTEBTu3Un8vo1NhqFpqLywQq0ojYByVIX2+dYq7sjbfiwzxvLgY2HcMny96b9l5EEEyCYm6VlMqk9AOhz55oym3Gw212aSFGJl7tPEAM89asZ1jthPIjRBeu4bRx581xFJ8NIZDLsHOfelfa/U510OW3ZtyXCbfHHuUKME9OlKneikXYB2kv1j1OwniZlJik8Ub45IXz9KyF9Ls0dYVRkBQrjOeAw6/UU17Q3cU1rbJFFJCIYV2blCllIAHA6cigLq1Z9HjnwU71Tt3MBkcc89RnNWUkmjY649nuimWTVNHvHl3ySzbCQR5Hp+tPLuFNGa/ieUiC7Kl2flw/rn08XJ9Kz2g20k5S3EhjkjuA0bjBAOCR8wSoo/tHcXFzfrpyHD3RVOenJGP1Fc2udEP8ASYbZxd9oa74W8CsCEYHPuB6YGKb6PFAuhM96XwXUNA7cKMZ4+hBpRdO+ifAJnx9wIpFU8eECjJ9QAs2hQP3cjBkKENjIwf2AxU5SSuiU3asU9qYsqhtrksjOSMccYOPpQfZ23hmivIVVWcoDGxHOBkGtFZXlvcd1bRgeA7yWGd3qP2pTLPbad2wRosRI8OZVHABJHQeWfSqQ6o0QVRTOru1ZuytpC3BRFk4Pu2P3pD/UJbVw8HEysHV88gr0rVapPDLbCKIL/ppzAQv+1ePpWa1CxeNJXKKNmAqg8mp8kpUy3K3xN/das9zNYsjbFutpx5AlCf3FZ/tBBZXV/BNbSDc+EnDLtbj+/Hy/apqDFpLGCIEpHbBvD1DE4H6ZoO3h22aSSTeKOULNGRyMjOfrRyPaTM2RXJFtp8NbSNblZ7a3diVZkMjBWHXA6D5+tM9d0aGG1SaKUzxhQjMeqjy+lAxSFmbJ/wD1Us+PmT+9aWwjj1PQQmQC8fX0I/7FGk7Ro+r0ZNLzMm1Y2QqwYFud3Jz8qTQ3sdrcvKqBODGQn/1k8j9KZ3Z7qEqU/EjODxz+bFKu0FtOsyXPcJD4fHsGB5AEj1wQCaSK/J2RlFyjspjR7l5LqdQd+WHtTSGS2BhgnIEbuAzN0HPr5VRHYzfArFFEZJjCHZVOSoI8K49cc4rm1tJNUsZIYZY1ud6skLnDShQcgH1GelCrkZ62Ok1FrO8NvLKZFcZRjIc/cGpSsWkr93F3TnkrLHjDBuACPSpQcYt9CtI0koS1sGhWN5VlfYw3nOOuB9hQ9k3w3xEojLeEeFFBbpxz5n1r27EneqkheNUZmIBwMlep+9cwobgnY5V5CCxY5x9B18vvRbV2xFL1jOyCM8EyxkYYnpk9PbimNtHai7fu4Y4ZdpMhChS5z5+tLoY5LODG8vJGcnPOeeevzopXjnleYKIlyMADAxj/ANqMZcm9nOWwq7coCPzAdMHnPpS/Wtt7od1G/DrCACevBBFXK8XfgHftY5CjJ58jQ2py4f4YRtySDkDmlVxkl2GLp2LIoIdZ0171FV5pLcRoH52yBsk/561Rr0qOm+WMuSWAG7btHtx04ouxuTZGNZINkGNpVeAPkPSrhBFfa9Gt0qvGis2xRlSQBgHI5rRG+Sstjmrb8MtpUiW93aTIxVBMN2ecf8imWssidrbXYwISRDnBPHJ6Cu+1tpDZ3lu8ChTJGGcKMDcDj9qCd2ue0tpPIjFGkGM8bsKPOnf25FHXHl/Bh2sihW7imtbkyq4OMj8hGOKrhRobMd4drOcMFyPLz+tOb+2S9NsX2gQSbySPzDHTHTqKtaGIuJmKr5hncDaOvPr/ABUf9Gdz1QiuZI9Lxe2oBZEU4XzXz6/Old/3eodoTdwsXikAKkDGAFyR9MGtLqNssy7ZU3OysihUPOBnAxwT1ODXemdnbSACLYzTNGHYkEDn+1QemfOrY3Ki+GUXHixVDeQTRO0ZkeRnXemBkkKeevp+1dX6GWJSy9Gz7jpVE0NxBcXDW6iGNJvLqxAzj5UZHqAv7do5Su9Y2KYGDwcgfvU8iXb7NShGW14cLOip8XuKiOJIyAeTgHPHzFNluo7nQrnEKDuohtyBwT4cZpHaE9wkiqpwzKQwyD7UzhgRez8UTRAG7uGYg+aRpux965bab8JTf/bXQO9uYYmUA5KKq46nIz/NM7R5NK0wQvG5cHJTPGT6mqpcQmFm5BAJBH0/ipq05m7pQWCKmduOSxBpccu36Cc7k2JZxun75iMDknPHqaJ1qznn7Pz3PeoO5iGERRkocZH2IOa6fTbtY437iTu8jcxQ+EY6mmHZSF7nQbqC6VZopEMKr0bA4OT9qpiu9lFL4pGeedrcWsk4EkPLRlODJ/bg48x1z7VXp1y12qzOuy6ifEd0vDu2OQfXjz60fJY2No4ikfu5LaTHcz5JGOcffHJ4oe61LegmWJI2I2iVhubbjnA+3NcklZhvwJvdTnN9uibxHALKQM4HmfTJqVT8BHeRQdym0zghmY8IoP8A3j3qUtr0V0hl8a0k5Eu14+87zB+XWrjGttOpg5TPPPPXkGlkUYn1Af6hF2ZYkDyA61cL2GSUorhhwVC87j6UGiY4igeWGRwXCkeeM/KrbKRYyAQMHgKTzyPWqEnMdsiw4IGSvHGardmkhEkbbOBkFugPpSqKW12cMisay5kCuE8lONwz0zQjor3Kzxq3doejHp6141xtkU7FZn8KrnOa7vgILcxoQDKckA8D1o4lcm/0d2Lp8z3BlxhR+Ue1G6VDF8UbyVmLRxlETHB88k1VCkaLgjj1NdLcd0ymKION4Bz5DzNWnXJM5SplF/ax6hfk3EbtHGQS20j6AjyoPV7KS5v7YQxsIIUK7lOBGDjj9KbxzC8fxbogoKAc4H/fvVlw7W9vIywxnJXIJ8skZ/z1qfS0HkxPIfAYd5zIpX2HHBpjYwh5ZLeRo5WRdso5Oz6/KqUijklad7Zl28gjOBx6UQ10zSbY5dvdpwjAruJ8zmkxrjuQEc3a3Ec/dwK8gk285HhHr0q2COeGNJmbEznaAWyB7+5qiTV1SCRsO2Iyyljxn0oFn1Fpopn2BVIGSRubnyUHgHpV1KPaHj3aLrm3to/xLiUySyuTGgOAgJ549/f1pbDp0q3Vw0OFRVOZGOFjBGMk+Vc6oZ7G9tZWRhFdZLEnOwjgD/PWnOmXG8vFuI34cEeY6Ee9Qy3yRtjN4lLQPZ6THJahYL9WLNvXfGVBI8+vSmn9NE6WsD3BSS3jYFRyCWxk0jvtNuILzdBbnuWbCnPyOAPau7mW7soVW4lRnuSN4ZQ3Q9enlxVYyT8M7k77Gk1i7XMdvIygFThvXB6D70bFDBaxd5wg2/nkPJx7+VJYZGe4SaecEopUoOWP+fzRosRcTvJ3zLHswqkjwj510FW0ibexdqOrxT6lFtjkLD86K+cADyH8U00a7istMRYggAVnYk+Z/wANZSbvJdShESFiHIYqMn1J+1OrCYNqFzBJG21oQUXbt259vL/quX7Neo0kB6qYtX1EXS+B1RVJUdcHkkH24+VCLYbLlbmNWGx8+E+EHpTk2Dh+9PIAwRnBPFErHGjqFLBR64IJPvStvdmSU+TbE7K5dTjg88HAPn9xUprPbosqAjcQCAV6A1KNJiPsWWjBUu5AOS4jBPJAJPn9KmmRxpJsjjVSVILYyTzn+KlShBHejx9PhZlU7gN2cA8ZpVFcOZjCOEWYJgelSpSTSS0cNo4luwruWUqAylTgg0PLGscvdHJCehxn/M1KlUgDw7WJSPOoQYBujbBYhTx5VKldk+rYvpdPCo2qCcBTn38qrbO13z0OAPTrUqVJbjs5gzXs1qjMpDMZVjDHqCSBu/6qnVJ3Vu9jZkZQHxwQc8YIx/nNSpTPVUHwZLpNpPOokEjFAATu4bPXj61RNo1rb3ihN+zJwhbIB6/M/WpUq80qNGNK1/6W6tp8WqWdurs8ZtyXUqep6c0BbEf1CBAu3arAY4GBkYxUqVlyN2Vzt/kaPILqa91eYSOQsH4aL5Aetc6hEs91PFMA6p4Fz1A4/mpUoY2zLD7M60/TVunaQStHL3f5wM9PajorNjpz5uGJ2EEkcmpUrQujvQV7VRZtBC3dlsxl8ZONxzRIt0hvHnAHeEbCcYGAc1KlCItsKjiWRgTwRwfeqHskFwJ2YsYzuC+WR0qVKelxbClopWQhwgAHfEhjjnrUqVKVRTBZ/9k=" style="width:100%;height:80px;object-fit:cover;border-radius:8px;display:block;" alt="enset"></span>
@@ -1955,7 +1940,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 </main>
 
 
-<button class="history-fab" title="View past analyses" onclick="showHistory()">📋</button>
+
 
 
 <nav class="bottom-nav">
@@ -1968,11 +1953,11 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   <button class="nav-tab" id="tab-research" onclick="switchTab('research')">
     <span class="nav-icon">📚</span><span id="nav-research">Research</span>
   </button>
-  <button class="nav-tab" id="tab-tutorials" onclick="switchTab('tutorials')">
-    <span class="nav-icon">🎬</span><span id="nav-tutorials">Tutorials</span>
+  <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
+    <span class="nav-icon">👤</span><span id="nav-profile">Profile</span>
   </button>
   <button class="nav-tab" id="tab-about" onclick="switchTab('about')">
-    <span class="nav-icon">👤</span><span id="nav-about">About</span>
+    <span class="nav-icon">ℹ️</span><span id="nav-about">More</span>
   </button>
 </nav>
 
@@ -2386,19 +2371,32 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     </div>
     <div class="modal-body">
 
-      
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <!-- FARMER PROFILE ACCESS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <button onclick="closeAbout();setTimeout(showProfile,100);" style="background:linear-gradient(135deg,#5A2D82,#7B5EA7);color:white;border:none;border-radius:14px;padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;">
+          👤 My Profile
+        </button>
+        <button onclick="closeAbout();setTimeout(showTutorials,100);" style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);color:white;border:none;border-radius:14px;padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;">
+          🎬 Tutorials
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;">
         <div style="background:var(--mist);border:1px solid var(--sprout);border-radius:12px;padding:14px 8px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:var(--leaf);">8</div>
-          <div id="about-stat-crops" style="font-size:11px;color:var(--bark);margin-top:2px;">Crops covered</div>
+          <div style="font-size:28px;font-weight:800;color:var(--leaf);">8</div>
+          <div id="about-stat-crops" style="font-size:11px;color:var(--bark);margin-top:2px;">Crops Covered</div>
         </div>
         <div style="background:var(--mist);border:1px solid var(--sprout);border-radius:12px;padding:14px 8px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:var(--leaf);">4</div>
+          <div style="font-size:28px;font-weight:800;color:var(--leaf);">4</div>
           <div id="about-stat-langs" style="font-size:11px;color:var(--bark);margin-top:2px;">Languages</div>
         </div>
         <div style="background:var(--mist);border:1px solid var(--sprout);border-radius:12px;padding:14px 8px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:var(--leaf);">8</div>
-          <div id="about-stat-papers" style="font-size:11px;color:var(--bark);margin-top:2px;">Research papers</div>
+          <div style="font-size:28px;font-weight:800;color:var(--leaf);">23+</div>
+          <div id="about-stat-papers" style="font-size:11px;color:var(--bark);margin-top:2px;">Research Papers</div>
+        </div>
+        <div style="background:var(--mist);border:1px solid var(--sprout);border-radius:12px;padding:14px 8px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:var(--leaf);">42</div>
+          <div style="font-size:11px;color:var(--bark);margin-top:2px;">Diseases Offline</div>
         </div>
       </div>
 
@@ -2446,6 +2444,9 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 </div>
 
 <script>
+
+// Global price reference (ETB/Quintal, ECX 2025)
+var PRICE_PER_QT = { enset:1900, teff:5200, wheat:4600, maize:3500, coffee:11200, potato:2200, barley:3800, sorghum:2800 };
 // ==================== CONFIG ====================
 // ⚠️ REPLACE THIS KEY — never expose API keys in client-side code in production.
 // Route through a backend proxy instead. See README.
@@ -4918,7 +4919,7 @@ function renderResult(r) {
           var farmHa = (window.farmerProfile && parseFloat(farmerProfile.farmSizeHa)) || 0.5;
           var avgYieldPerHa = { enset: 50, teff: 12, wheat: 20, maize: 30, coffee: 8, potato: 80, barley: 15, sorghum: 18 };
           var avgYield = (avgYieldPerHa[currentCrop] || 15);
-          var pricePerQt = { enset: 1900, teff: 5200, wheat: 4600, maize: 3500, coffee: 11200, potato: 2200, barley: 3800, sorghum: 2800 };
+          var pricePerQt = window.PRICE_PER_QT || { enset:1900, teff:5200, wheat:4600, maize:3500, coffee:11200, potato:2200, barley:3800, sorghum:2800 };
           var price = pricePerQt[currentCrop] || 1500;
           var totalYield = avgYield * farmHa;
           var lossQt = (sev.yieldLossPercent / 100) * totalYield;
@@ -4993,7 +4994,7 @@ function renderResult(r) {
               var labels = {enset:'Enset',teff:'Teff',wheat:'Wheat',maize:'Maize',coffee:'Coffee',potato:'Potato',barley:'Barley',sorghum:'Sorghum'};
               return labels[currentCrop] || currentCrop;
             })()}</span>
-            <strong style="font-size:15px;color:#2D6A0A;">${pricePerQt[currentCrop] ? pricePerQt[currentCrop].toLocaleString() + ' ETB/qt' : 'N/A'}</strong>
+            <strong style="font-size:15px;color:#2D6A0A;">${(function(){ var p={enset:1900,teff:5200,wheat:4600,maize:3500,coffee:11200,potato:2200,barley:3800,sorghum:2800}; return p[currentCrop] ? p[currentCrop].toLocaleString()+' ETB/qt' : 'N/A'; })()}</strong>
           </div>
           <div style="font-size:10px;color:#9A8E84;margin-top:2px;">${currentLang==='am'?'ምንጭ: ECX ዋጋ ዝርዝር':'Source: Ethiopia Commodity Exchange — 2025'}</div>
         </div>
@@ -6154,6 +6155,11 @@ function showSMSDialog() {
   var modal = document.getElementById('sms-modal');
   var preview = document.getElementById('sms-preview');
   var desc = document.getElementById('sms-desc');
+  var phoneInput = document.getElementById('sms-phone');
+
+  // Auto-fill from farmer profile
+  var savedPhone = (window.farmerProfile && farmerProfile.phone) || '';
+  if (phoneInput && savedPhone) phoneInput.value = savedPhone;
 
   desc.textContent = isAm
     ? 'ምርመራ ወደ ስልክ ቁጥር ይላካል (ቀበሌ፣ DA ወይም ARC)'
@@ -6166,6 +6172,20 @@ function showSMSDialog() {
   if (preview) preview.textContent = msg;
 
   if (modal) modal.style.display = 'flex';
+}
+
+
+function useFarmerPhone() {
+  var phone = (window.farmerProfile && farmerProfile.phone) || '';
+  if (!phone) {
+    alert(currentLang === 'am'
+      ? 'ስልክ ቁጥርዎን በፕሮፋይል ላይ ያስቀምጡ።'
+      : 'Please save your phone number in your Profile first.');
+    closeProfile && showProfile();
+    return;
+  }
+  var input = document.getElementById('sms-phone');
+  if (input) input.value = phone;
 }
 
 async function sendSMSDiagnosis() {
@@ -7162,6 +7182,8 @@ function switchTab(tab) {
     setLanguage(currentLang);
   } else if (tab === 'tutorials') {
     showTutorials();
+  } else if (tab === 'profile') {
+    showProfile();
   }
 }
 </script>
@@ -7201,8 +7223,9 @@ function switchTab(tab) {
         <input id="prof-crops" type="text" placeholder="e.g. Enset, Teff, Wheat">
       </div>
       <div class="profile-field">
-        <label>Phone Number (optional)</label>
-        <input id="prof-phone" type="tel" placeholder="+251...">
+        <label>📲 Phone Number <span style="color:#2D6A0A;font-weight:700;">(for SMS diagnosis)</span></label>
+        <input id="prof-phone" type="tel" placeholder="+251 9XX XXX XXX" style="font-size:16px;">
+        <small style="color:#888;font-size:11px;margin-top:4px;display:block;">Used to send your diagnosis report via SMS</small>
       </div>
       <button class="modal-close" style="background:var(--leaf);" onclick="saveProfile()">💾 Save Profile</button>
       <button class="modal-close" style="background:#888;margin-top:8px;" onclick="closeProfile()">✕ Close</button>
@@ -7618,7 +7641,11 @@ function closeIOSPopup() {
   <div style="background:white;border-radius:18px;max-width:380px;width:100%;padding:24px;">
     <h3 style="margin:0 0 16px;color:#1565C0;font-size:16px;">📲 Send SMS Diagnosis Report</h3>
     <div style="font-size:13px;color:#666;margin-bottom:12px;" id="sms-desc">Send the diagnosis to a phone number (farmer, Development Agent, or ARC).</div>
-    <input type="tel" id="sms-phone" placeholder="+251 9XX XXX XXX" style="width:100%;border:1.5px solid #ddd;border-radius:10px;padding:11px;font-size:15px;margin-bottom:8px;box-sizing:border-box;">
+    <input type="tel" id="sms-phone" placeholder="+251 9XX XXX XXX" style="width:100%;border:1.5px solid #ddd;border-radius:10px;padding:11px;font-size:15px;margin-bottom:6px;box-sizing:border-box;">
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      <button onclick="useFarmerPhone()" style="background:#f0f8eb;color:#2D6A0A;border:1px solid #B8DC7A;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">👤 Use My Number</button>
+      <button onclick="document.getElementById('sms-phone').value=''" style="background:#f5f5f5;color:#666;border:1px solid #ddd;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">✕ Clear</button>
+    </div>
     <div id="sms-preview" style="background:#f5f5f5;border-radius:10px;padding:10px;font-size:12px;color:#333;margin-bottom:12px;max-height:80px;overflow:hidden;"></div>
     <div style="display:flex;gap:8px;">
       <button onclick="document.getElementById('sms-modal').style.display='none'" style="flex:1;background:#eee;color:#333;border:none;border-radius:10px;padding:11px;font-size:13px;cursor:pointer;">Cancel</button>
