@@ -3373,6 +3373,9 @@ async function getWeather(lat, lon, regionName) {
       ts.textContent = '🕐 Live — updated ' + new Date().toLocaleTimeString('en-ET', {hour:'2-digit',minute:'2-digit'});
     }
 
+    // Fetch satellite NDVI data for this location
+    fetchSatelliteRisk(lat, lon, currentCrop || 'enset');
+
     // Auto-refresh every 30 minutes
     if (_weatherRefreshTimer) clearTimeout(_weatherRefreshTimer);
     _weatherRefreshTimer = setTimeout(function() {
@@ -4701,7 +4704,10 @@ function renderResult(r) {
     <div class="result-header">
       <div class="result-badge">${t.resAIDiagnosis || 'AI Diagnosis'}</div>
       <div class="result-title">${r.disease_name || 'Analysis Complete'}</div>
-      <div class="result-meta">${currentCrop.toUpperCase()} &bull; ${r.confidence || 75}% ${t.resConfidence || 'confidence'}</div>
+      <div class="result-meta">
+        ${currentCrop.toUpperCase()} &bull; ${r.confidence || 75}% ${t.resConfidence || 'confidence'}
+        &bull; <span style="font-size:10px;opacity:0.75;">${r._source === 'local_tfjs' ? '🧠 On-device AI' : '☁️ Cloud AI'}</span>
+      </div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
         <button onclick="speakDiagnosis(window._lastResult)" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);border-radius:20px;color:white;padding:6px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;">
           🔊 ${currentLang === 'am' ? 'ምርመራ አንብብ' : currentLang === 'om' ? 'Dubbisi' : 'Listen to Diagnosis'}
@@ -5087,6 +5093,141 @@ function shareWhatsApp() {
 }
 
 
+
+
+
+// ==================== SATELLITE NDVI RISK ====================
+var _lastSatData = null;
+
+async function fetchSatelliteRisk(lat, lon, crop) {
+  var panel = document.getElementById('satellite-panel');
+  var satStatus = document.getElementById('sat-status');
+  var satData = document.getElementById('sat-data');
+  if (!panel) return;
+
+  try {
+    var res = await fetch('/api/satellite-risk?lat=' + lat + '&lon=' + lon + '&crop=' + (crop || 'enset'));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    _lastSatData = data;
+
+    if (data.status === 'success' || data.ndvi) {
+      var ndvi = data.ndvi;
+      var riskCol = data.risk_level === 'High' ? '#ff6b6b' : data.risk_level === 'Medium' ? '#ffd93d' : '#B8DC7A';
+      var ndviBar = Math.round(Math.min(ndvi * 100, 100));
+      if (satStatus) { satStatus.textContent = data.risk_level + ' Risk'; satStatus.style.color = riskCol; }
+      if (satData) satData.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+        + '<div style="flex:1;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;">'
+        + '<div style="width:'+ndviBar+'%;height:100%;background:'+riskCol+';border-radius:3px;"></div></div>'
+        + '<span style="font-size:11px;font-weight:700;color:'+riskCol+'">NDVI: '+ndvi+'</span></div>'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.7);">'+data.alert+'</div>'
+        + '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">Sentinel-2 · '+data.date+'</div>';
+    } else if (data.status === 'no_data') {
+      if (satStatus) { satStatus.textContent = 'No satellite data'; satStatus.style.color = '#aaa'; }
+      if (satData) satData.innerHTML = '<span style="font-size:11px;opacity:0.6;">No cloud-free imagery in last 30 days for this location</span>';
+    } else {
+      throw new Error(data.message || 'No data');
+    }
+  } catch(e) {
+    if (satStatus) { satStatus.textContent = 'Unavailable'; satStatus.style.color = '#aaa'; }
+    if (satData) satData.innerHTML = '<span style="font-size:11px;opacity:0.5;">Satellite data requires GEE setup — see README</span>';
+  }
+}
+
+// Drone upload function (for future hardware integration)
+async function uploadDroneImage(imageFile, lat, lon) {
+  var crop = currentCrop || 'enset';
+  var formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('crop', crop);
+  formData.append('lat', lat || 0);
+  formData.append('lon', lon || 0);
+  try {
+    var res = await fetch('/api/drone-upload', { method: 'POST', body: formData });
+    return await res.json();
+  } catch(e) {
+    return { error: 'Drone upload failed: ' + e.message };
+  }
+}
+
+// ==================== TENSORFLOW.JS LOCAL MODEL ====================
+// Infrastructure ready — local model loads when available
+// Falls back to Groq/OpenRouter/Gemini API when model not trained yet
+
+var RG_MODEL = null;
+var RG_MODEL_VERSION = '2.0-api'; // Changes to '2.1-local' when TF.js model ready
+var RG_MODEL_CROP = null;
+
+var CROP_CLASSES = {
+  enset:   ['Healthy', 'Bacterial_Wilt', 'Root_Mealybug', 'Early_Xcm'],
+  teff:    ['Healthy', 'Leaf_Rust', 'Head_Smudge', 'Shoot_Fly', 'Blister_Blight'],
+  wheat:   ['Healthy', 'Stripe_Rust', 'Stem_Rust', 'Fusarium_Scab', 'Septoria', 'Loose_Smut'],
+  maize:   ['Healthy', 'Northern_Leaf_Blight', 'Fall_Armyworm', 'Common_Rust', 'Streak_Virus', 'Aflatoxin'],
+  coffee:  ['Healthy', 'Berry_Disease', 'Wilt_CWD', 'Leaf_Rust', 'Berry_Borer'],
+  potato:  ['Healthy', 'Late_Blight', 'Bacterial_Wilt', 'Early_Blight', 'Virus_Y'],
+  barley:  ['Healthy', 'Scald', 'Net_Blotch', 'Covered_Smut', 'Stem_Rust'],
+  sorghum: ['Healthy', 'Anthracnose', 'Grain_Mold', 'Head_Smut', 'Shoot_Fly', 'Striga']
+};
+
+// Try to load local TF.js model (will fail gracefully if not yet available)
+async function tryLoadLocalModel(crop) {
+  if (typeof tf === 'undefined') return false;
+  if (RG_MODEL && RG_MODEL_CROP === crop) return true;
+  try {
+    var modelPath = '/models/' + crop + '/model.json';
+    RG_MODEL = await tf.loadGraphModel(modelPath);
+    RG_MODEL_CROP = crop;
+    RG_MODEL_VERSION = '2.1-local';
+    console.log('✅ Local TF.js model loaded for: ' + crop);
+    return true;
+  } catch (e) {
+    return false; // No model yet — use API fallback
+  }
+}
+
+// Run local inference if model available
+async function runLocalInference(imageElement, crop) {
+  if (!RG_MODEL || RG_MODEL_CROP !== crop) return null;
+  try {
+    var tensor = tf.browser.fromPixels(imageElement)
+      .resizeNearestNeighbor([224, 224])
+      .toFloat().div(255.0).expandDims(0);
+    var preds = RG_MODEL.predict(tensor);
+    var probs = await preds.data();
+    var maxProb = Math.max.apply(null, probs);
+    var idx = Array.from(probs).indexOf(maxProb);
+    var classes = CROP_CLASSES[crop] || [];
+    var diagName = (classes[idx] || 'Unknown').replace(/_/g, ' ');
+    tensor.dispose(); preds.dispose();
+
+    // Map to severity
+    var sev = maxProb > 0.85 ? 'high' : maxProb > 0.65 ? 'medium' : 'low';
+    var conf = Math.round(maxProb * 100);
+
+    console.log('🧠 Local inference: ' + diagName + ' (' + conf + '%)');
+
+    // Low confidence → fall through to API
+    if (conf < 75) {
+      console.log('🔄 Confidence < 75% → using API for verification');
+      return null;
+    }
+    return { disease_name: diagName, confidence: conf, severity: sev, _source: 'local_tfjs' };
+  } catch (e) {
+    console.error('Local inference error:', e);
+    return null;
+  }
+}
+
+// Model status for UI
+function getModelStatus() {
+  return {
+    version: RG_MODEL_VERSION,
+    hasLocalModel: !!RG_MODEL,
+    crop: RG_MODEL_CROP,
+    mode: RG_MODEL ? 'On-device (TF.js)' : 'Cloud AI (Groq/OpenRouter/Gemini)'
+  };
+}
 
 // ==================== OFFLINE PHRASE CACHE ====================
 // Pre-generates & stores common spoken phrases for offline use
