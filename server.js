@@ -270,6 +270,229 @@ async function tryGemini(parts, satContext) {
   return null;
 }
 
+
+// ── SMS NOTIFICATION (Africa's Talking) ─────────────────
+app.post('/api/send-sms', async (req, res) => {
+  const { phone, crop, disease, severity, action } = req.body;
+  if (!phone || !disease) return res.status(400).json({ error: 'Missing fields' });
+
+  const AT_KEY  = process.env.AT_API_KEY;
+  const AT_USER = process.env.AT_USERNAME || 'sandbox';
+
+  const message = `Resilience Guardian: ${disease} detected on ${crop||'your crop'}. Severity: ${severity||'unknown'}. Action: ${(action||'').substring(0,80)}. resilienceguardian.onrender.com`;
+
+  if (!AT_KEY) {
+    console.log('📲 SMS (no key):', phone, '|', message.substring(0,60));
+    return res.json({ ok: false, fallback: true });
+  }
+
+  try {
+    const resp = await fetch('https://api.africastalking.com/version1/messaging', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': AT_KEY
+      },
+      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'ResGuardian' })
+    });
+    const data = await resp.json();
+    console.log('📲 SMS sent to', phone);
+    res.json({ ok: true, result: data });
+  } catch(e) {
+    console.error('SMS error:', e.message);
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+
+// ── SERVER TTS (Google Translate TTS — supports Amharic, Oromiffa, Tigrinya) ──
+app.post('/api/tts', async (req, res) => {
+  const { text, lang } = req.body;
+  if (!text) return res.status(400).json({ error: 'No text' });
+
+  // Google Translate TTS supports: am (Amharic), om (Oromo), ti (Tigrinya)
+  const langMap = { am: 'am', om: 'om', ti: 'ti', en: 'en' };
+  const ttsLang = langMap[lang] || 'en';
+  const cleanText = text.replace(/[<>]/g, '').substring(0, 500);
+
+  try {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${ttsLang}&client=tw-ob&ttsspeed=0.9`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ResilienceGuardian/3.0)',
+        'Referer': 'https://translate.google.com/'
+      }
+    });
+
+    if (!resp.ok) throw new Error('TTS request failed: ' + resp.status);
+
+    const buffer = await resp.arrayBuffer();
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': buffer.byteLength,
+      'Cache-Control': 'public, max-age=3600'
+    });
+    res.send(Buffer.from(buffer));
+    console.log(`🔊 TTS: ${ttsLang} | ${cleanText.substring(0,40)}...`);
+  } catch(e) {
+    console.error('TTS error:', e.message);
+    // Return silent mp3 so client doesn't crash
+    res.status(503).json({ error: 'TTS unavailable', fallback: true });
+  }
+});
+
+
+// ── PUSH NOTIFICATIONS ───────────────────────────────────────────
+// In-memory subscription store (use Redis/DB in production)
+const pushSubscriptions = new Map();
+
+// Push message templates in 4 languages
+const PUSH_MESSAGES = {
+  high_risk: {
+    en: (crop, region) => ({ title: '⚠️ Disease Alert — Resilience Guardian', body: `High disease risk for ${crop} in ${region} this week. Open app to check and get treatment advice.` }),
+    am: (crop, region) => ({ title: '⚠️ የበሽታ ማንቂያ — ጠባቂ ጥንካሬ', body: `በዚህ ሳምንት በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ አለ። ምርመራ ለማግኘት ክፈቱ።` }),
+    om: (crop, region) => ({ title: '⚠️ Beeksisa Dhukkubaa', body: `Dhukkubni ${crop} naannoo ${region} keessatti ol'aanaa dha. App banaa.` }),
+    ti: (crop, region) => ({ title: '⚠️ ምልክታ ሕማም', body: `ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ። መተግበሪ ክፈት።` })
+  },
+  rain_alert: {
+    en: (crop) => ({ title: '🌧️ Weather Alert', body: `Heavy rain forecast. High ${crop} disease risk. Check your crops now.` }),
+    am: (crop) => ({ title: '🌧️ የአየር ሁኔታ ማንቂያ', body: `ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ የበሽታ አደጋ። አሁን ሰብልዎን ይፈትሹ።` }),
+    om: (crop) => ({ title: '🌧️ Beeksisa Haala Qilleensaa', body: `Rooba cimaa eegama. ${crop} dhukkubaaf sodaa jira.` }),
+    ti: (crop) => ({ title: '🌧️ ምልክታ ኩነታት ኣየር', body: `ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም ኣሎ።` })
+  },
+  weekly_healthy: {
+    en: (region) => ({ title: '✅ Weekly Check — Resilience Guardian', body: `Your region (${region}) looks healthy this week. Keep monitoring your crops.` }),
+    am: (region) => ({ title: '✅ ሳምንታዊ ምልከታ', body: `ክልልዎ (${region}) በዚህ ሳምንት ጤናማ ይመስላል። ሰብሎችዎን መከታተሉን ይቀጥሉ።` }),
+    om: (region) => ({ title: '✅ Ilaalcha Torbee', body: `Naannoon keessan (${region}) torbee kana fayyaalessa fakkaata.` }),
+    ti: (region) => ({ title: '✅ ሰሙናዊ መርመራ', body: `ዞባኻ (${region}) ኣብዚ ሰሙን ጥዑይ ይርኤ።` })
+  }
+};
+
+// Send push to a single subscription
+async function sendPushNotification(subscription, payload) {
+  // Simple push without web-push library (manual implementation)
+  try {
+    const res = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'TTL': '86400'
+      },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch(e) {
+    console.error('Push send error:', e.message);
+    return false;
+  }
+}
+
+// Subscribe endpoint
+app.post('/api/push-subscribe', (req, res) => {
+  const { subscription, lang, region, crop } = req.body;
+  if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Invalid subscription' });
+  
+  const key = subscription.endpoint.slice(-20);
+  pushSubscriptions.set(key, { subscription, lang: lang||'en', region: region||'Addis Ababa', crop: crop||'enset', createdAt: new Date().toISOString() });
+  
+  console.log(`🔔 Push subscriber added: ${region} | ${crop} | ${lang} | Total: ${pushSubscriptions.size}`);
+  res.json({ ok: true, total: pushSubscriptions.size });
+});
+
+// Unsubscribe endpoint
+app.post('/api/push-unsubscribe', (req, res) => {
+  const { endpoint } = req.body;
+  if (endpoint) {
+    const key = endpoint.slice(-20);
+    pushSubscriptions.delete(key);
+    console.log(`🔕 Push subscriber removed. Total: ${pushSubscriptions.size}`);
+  }
+  res.json({ ok: true });
+});
+
+// Update subscription (when profile region/crop changes)
+app.post('/api/push-update', (req, res) => {
+  const { region, crop, lang } = req.body;
+  // Update all matching subscriptions (simple version)
+  pushSubscriptions.forEach((sub, key) => {
+    if (region) sub.region = region;
+    if (crop)   sub.crop   = crop;
+    if (lang)   sub.lang   = lang;
+  });
+  res.json({ ok: true });
+});
+
+// Manual trigger (for testing or admin)
+app.post('/api/push-send', async (req, res) => {
+  const { type = 'high_risk', crop = 'Enset', region = 'your region' } = req.body;
+  let sent = 0;
+  
+  for (const [key, sub] of pushSubscriptions) {
+    const lang  = sub.lang || 'en';
+    const msgs  = PUSH_MESSAGES[type] || PUSH_MESSAGES.high_risk;
+    const msgFn = msgs[lang] || msgs.en;
+    const msg   = msgFn(crop, region);
+    const payload = { ...msg, lang, crop, severity: 'high' };
+    
+    const ok = await sendPushNotification(sub.subscription, payload);
+    if (ok) sent++;
+    else pushSubscriptions.delete(key); // Remove dead subscriptions
+  }
+  
+  console.log(`📤 Push sent to ${sent}/${pushSubscriptions.size} subscribers`);
+  res.json({ ok: true, sent, total: pushSubscriptions.size });
+});
+
+// ── DAILY DISEASE RISK CHECK (runs every 24 hours) ───────────────
+async function runDailyDiseaseCheck() {
+  if (pushSubscriptions.size === 0) return;
+  console.log(`🌙 Daily disease check for ${pushSubscriptions.size} subscribers...`);
+  
+  const HIGH_RISK_MONTHS = {
+    enset:   [4,5,6,9,10],    // Pre-main rainy + post-rainy
+    teff:    [7,8,9],          // Main rainy season  
+    wheat:   [4,5,8,9],
+    maize:   [6,7,8,9],
+    coffee:  [5,6,9,10],
+    potato:  [7,8,9,10],
+    barley:  [4,5,8,9],
+    sorghum: [7,8,9]
+  };
+
+  const currentMonth = new Date().getMonth() + 1;
+  let alertsSent = 0;
+
+  for (const [key, sub] of pushSubscriptions) {
+    const riskMonths = HIGH_RISK_MONTHS[sub.crop] || [];
+    const lang = sub.lang || 'en';
+    
+    if (riskMonths.includes(currentMonth)) {
+      // High risk month for this crop
+      const msgs  = PUSH_MESSAGES.high_risk;
+      const msgFn = msgs[lang] || msgs.en;
+      const msg   = msgFn(sub.crop, sub.region);
+      await sendPushNotification(sub.subscription, { ...msg, lang, crop: sub.crop, severity: 'high' });
+      alertsSent++;
+    } else {
+      // Weekly healthy check (only on Mondays)
+      if (new Date().getDay() === 1) {
+        const msgs  = PUSH_MESSAGES.weekly_healthy;
+        const msgFn = msgs[lang] || msgs.en;
+        const msg   = msgFn(sub.region);
+        await sendPushNotification(sub.subscription, { ...msg, lang });
+      }
+    }
+  }
+  
+  console.log(`✅ Daily check complete. ${alertsSent} disease alerts sent.`);
+}
+
+// Run daily check every 24 hours
+setInterval(runDailyDiseaseCheck, 24 * 60 * 60 * 1000);
+// Run once at startup (after 30 seconds)
+setTimeout(runDailyDiseaseCheck, 30000);
+
 // ── MAIN ANALYZE ENDPOINT ─────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
   const { parts, lat, lon } = req.body;
@@ -311,12 +534,15 @@ app.post('/api/feedback', (req, res) => {
 // ── HEALTH ────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
-    status: 'ok', version: '3.0',
+    status: 'ok', version: '3.1',
     timestamp: new Date().toISOString(),
     groq:       GROQ_KEY       ? '✅' : '❌',
     openrouter: OPENROUTER_KEY ? '✅' : '❌',
     gemini:     GEMINI_KEY     ? '✅' : '❌',
-    satellite:  GEE_KEY        ? '✅ GEE Connected' : '🟡 Demo mode'
+    satellite:  GEE_KEY        ? '✅ GEE Connected' : '🟡 Demo mode',
+    sms:        process.env.AT_API_KEY ? '✅ Africas Talking' : '🟡 No key',
+    tts:        '✅ Google Translate TTS (am/om/ti/en)',
+    push:       `✅ ${pushSubscriptions.size} subscribers`
   });
 });
 

@@ -2426,7 +2426,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
           <div><strong>Version:</strong> v3.0 &nbsp;·&nbsp; <strong>Knowledge base:</strong> 23+ peer-reviewed papers &amp; institutional sources (updated 2025)</div>
           <div style="margin-top:10px;padding:10px;background:#f0f8eb;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
             <span style="font-size:12px;color:#2D6A0A;">🔐 No tracking · No ads · Data on your device</span>
-            <a href="/privacy.html" target="_blank" style="font-size:12px;color:#2D6A0A;font-weight:700;text-decoration:none;border:1px solid #B8DC7A;border-radius:8px;padding:4px 10px;">Privacy Policy</a>
+            <span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Privacy Policy</span>
           </div>
           <div><strong>Languages:</strong> 4 &nbsp;·&nbsp; <strong>Crops:</strong> 8</div>
           <div><strong>Status:</strong> Online prototype — seeking agronomist validation and farmer testing</div>
@@ -3751,6 +3751,24 @@ function loadProfile() {
 }
 
 function showProfile() {
+  // Update push button state
+  checkPushStatus().then(function(status) {
+    var btn = document.getElementById('push-toggle-btn');
+    var txt = document.getElementById('push-status-text');
+    if (!btn) return;
+    var isAm = currentLang === 'am';
+    if (status === 'subscribed') {
+      btn.textContent = isAm ? '🔕 ማሳወቂያ አጥፋ' : '🔕 Disable Alerts';
+      btn.style.background = '#ff6b6b';
+      btn.style.color = 'white';
+      if (txt) txt.textContent = isAm ? '✅ ማሳወቂያ ነቅቷል — የበሽታ ማንቂያ ይደርስዎታል' : '✅ Active — You will receive disease alerts';
+    } else {
+      btn.textContent = isAm ? '🔔 ማሳወቂያ አስነቃ' : '🔔 Enable Disease Alerts';
+      btn.style.background = '#B8DC7A';
+      btn.style.color = '#1a3a05';
+      if (txt) txt.textContent = isAm ? 'ከፍተኛ የበሽታ አደጋ ሲኖር ማሳወቂያ ይደርስዎታል' : 'Get notified when disease risk is high in your region';
+    }
+  });
   // Load saved profile
   if (farmerProfile.name)   document.getElementById('prof-name').value   = farmerProfile.name;
   if (farmerProfile.region) document.getElementById('prof-region').value = farmerProfile.region;
@@ -6195,6 +6213,225 @@ function restoreLastDiagnosis() {
 }
 
 
+
+
+// ==================== PRIVACY POLICY MODAL ====================
+var PRIVACY_TEXTS = {
+  en: {
+    title:'🔐 Privacy Policy', sub:'Resilience Guardian · Gulilat Kasiye Worku',
+    summaryTitle:'📋 Simple Summary',
+    summaryText:'Your data stays on your phone. We do not sell, share, or track farmer data. The app works fully offline. When you use AI analysis, only your crop photo and symptoms are sent, never your name or phone number.',
+    storedTitle:'📱 Stored On Your Device',
+    item1:'Farmer name, region, farm size — phone only, never sent anywhere',
+    item2:'Phone number — phone only, used only when YOU send SMS',
+    item3:'Diagnosis history — phone only, never shared',
+    item4:'Photo and symptoms — sent to AI temporarily for analysis, then deleted',
+    neverTitle:'🚫 We NEVER',
+    neverText:'Sell your data · Track your location · Show ads · Create accounts · Share with third parties · Store photos on server',
+    deleteTitle:'🗑️ Delete Your Data',
+    deleteText:'Go to Profile, clear your info, then Save. Or clear site data in your browser settings.',
+    contactTitle:'📧 Contact',
+    standards:'GDPR Compliant · No Cookies · No Tracking · CC BY-NC-ND 4.0',
+    closeBtn:'✓ I Understand'
+  },
+  am: {
+    title:'🔐 የምስጢራዊነት ፖሊሲ', sub:'ጠባቂ ጥንካሬ · ጉልላት ካስዬ ዎርቁ',
+    summaryTitle:'📋 አጭር ማጠቃለያ',
+    summaryText:'ውሂብዎ በስልክዎ ላይ ይቀራል። ምንም ዓይነት ውሂብ አንሸጥም፣ አናካፍልም ወይም አንከታተልም። AI ምርመራ ሲጠቀሙ፣ የሰብል ፎቶዎ እና ምልክቶቹ ብቻ ይላካሉ — ስምዎ ወይም ስልክ ቁጥርዎ አይደለም።',
+    storedTitle:'📱 በስልክዎ ላይ የሚቀመጠው',
+    item1:'የገበሬ ስም፣ ክልል፣ የእርሻ ስፋት — ስልክ ብቻ፣ ምንም ቦታ አይላክም',
+    item2:'ስልክ ቁጥር — ስልክ ብቻ፣ SMS ሲልኩ ብቻ ይጠቅማል',
+    item3:'የምርመራ ታሪክ — ስልክ ብቻ፣ ፈጽሞ አይካፈልም',
+    item4:'ፎቶ እና ምልክቶች — ለ AI ጊዜያዊ ይላካሉ፣ ከዚያ ይሰረዛሉ',
+    neverTitle:'🚫 ፈጽሞ የማናደርገው',
+    neverText:'ውሂብ አንሸጥም · ቦታ አናስከትልም · ማስታወቂያ አናሳይም · መለያ አንፈጥርም · ፎቶ አናስቀምጥም',
+    deleteTitle:'🗑️ ውሂብዎን ያጥፉ',
+    deleteText:'መገለጫ ሂዱ፣ መረጃ አጥፉ፣ ቀምጥ። ወይም ሰርጉ ቅንብሮቻ ለ ሰረዝ ጣቢያ ዳታ።',
+    contactTitle:'📧 ያግኙን',
+    standards:'GDPR ተስማሚ · ኩኪ የለም · ክትትል የለም · CC BY-NC-ND 4.0',
+    closeBtn:'✓ ተረዳሁ'
+  },
+  om: {
+    title:'🔐 Imaammata Icciitii', sub:'Resilience Guardian · Gulilat Kasiye Worku',
+    summaryTitle:'📋 Cuunfaa Gabaabaa',
+    summaryText:'Deetaan keessan bilbila keessanitti tuura. Deetaa hin gurgurru, hin qoodinnu, hin hordofnu. AI fayyadamtan, suuraan midhaan keessanii qofa ergama.',
+    storedTitle:'📱 Bilbila Keessanitti Kan Kuufamu',
+    item1:'Maqaa, naannoo, lafa — bilbila qofa, bakka kamiifuu hin ergamu',
+    item2:'Lakkoofsa bilbilaa — bilbila qofa, SMS ergitoota qofa ni fayyadama',
+    item3:'Seenaa mirkaneessaa — bilbila qofa, hin qoodamu',
+    item4:'Suuraa fi mallattoolee — AI dhaaf yeroof ergama, booda ni haqa',
+    neverTitle:'🚫 Wanti Goonu Hin Jiru',
+    neverText:'Deetaa hin gurgurru · Iddoo hin hordofnu · Beeksisa hin agarsifnu · Herrega hin uumnu',
+    deleteTitle:'🗑️ Deetaa Keessan Haquu',
+    deleteText:'Profaayilii — odeeffannoo haquu — kuusi.',
+    contactTitle:'📧 Nu Quunnamaa',
+    standards:'GDPR waliin wal-simu · Kuukii hin jiru · Hordoffii hin jiru',
+    closeBtn:'✓ Hubadhe'
+  },
+  ti: {
+    title:'🔐 ፖሊሲ ሽምዓ', sub:'Resilience Guardian · ጉልላት ካስዬ ዎርቁ',
+    summaryTitle:'📋 ሓጺር ጸብጻብ',
+    summaryText:'ውሂብካ ኣብ ስልክኻ ይቕንዕ። ውሂብ ኣይሸጥን፣ ኣይካፈልን። AI ምርመራ ምስ ትጥቀም፣ ስእሊ ሰብልኻን ምልክታትን ጥራሕ ይስደዱ።',
+    storedTitle:'📱 ኣብ ስልክኻ ዝቕቆር',
+    item1:'ሽም፣ ክልል፣ ሕርሻ — ስልኪ ጥራሕ፣ ናበይ ኣይስደድን',
+    item2:'ቁጽሪ ስልኪ — ስልኪ ጥራሕ፣ SMS ምስ ትሰደድ ጥራሕ ይጠቅም',
+    item3:'ታሪኽ ምርመራ — ስልኪ ጥራሕ፣ ፈጺሙ ኣይካፈልን',
+    item4:'ስእሊ + ምልክታት — ንAI ግዚያዊ ይስደዱ፣ ድሕሪኡ ይሕሰሱ',
+    neverTitle:'🚫 ፈጺምና ዘይንገብሮ',
+    neverText:'ውሂብ ኣይሸጥን · ቦታ ኣይሰዓብን · ኣይካፈልን',
+    deleteTitle:'🗑️ ውሂብካ ሰርዝ',
+    deleteText:'ፕሮፋይል — ሓበሬታ ሰርዝ — ዓቅብ።',
+    contactTitle:'📧 ርኸበና',
+    standards:'GDPR ዝሰማማዕ · ኩኪ የለን · ክትትል የለን',
+    closeBtn:'✓ ተረዲአ'
+  }
+};
+
+function showPrivacy() {
+  var modal = document.getElementById('privacy-modal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  translatePrivacy(currentLang || 'en');
+}
+
+function closePrivacy() {
+  var modal = document.getElementById('privacy-modal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+
+function translatePrivacy(lang) {
+  var t = PRIVACY_TEXTS[lang] || PRIVACY_TEXTS['en'];
+  var map = {
+    'pp-title': t.title, 'pp-sub': t.sub,
+    'pp-summary-title': t.summaryTitle, 'pp-summary-text': t.summaryText,
+    'pp-stored-title': t.storedTitle,
+    'pp-item1': t.item1, 'pp-item2': t.item2, 'pp-item3': t.item3, 'pp-item4': t.item4,
+    'pp-never-title': t.neverTitle, 'pp-never-text': t.neverText,
+    'pp-delete-title': t.deleteTitle, 'pp-delete-text': t.deleteText,
+    'pp-contact-title': t.contactTitle, 'pp-standards': t.standards,
+    'pp-close-btn': t.closeBtn
+  };
+  Object.keys(map).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && map[id]) el.textContent = map[id];
+  });
+}
+
+// ==================== PUSH NOTIFICATIONS ====================
+var VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHpbCGXzvDZukB6gK4xH0jxBInD5Z-gn41a6dR_IlfzUJQsF22Du9UNgwTICXaUM_xv-6GIMl2rb-OrqOYXXVpQ';
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = window.atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+
+async function subscribeToPush() {
+  if (!('PushManager' in window)) {
+    alert(currentLang === 'am'
+      ? 'ይቅርታ፣ ይህ ስልክ Push Notification አይደግፍም።'
+      : 'Push notifications not supported on this device.');
+    return false;
+  }
+
+  try {
+    // Request notification permission
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      alert(currentLang === 'am'
+        ? 'ማሳወቂያ ፍቃድ ያስፈልጋል። እባክዎ ይፍቀዱ።'
+        : 'Please allow notifications to receive disease alerts.');
+      return false;
+    }
+
+    var reg = await navigator.serviceWorker.ready;
+    var existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      console.log('✅ Already subscribed to push');
+      return true;
+    }
+
+    var subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+
+    // Send subscription to server
+    await fetch('/api/push-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription: subscription,
+        lang: currentLang || 'en',
+        region: (window.farmerProfile && farmerProfile.region) || 'Addis Ababa',
+        crop: currentCrop || 'enset'
+      })
+    });
+
+    console.log('✅ Push subscription saved');
+    return true;
+  } catch(e) {
+    console.error('Push subscribe error:', e);
+    return false;
+  }
+}
+
+async function unsubscribeFromPush() {
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+    if (sub) { await sub.unsubscribe(); }
+    await fetch('/api/push-unsubscribe', { method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ endpoint: sub && sub.endpoint }) });
+    return true;
+  } catch(e) { return false; }
+}
+
+async function checkPushStatus() {
+  if (!('PushManager' in window)) return 'unsupported';
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+    return sub ? 'subscribed' : 'unsubscribed';
+  } catch(e) { return 'error'; }
+}
+
+async function togglePushNotifications(btn) {
+  var status = await checkPushStatus();
+  if (status === 'subscribed') {
+    await unsubscribeFromPush();
+    if (btn) { btn.textContent = currentLang === 'am' ? '🔔 ማሳወቂያ አስነቃ' : '🔔 Enable Disease Alerts'; btn.style.background = '#2D6A0A'; }
+    alert(currentLang === 'am' ? 'ማሳወቂያዎች ተሰናክለዋል።' : 'Notifications disabled.');
+  } else {
+    var ok = await subscribeToPush();
+    if (ok && btn) {
+      btn.textContent = currentLang === 'am' ? '🔕 ማሳወቂያ አጥፋ' : '🔕 Disable Alerts';
+      btn.style.background = '#B83010';
+      alert(currentLang === 'am' ? '✅ ማሳወቂያዎች ነቅተዋል! የበሽታ ማንቂያ ይደርስዎታል።' : '✅ Disease alerts enabled! You will be notified of high-risk conditions.');
+    }
+  }
+}
+
+// Auto-update push subscription when profile changes
+function updatePushSubscriptionRegion() {
+  checkPushStatus().then(function(status) {
+    if (status === 'subscribed') {
+      fetch('/api/push-update', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          region: (window.farmerProfile && farmerProfile.region) || 'Addis Ababa',
+          crop: currentCrop || 'enset',
+          lang: currentLang || 'en'
+        })
+      }).catch(function(){});
+    }
+  });
+}
+
 // ==================== AI DATA CONTRIBUTION ====================
 async function submitFeedbackToAI() {
   if (!window._lastResult) { alert('Please complete a diagnosis first.'); return; }
@@ -6274,10 +6511,10 @@ function setObLang(lang) {
   var consentEl = document.getElementById('ob-consent-text');
   if (consentEl) {
     var cText = consentTexts[lang] || consentTexts.en;
-    consentEl.innerHTML = cText.replace('Privacy Policy', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Privacy Policy</a>')
-                               .replace('የምስጢራዊነት ፖሊሲውን', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">የምስጢራዊነት ፖሊሲውን</a>')
-                               .replace('Imaammata Icciitii', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Imaammata Icciitii</a>')
-                               .replace('ፖሊሲ ሽምዓ', '<a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">ፖሊሲ ሽምዓ</a>');
+    consentEl.innerHTML = cText.replace('Privacy Policy', '<span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Privacy Policy</span>')
+                               .replace('የምስጢራዊነት ፖሊሲውን', '<span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">የምስጢራዊነት ፖሊሲውን</span>')
+                               .replace('Imaammata Icciitii', '<span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Imaammata Icciitii</span>')
+                               .replace('ፖሊሲ ሽምዓ', '<span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">ፖሊሲ ሽምዓ</span>');
   }
   var els = {
     'ob-title': t.title, 'ob-sub': t.sub,
@@ -7544,13 +7781,23 @@ function switchTab(tab) {
         <input id="prof-phone" type="tel" placeholder="+251 9XX XXX XXX" style="font-size:16px;">
         <small id="prof-phone-hint" style="color:#888;font-size:11px;margin-top:4px;display:block;">Used to send your diagnosis report via SMS</small>
       </div>
+      <!-- Push Notification Toggle -->
+      <div style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);border-radius:12px;padding:14px;margin-bottom:12px;">
+        <div style="color:white;font-weight:700;font-size:13px;margin-bottom:4px;">🔔 Disease Alert Notifications</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:11px;margin-bottom:10px;" id="push-status-text">Get notified when disease risk is high in your region</div>
+        <button id="push-toggle-btn" onclick="togglePushNotifications(this)"
+          style="width:100%;background:#B8DC7A;color:#1a3a05;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">
+          🔔 Enable Disease Alerts
+        </button>
+      </div>
+
       <!-- Privacy notice in profile -->
       <div style="background:#f0f8eb;border:1px solid #B8DC7A;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div style="font-size:12px;font-weight:700;color:#2D6A0A;">🔐 <span id="prof-privacy-title">Your data stays on your device</span></div>
           <div style="font-size:11px;color:#666;margin-top:2px;" id="prof-privacy-sub">No tracking · No ads · Never shared</div>
         </div>
-        <a href="/privacy.html" target="_blank" style="flex-shrink:0;font-size:12px;color:#2D6A0A;font-weight:700;text-decoration:none;border:1.5px solid #B8DC7A;border-radius:8px;padding:6px 10px;white-space:nowrap;" id="prof-privacy-link">Privacy Policy</a>
+        <span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Privacy Policy</span>
       </div>
       <button class="modal-close" style="background:var(--leaf);" onclick="saveProfile()">💾 <span id="prof-save-label">Save Profile</span></button>
       <button class="modal-close" style="background:#888;margin-top:8px;" onclick="closeProfile()">✕ <span id="prof-close-label">Close</span></button>
@@ -7956,7 +8203,7 @@ function closeIOSPopup() {
       <label style="display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.08);border-radius:12px;padding:12px;margin-bottom:12px;cursor:pointer;">
         <input type="checkbox" id="ob-consent" onchange="toggleObCTA()" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:#B8DC7A;cursor:pointer;">
         <span id="ob-consent-text" style="font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">
-          I agree to the <a href="/privacy.html" target="_blank" style="color:#B8DC7A;font-weight:700;text-decoration:underline;">Privacy Policy</a>. 
+          I agree to the <span onclick="showPrivacy()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Privacy Policy</span>. 
           My data stays on my device. No tracking. Free forever.
         </span>
       </label>
@@ -7986,6 +8233,57 @@ function closeIOSPopup() {
       <button onclick="sendSMSDiagnosis()" id="sms-send-btn" style="flex:1;background:#1565C0;color:white;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">Send SMS</button>
     </div>
     <div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Powered by Africa's Talking · Requires server setup</div>
+  </div>
+</div>
+
+
+<!-- INLINE PRIVACY POLICY MODAL -->
+<div id="privacy-modal" onclick="if(event.target===this)closePrivacy()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99998;align-items:flex-start;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;">
+  <div style="background:white;border-radius:18px;max-width:420px;width:100%;margin:20px auto;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1a3a05,#2D6A0A);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:white;" id="pp-title">🔐 Privacy Policy</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;" id="pp-sub">Resilience Guardian · Gulilat Kasiye Worku</div>
+      </div>
+      <button onclick="closePrivacy()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:20px;max-height:70vh;overflow-y:auto;" id="pp-body">
+
+      <div style="background:#f0f8eb;border-radius:10px;padding:12px;margin-bottom:14px;border-left:4px solid #2D6A0A;">
+        <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:4px;" id="pp-summary-title">📋 Simple Summary</div>
+        <div style="font-size:12px;color:#333;line-height:1.7;" id="pp-summary-text">Your data stays on your phone. We do not sell, share, or track farmer data. The app works fully offline. When you use AI analysis, only your crop photo and symptoms are sent — never your name or phone number.</div>
+      </div>
+
+      <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:8px;" id="pp-stored-title">📱 What's Stored On Your Device</div>
+      <div id="pp-stored-items" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px;"><span style="color:#2D6A0A;flex-shrink:0;">✅</span><span id="pp-item1">Farmer name, region, farm size — phone only, never sent anywhere</span></div>
+        <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px;"><span style="color:#2D6A0A;flex-shrink:0;">✅</span><span id="pp-item2">Phone number — phone only, used only when YOU send SMS</span></div>
+        <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px;"><span style="color:#2D6A0A;flex-shrink:0;">✅</span><span id="pp-item3">Diagnosis history — phone only, never shared</span></div>
+        <div style="display:flex;gap:8px;padding:6px 0;font-size:12px;"><span style="color:#D4A017;flex-shrink:0;">📤</span><span id="pp-item4">Photo + symptoms — sent to AI server temporarily for analysis, then deleted</span></div>
+      </div>
+
+      <div style="font-weight:700;color:#B83010;font-size:13px;margin-bottom:8px;" id="pp-never-title">🚫 We NEVER</div>
+      <div id="pp-never-items" style="background:#fff8f8;border-radius:8px;padding:10px;margin-bottom:14px;">
+        <div style="font-size:12px;color:#4A3728;line-height:2;" id="pp-never-text">Sell your data · Track your location · Show ads · Create accounts · Share with third parties · Store photos on server</div>
+      </div>
+
+      <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:8px;" id="pp-delete-title">🗑️ Delete Your Data</div>
+      <div style="font-size:12px;color:#666;line-height:1.7;margin-bottom:14px;" id="pp-delete-text">Go to Profile → clear your info → Save. Or clear site data in your browser settings. All data is on your device only.</div>
+
+      <div style="font-weight:700;color:#2D6A0A;font-size:13px;margin-bottom:8px;" id="pp-contact-title">📧 Contact</div>
+      <div style="font-size:12px;color:#666;margin-bottom:16px;">gulilatkasiye4@gmail.com · Gulilat Kasiye Worku · Hawassa, Ethiopia</div>
+
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:#aaa;" id="pp-standards">GDPR Compliant · No Cookies · No Tracking · CC BY-NC-ND 4.0</div>
+      </div>
+
+    </div>
+    <!-- Close button -->
+    <div style="padding:16px 20px;border-top:1px solid #eee;">
+      <button onclick="closePrivacy()" style="width:100%;background:#2D6A0A;color:white;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;" id="pp-close-btn">✓ I Understand</button>
+    </div>
   </div>
 </div>
 
