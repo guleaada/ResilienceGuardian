@@ -6,30 +6,111 @@ const path    = require('path');
 const app  = express();
 const fs   = require('fs');
 
-// ── FILE PERSISTENCE ─────────────────────────────────────
-const DATA_DIR = process.env.DATA_DIR || '/tmp/sebilai_data';
-try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
+// ── SQLITE PERSISTENCE ────────────────────────────────────
+// Replaces flat JSON files in /tmp — survives restarts and deploys.
+// Uses better-sqlite3 (synchronous API — no promise hell, WAL for speed).
+const Database = require('better-sqlite3');
+const DB_PATH  = process.env.DB_PATH || path.join(__dirname, 'sebilai.db');
+const db       = new Database(DB_PATH);
 
-function loadJSON(name, def) {
-  try { return JSON.parse(fs.readFileSync(DATA_DIR + '/' + name, 'utf8')); }
-  catch(e) { return def; }
+// Enable WAL mode for better concurrent read performance
+db.pragma('journal_mode = WAL');
+
+// Create tables once
+db.exec(`
+  CREATE TABLE IF NOT EXISTS feedback (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    crop      TEXT, disease TEXT, accuracy TEXT,
+    comment   TEXT, region TEXT, lang TEXT,
+    ts        TEXT
+  );
+  CREATE TABLE IF NOT EXISTS disease_reports (
+    id        INTEGER PRIMARY KEY,
+    crop      TEXT, disease TEXT,
+    lat       REAL, lon REAL,
+    severity  TEXT, lang TEXT, date TEXT,
+    verified  INTEGER DEFAULT 0,
+    source    TEXT DEFAULT 'app'
+  );
+  CREATE TABLE IF NOT EXISTS review_requests (
+    id        INTEGER PRIMARY KEY,
+    crop TEXT, disease TEXT, symptoms TEXT,
+    contact TEXT, lang TEXT, date TEXT,
+    status TEXT DEFAULT 'pending',
+    has_image INTEGER DEFAULT 0,
+    verdict TEXT, notes TEXT, verified_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS push_subscribers (
+    key TEXT PRIMARY KEY,
+    subscription TEXT, lang TEXT,
+    region TEXT, crop TEXT, created_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS sms_subscribers (
+    phone TEXT PRIMARY KEY,
+    region TEXT, crop TEXT, lang TEXT, subscribed_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS followups (
+    id          INTEGER PRIMARY KEY,
+    diagnosis_id TEXT, crop TEXT, disease TEXT,
+    before_date TEXT, after_date TEXT,
+    improvement TEXT, has_image INTEGER DEFAULT 0,
+    created_at  TEXT
+  );
+`);
+
+// Prepared statements
+const stmts = {
+  // feedback
+  insertFeedback: db.prepare(`INSERT INTO feedback (crop,disease,accuracy,comment,region,lang,ts) VALUES (?,?,?,?,?,?,?)`),
+  countFeedback:  db.prepare(`SELECT COUNT(*) AS n FROM feedback`),
+  latestFeedback: db.prepare(`SELECT * FROM feedback ORDER BY id DESC LIMIT 200`),
+  // disease_reports
+  insertReport:   db.prepare(`INSERT OR REPLACE INTO disease_reports (id,crop,disease,lat,lon,severity,lang,date,verified,source) VALUES (?,?,?,?,?,?,?,?,?,?)`),
+  recentReports:  db.prepare(`SELECT * FROM disease_reports WHERE date >= ? ORDER BY id DESC`),
+  countReports:   db.prepare(`SELECT COUNT(*) AS n FROM disease_reports`),
+  todayReports:   db.prepare(`SELECT COUNT(*) AS n FROM disease_reports WHERE date = ?`),
+  // review_requests
+  insertReview:   db.prepare(`INSERT INTO review_requests (id,crop,disease,symptoms,contact,lang,date,status,has_image) VALUES (?,?,?,?,?,?,?,?,?)`),
+  allReviews:     db.prepare(`SELECT * FROM review_requests ORDER BY id DESC`),
+  findReview:     db.prepare(`SELECT * FROM review_requests WHERE id = ?`),
+  verifyReview:   db.prepare(`UPDATE review_requests SET status='verified',verdict=?,notes=?,verified_at=? WHERE id=?`),
+  countVerified:  db.prepare(`SELECT COUNT(*) AS n FROM review_requests WHERE status='verified'`),
+  // push_subscribers
+  upsertPush:     db.prepare(`INSERT OR REPLACE INTO push_subscribers (key,subscription,lang,region,crop,created_at) VALUES (?,?,?,?,?,?)`),
+  deletePush:     db.prepare(`DELETE FROM push_subscribers WHERE key=?`),
+  allPush:        db.prepare(`SELECT * FROM push_subscribers`),
+  countPush:      db.prepare(`SELECT COUNT(*) AS n FROM push_subscribers`),
+  // sms_subscribers
+  upsertSms:      db.prepare(`INSERT OR REPLACE INTO sms_subscribers (phone,region,crop,lang,subscribed_at) VALUES (?,?,?,?,?)`),
+  deleteSms:      db.prepare(`DELETE FROM sms_subscribers WHERE phone=?`),
+  allSms:         db.prepare(`SELECT * FROM sms_subscribers`),
+  countSms:       db.prepare(`SELECT COUNT(*) AS n FROM sms_subscribers`),
+  // followups
+  insertFollowup: db.prepare(`INSERT INTO followups (id,diagnosis_id,crop,disease,before_date,after_date,improvement,has_image,created_at) VALUES (?,?,?,?,?,?,?,?,?)`),
+};
+
+// ── In-memory Maps rebuilt from DB at startup ─────────────
+// These are used by the existing push/SMS scheduler logic unchanged.
+const pushSubscriptions = new Map();
+const smsSubscribers    = new Map();
+
+for (const row of stmts.allPush.all()) {
+  try { pushSubscriptions.set(row.key, { subscription: JSON.parse(row.subscription), lang: row.lang, region: row.region, crop: row.crop }); }
+  catch(e) {}
 }
+for (const row of stmts.allSms.all()) {
+  smsSubscribers.set(row.phone, { phone: row.phone, region: row.region, crop: row.crop, lang: row.lang });
+}
+
+// Compatibility shim — old saveJSON calls replaced inline below,
+// but this catches any stray calls that were missed.
 function saveJSON(name, data) {
-  try { fs.writeFileSync(DATA_DIR + '/' + name, JSON.stringify(data)); return true; }
-  catch(e) { return false; }
+  console.warn(`⚠️  saveJSON('${name}') called — all data now in SQLite, this is a no-op.`);
+  return true;
 }
 
-// Load persisted subscribers on startup
-let feedbackStore = loadJSON('feedback.json', []);
-const _pushData   = loadJSON('push_subscribers.json', {});
-const _smsData    = loadJSON('sms_subscribers.json', {});
-
-// Merge loaded data into existing Maps (defined later)
-setTimeout(function() {
-  Object.entries(_pushData).forEach(([k,v]) => pushSubscriptions.set(k, v));
-  Object.entries(_smsData).forEach(([k,v])  => smsSubscribers.set(k, v));
-  console.log('📂 Loaded: ' + feedbackStore.length + ' feedback, ' + pushSubscriptions.size + ' push, ' + smsSubscribers.size + ' SMS subscribers');
-}, 100);
+console.log(`🗄️  SQLite DB: ${DB_PATH}`);
+console.log(`📂 Loaded: ${stmts.countFeedback.get().n} feedback, ${pushSubscriptions.size} push, ${smsSubscribers.size} SMS subscribers`);
 
 const PORT = process.env.PORT || 3000;
 const GROQ_KEY       = process.env.GROQ_API_KEY;
@@ -41,6 +122,29 @@ if (!GROQ_KEY && !GEMINI_KEY && !OPENROUTER_KEY) {
   console.error('❌ No AI API keys found'); process.exit(1);
 }
 
+// ── ADMIN KEY — FAIL CLOSED ───────────────────────────────
+// If ADMIN_KEY is not set in the environment the admin endpoints
+// will reject every request rather than falling back to a known
+// default password that could be found in source code.
+const ADMIN_KEY = process.env.ADMIN_KEY;
+if (!ADMIN_KEY) {
+  console.warn('⚠️  WARNING: ADMIN_KEY environment variable is not set.');
+  console.warn('   All admin endpoints (/api/feedback GET, /api/review-requests, /api/review-verify) will return 503 until it is configured.');
+}
+
+function requireAdminKey(req, res) {
+  if (!ADMIN_KEY) {
+    res.status(503).json({ error: 'Admin access is disabled: ADMIN_KEY is not configured on this server.' });
+    return false;
+  }
+  const provided = req.headers['x-admin-key'];
+  if (provided !== ADMIN_KEY) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+}
+
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -50,13 +154,12 @@ const reqCounts    = new Map(); // per-minute
 const reqDayCounts = new Map(); // per-day
 setInterval(() => reqCounts.clear(), 60000);
 // Reset daily counts at midnight
-let reqDailyCount = loadJSON('daily_counts.json', { _date: new Date().toDateString() });
+let reqDailyCount = { _date: new Date().toDateString() };
 setInterval(() => {
   const newDay = new Date().toDateString();
   if (reqDailyCount._date !== newDay) {
     reqDayCounts.clear();
     reqDailyCount = { _date: newDay };
-    saveJSON('daily_counts.json', reqDailyCount);
   }
 }, 60000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -505,10 +608,9 @@ async function sendPushNotification(subscription, payload) {
 app.post('/api/push-subscribe', (req, res) => {
   const { subscription, lang, region, crop } = req.body;
   if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Invalid subscription' });
-  
   const key = subscription.endpoint.slice(-20);
-  pushSubscriptions.set(key, { subscription, lang: lang||'en', region: region||'Addis Ababa', crop: crop||'enset', createdAt: new Date().toISOString() });
-  saveJSON('push_subscribers.json', Object.fromEntries(pushSubscriptions));
+  pushSubscriptions.set(key, { subscription, lang: lang||'en', region: region||'Addis Ababa', crop: crop||'enset' });
+  stmts.upsertPush.run(key, JSON.stringify(subscription), lang||'en', region||'Addis Ababa', crop||'enset', new Date().toISOString());
   console.log(`🔔 Push subscriber added: ${region} | ${crop} | ${lang} | Total: ${pushSubscriptions.size}`);
   res.json({ ok: true, total: pushSubscriptions.size });
 });
@@ -519,6 +621,7 @@ app.post('/api/push-unsubscribe', (req, res) => {
   if (endpoint) {
     const key = endpoint.slice(-20);
     pushSubscriptions.delete(key);
+    stmts.deletePush.run(key);
     console.log(`🔕 Push subscriber removed. Total: ${pushSubscriptions.size}`);
   }
   res.json({ ok: true });
@@ -641,17 +744,9 @@ const SMS_ALERT_TEMPLATES = {
 app.post('/api/sms-subscribe', (req, res) => {
   const { phone, region, crop, lang } = req.body;
   if (!phone) return res.status(400).json({ error: 'Phone required' });
-
-  // Normalize phone number
   const cleanPhone = phone.replace(/\s/g, '').replace(/^0/, '+251');
-  smsSubscribers.set(cleanPhone, {
-    phone: cleanPhone,
-    region: region || 'Addis Ababa',
-    crop: crop || 'enset',
-    lang: lang || 'en',
-    subscribedAt: new Date().toISOString()
-  });
-  saveJSON('sms_subscribers.json', Object.fromEntries(smsSubscribers));
+  smsSubscribers.set(cleanPhone, { phone: cleanPhone, region: region||'Addis Ababa', crop: crop||'enset', lang: lang||'en' });
+  stmts.upsertSms.run(cleanPhone, region||'Addis Ababa', crop||'enset', lang||'en', new Date().toISOString());
   console.log(`📲 SMS subscriber: ${cleanPhone} | ${crop} | ${region} | ${lang} | Total: ${smsSubscribers.size}`);
   res.json({ ok: true, total: smsSubscribers.size });
 });
@@ -662,6 +757,7 @@ app.post('/api/sms-unsubscribe', (req, res) => {
   if (phone) {
     const clean = phone.replace(/\s/g, '').replace(/^0/, '+251');
     smsSubscribers.delete(clean);
+    stmts.deleteSms.run(clean);
     console.log(`📵 SMS unsubscribed: ${clean}. Total: ${smsSubscribers.size}`);
   }
   res.json({ ok: true });
@@ -754,28 +850,27 @@ app.post('/api/analyze', async (req, res) => {
 app.post('/api/feedback', (req, res) => {
   const { feedback } = req.body;
   if (!feedback || !Array.isArray(feedback)) return res.status(400).json({ error: 'Invalid' });
-  feedback.forEach(f => {
-    const entry = { crop: f.crop, disease: f.disease, accuracy: f.accuracy, comment: f.comment, region: f.region, lang: f.language, ts: new Date().toISOString() };
-    feedbackStore.push(entry);
-    console.log('📊 FEEDBACK:', JSON.stringify(entry));
+  const insertMany = db.transaction((items) => {
+    for (const f of items) {
+      stmts.insertFeedback.run(f.crop||'', f.disease||'', f.accuracy||'', f.comment||'', f.region||'', f.language||'', new Date().toISOString());
+    }
   });
-  // Persist to file (keep last 1000)
-  if (feedbackStore.length > 1000) feedbackStore = feedbackStore.slice(-1000);
-  saveJSON('feedback.json', feedbackStore);
-  res.json({ ok: true, saved: feedback.length, total: feedbackStore.length });
+  insertMany(feedback);
+  const total = stmts.countFeedback.get().n;
+  res.json({ ok: true, saved: feedback.length, total });
 });
 
 // Get all feedback (for admin dashboard)
 app.get('/api/feedback', (req, res) => {
-  const auth = req.headers['x-admin-key'];
-  if (auth !== (process.env.ADMIN_KEY || 'SebilAI_Admin_2025!')) return res.status(401).json({ error: 'Unauthorized' });
-  res.json({ feedback: feedbackStore.slice(-200), total: feedbackStore.length });
+  if (!requireAdminKey(req, res)) return;
+  const rows = stmts.latestFeedback.all();
+  res.json({ feedback: rows, total: stmts.countFeedback.get().n });
 });
 
 // ── HEALTH ────────────────────────────────────────────────
 app.post('/api/sync-feedback', (req, res) => {
   // Called by service worker background sync
-  res.json({ ok: true, synced: feedbackStore.length });
+  res.json({ ok: true, synced: stmts.countFeedback.get().n });
 });
 
 app.get('/api/health', (req, res) => {
@@ -793,87 +888,50 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── COMMUNITY DISEASE REPORTS (for heatmap) ──────────────
-let diseaseReports = loadJSON('disease_reports.json', []);
-
 app.post('/api/community-report', (req, res) => {
   const { crop, disease, lat, lon, severity, lang } = req.body;
   if (!crop || !disease || !lat || !lon) return res.status(400).json({ error: 'Missing fields' });
-  const report = {
-    id: Date.now(),
-    crop: crop.toLowerCase(),
-    disease,
-    lat: parseFloat(lat),
-    lon: parseFloat(lon),
-    severity: severity || 'Medium',
-    lang: lang || 'en',
-    date: new Date().toISOString().split('T')[0],
-    verified: false
-  };
-  diseaseReports.push(report);
-  // Keep only last 500 reports
-  if (diseaseReports.length > 500) diseaseReports = diseaseReports.slice(-500);
-  saveJSON('disease_reports.json', diseaseReports);
+  const id = Date.now();
+  stmts.insertReport.run(id, crop.toLowerCase(), disease, parseFloat(lat), parseFloat(lon), severity||'Medium', lang||'en', new Date().toISOString().split('T')[0], 0, 'app');
   console.log(`📍 Community report: ${disease} on ${crop} at [${lat},${lon}]`);
-  res.json({ ok: true, id: report.id });
+  res.json({ ok: true, id });
 });
 
 app.get('/api/community-reports', (req, res) => {
-  // Return last 30 days only, anonymized (no exact GPS — grid to 0.1 degree)
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const recent = diseaseReports
-    .filter(r => r.date >= cutoff)
-    .map(r => ({
-      crop: r.crop,
-      disease: r.disease,
-      lat: Math.round(r.lat * 10) / 10,   // grid to ~11km
-      lon: Math.round(r.lon * 10) / 10,
-      severity: r.severity,
-      date: r.date,
-      verified: r.verified
-    }));
+  const recent = stmts.recentReports.all(cutoff).map(r => ({
+    crop: r.crop,
+    disease: r.disease,
+    lat: Math.round(r.lat * 10) / 10,
+    lon: Math.round(r.lon * 10) / 10,
+    severity: r.severity,
+    date: r.date,
+    verified: !!r.verified
+  }));
   res.json({ reports: recent, total: recent.length });
 });
 
 // ── AGRONOMIST FLAG / EXPERT REVIEW ──────────────────────
-let reviewRequests = loadJSON('review_requests.json', []);
-
 app.post('/api/flag-review', (req, res) => {
   const { crop, disease, symptoms, imageBase64, contact, lang } = req.body;
   if (!crop || !disease) return res.status(400).json({ error: 'Missing fields' });
-  const req_data = {
-    id: Date.now(),
-    crop, disease, symptoms: symptoms || [],
-    contact: contact || 'anonymous',
-    lang: lang || 'en',
-    date: new Date().toISOString(),
-    status: 'pending',
-    hasImage: !!imageBase64
-  };
-  reviewRequests.push(req_data);
-  if (reviewRequests.length > 200) reviewRequests = reviewRequests.slice(-200);
-  saveJSON('review_requests.json', reviewRequests);
-  console.log(`🔬 Review request: ${disease} on ${crop} from ${contact || 'anon'}`);
-  // Optionally send email alert here via a simple SMTP/API
-  res.json({ ok: true, id: req_data.id, message: 'An agronomist will review your case within 48 hours.' });
+  const id = Date.now();
+  stmts.insertReview.run(id, crop, disease, JSON.stringify(symptoms||[]), contact||'anonymous', lang||'en', new Date().toISOString(), 'pending', imageBase64 ? 1 : 0);
+  console.log(`🔬 Review request: ${disease} on ${crop} from ${contact||'anon'}`);
+  res.json({ ok: true, id, message: 'An agronomist will review your case within 48 hours.' });
 });
 
 app.get('/api/review-requests', (req, res) => {
-  const key = req.headers['x-admin-key'];
-  if (key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
-  res.json({ requests: reviewRequests });
+  if (!requireAdminKey(req, res)) return;
+  res.json({ requests: stmts.allReviews.all() });
 });
 
 app.post('/api/review-verify', (req, res) => {
-  const key = req.headers['x-admin-key'];
-  if (key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
+  if (!requireAdminKey(req, res)) return;
   const { id, verdict, notes } = req.body;
-  const r = reviewRequests.find(x => x.id === id);
+  const r = stmts.findReview.get(id);
   if (!r) return res.status(404).json({ error: 'Not found' });
-  r.status = 'verified';
-  r.verdict = verdict;
-  r.notes = notes || '';
-  r.verifiedAt = new Date().toISOString();
-  saveJSON('review_requests.json', reviewRequests);
+  stmts.verifyReview.run(verdict || '', notes || '', new Date().toISOString(), id);
   res.json({ ok: true });
 });
 
@@ -884,11 +942,20 @@ app.post('/api/sms/incoming', async (req, res) => {
   if (!from || !text) return res.status(400).send('Bad Request');
 
   console.log(`📱 SMS from ${from}: "${text}"`);
-  const clean = text.trim().toUpperCase();
-  const words  = clean.split(/\s+/);
+
+  // ── Sanitize SMS input to prevent prompt injection ────────────
+  // Strip everything that isn't alphanumeric or whitespace, then
+  // only keep known crop names and plain alpha-only symptom tokens
+  // so no adversarial instruction text can reach the AI prompt.
+  const sanitized = text.replace(/[^a-zA-Z0-9\s]/g, ' ').trim().toUpperCase();
+  const words  = sanitized.split(/\s+/).filter(Boolean).slice(0, 20); // cap at 20 tokens
   const CROPS  = ['ENSET','TEFF','WHEAT','MAIZE','CORN','COFFEE','POTATO','BARLEY','SORGHUM'];
+  const ALLOWED_SYMPTOM = /^[A-Z]{2,20}$/; // letters only, 2–20 chars
   const crop   = CROPS.find(c => words.includes(c)) || 'ENSET';
-  const symptoms = words.filter(w => w !== crop).join(', ') || 'unknown symptoms';
+  const symptoms = words
+    .filter(w => w !== crop && ALLOWED_SYMPTOM.test(w))
+    .slice(0, 8)           // max 8 symptom words
+    .join(', ') || 'unknown symptoms';
 
   // Send acknowledgment immediately
   const AT_KEY  = process.env.AT_API_KEY;
@@ -923,10 +990,8 @@ app.post('/api/sms/incoming', async (req, res) => {
 
   await sendSMS(from, reply);
 
-  // Log as community report (no GPS from SMS)
-  const smsCropLower = crop.toLowerCase();
-  diseaseReports.push({ id: Date.now(), crop: smsCropLower, disease: symptoms, lat: 9.0, lon: 40.0, severity: 'Unknown', date: new Date().toISOString().split('T')[0], verified: false, source: 'sms' });
-  saveJSON('disease_reports.json', diseaseReports);
+  // Log as community report (no GPS from SMS — use Ethiopia centroid)
+  stmts.insertReport.run(Date.now(), crop.toLowerCase(), symptoms, 9.0, 40.0, 'Unknown', 'en', new Date().toISOString().split('T')[0], 0, 'sms');
 
   res.status(200).send('OK');
 });
@@ -946,40 +1011,32 @@ app.get('/api/weather', async (req, res) => {
 });
 
 // ── BEFORE/AFTER PHOTO TRACKING ───────────────────────────
-let followUpStore = loadJSON('followups.json', []);
-
 app.post('/api/followup', (req, res) => {
   const { diagnosisId, crop, disease, beforeDate, afterDate, imageBase64, improvement } = req.body;
   if (!crop || !disease) return res.status(400).json({ error: 'Missing fields' });
-  const entry = {
-    id: Date.now(),
-    diagnosisId: diagnosisId || null,
-    crop, disease,
-    beforeDate: beforeDate || new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0],
-    afterDate: afterDate || new Date().toISOString().split('T')[0],
-    improvement: improvement || null,
-    hasImage: !!imageBase64,
-    createdAt: new Date().toISOString()
-  };
-  followUpStore.push(entry);
-  if (followUpStore.length > 300) followUpStore = followUpStore.slice(-300);
-  saveJSON('followups.json', followUpStore);
-  console.log(`📸 Follow-up: ${crop} (${disease}) — improvement: ${improvement || 'not rated'}`);
-  res.json({ ok: true, id: entry.id });
+  const id = Date.now();
+  stmts.insertFollowup.run(
+    id, diagnosisId||null, crop, disease,
+    beforeDate || new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0],
+    afterDate  || new Date().toISOString().split('T')[0],
+    improvement||null, imageBase64 ? 1 : 0, new Date().toISOString()
+  );
+  console.log(`📸 Follow-up: ${crop} (${disease}) — improvement: ${improvement||'not rated'}`);
+  res.json({ ok: true, id });
 });
 
 // ── ENHANCED HEALTH (with live stats) ────────────────────
 app.get('/api/stats', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
-  const todayReports = diseaseReports.filter(r => r.date === today).length;
-  const totalReports = diseaseReports.length;
+  const todayCount  = stmts.todayReports.get(today).n;
+  const totalCount  = stmts.countReports.get().n;
   res.json({
-    diagnosesToday: todayReports,
-    diagnosesTotal: Math.max(totalReports, 1247), // baseline from pilot
-    communityReports: totalReports,
-    verifiedCases: reviewRequests.filter(r => r.status === 'verified').length,
-    smsUsers: smsSubscribers.size,
-    pushUsers: pushSubscriptions.size
+    diagnosesToday:   todayCount,
+    diagnosesTotal:   Math.max(totalCount, 1247),
+    communityReports: totalCount,
+    verifiedCases:    stmts.countVerified.get().n,
+    smsUsers:         smsSubscribers.size,
+    pushUsers:        pushSubscriptions.size
   });
 });
 
