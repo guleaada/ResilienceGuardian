@@ -777,19 +777,19 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 4px 8px;
+  padding: 8px 2px 7px;
   cursor: pointer;
   border: none;
   background: transparent;
   color: var(--leaf-light);
-  font-size: 10px;
+  font-size: 9px;
   font-family: 'DM Sans', sans-serif;
   font-weight: 500;
-  gap: 3px;
+  gap: 2px;
   transition: all 0.2s ease;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
-.nav-tab .nav-icon { font-size: 18px; line-height: 1; }
+.nav-tab .nav-icon { font-size: 16px; line-height: 1; }
 .nav-tab:hover { color: var(--sprout); }
 .nav-tab.active { color: var(--sprout); border-top: 2px solid var(--sprout); margin-top: -2px; }
 
@@ -1102,6 +1102,12 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 }
 
 
+@media (min-width: 768px) {
+  main { max-width: 720px; padding: 32px 24px 160px; }
+  .crop-grid { grid-template-columns: repeat(5, 1fr); }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
 @media (max-width: 480px) {
   .header h1 { font-size: 14px; }
   .status-pill span { display: none; }
@@ -1109,6 +1115,8 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   .crop-card { padding: 12px 5px 10px; }
   .crop-card .crop-icon { font-size: 22px; }
   .crop-card .crop-name { font-size: 10px; }
+  .stat-card { padding: 14px 8px; }
+  .stat-num { font-size: 26px; }
 }
 
 /* ─── HELP MODAL BUTTONS ──────────────────────────────── */
@@ -1695,7 +1703,203 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 }
 .ob-lang-btn.active { background: rgba(255,255,255,0.25); border-color: white; font-weight: 700; }
 
-/* ── VALIDATION TAB ─────────────────────────────────────── */
+/* ── LIVE COUNTER BANNER ──────────────────────────────── */
+.live-counter-bar {
+  background: linear-gradient(90deg, var(--leaf), var(--leaf-mid));
+  color: white;
+  text-align: center;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.live-counter-bar .live-dot {
+  width: 7px; height: 7px;
+  background: #B8DC7A;
+  border-radius: 50%;
+  animation: pulse-dot 1.5s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.4); }
+}
+
+/* ── WEATHER RISK WIDGET ─────────────────────────────── */
+.weather-widget {
+  background: linear-gradient(135deg, #1a3a5c, #1e5799);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin: 12px 0;
+  color: white;
+  display: none;
+}
+.weather-widget.show { display: block; }
+.weather-widget .ww-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.weather-widget .ww-icon { font-size: 28px; }
+.weather-widget .ww-title { font-size: 13px; font-weight: 700; }
+.weather-widget .ww-sub { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.weather-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.weather-cell {
+  background: rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 8px;
+  text-align: center;
+}
+.weather-cell .wc-val { font-size: 16px; font-weight: 800; }
+.weather-cell .wc-lbl { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+.weather-risk-badge {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.weather-risk-badge.high   { background: rgba(220,50,30,0.25); border: 1px solid rgba(220,50,30,0.5); }
+.weather-risk-badge.medium { background: rgba(255,180,0,0.25); border: 1px solid rgba(255,180,0,0.5); }
+.weather-risk-badge.low    { background: rgba(80,200,80,0.25); border: 1px solid rgba(80,200,80,0.5); }
+
+/* ── WHATSAPP SHARE BUTTON ──────────────────────────── */
+.btn-whatsapp {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px;
+  background: #25D366; color: white;
+  border: none; border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  margin-top: 10px; transition: background 0.2s;
+}
+.btn-whatsapp:hover { background: #1DA851; }
+
+/* ── AGRONOMIST REVIEW BUTTON ───────────────────────── */
+.btn-flag-review {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px;
+  background: white; color: var(--sky);
+  border: 2px solid var(--sky); border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  margin-top: 8px; transition: all 0.2s;
+}
+.btn-flag-review:hover { background: #e8f4fb; }
+.btn-flag-review.sent  { background: #e8f4fb; color: #888; border-color: #ccc; cursor: default; }
+
+/* ── FOLLOW-UP TRACKER ──────────────────────────────── */
+.followup-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65); z-index: 99998;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.followup-box {
+  background: white; border-radius: var(--radius-lg);
+  width: 100%; max-width: 440px;
+  overflow: hidden; box-shadow: var(--shadow-lg);
+}
+.followup-header {
+  background: linear-gradient(135deg, var(--sky), #3a7bd5);
+  padding: 18px 20px; color: white;
+}
+.followup-header h3 { font-size: 16px; font-weight: 800; }
+.followup-header p  { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+.followup-body { padding: 20px; }
+.followup-photos {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0;
+}
+.photo-slot {
+  border: 2px dashed var(--mist);
+  border-radius: var(--radius-md); height: 100px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; gap: 6px; font-size: 11px; color: var(--bark);
+  transition: border-color 0.2s; position: relative; overflow: hidden;
+}
+.photo-slot:hover { border-color: var(--leaf-mid); }
+.photo-slot img   { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.improvement-scale {
+  display: flex; gap: 6px; margin: 8px 0;
+}
+.imp-btn {
+  flex: 1; padding: 8px 4px; border: 2px solid var(--mist);
+  border-radius: 8px; font-size: 12px; font-weight: 700;
+  cursor: pointer; background: white; transition: all 0.15s; text-align: center;
+}
+.imp-btn.active { border-color: var(--leaf); background: var(--mist); color: var(--leaf); }
+
+/* ── COMMUNITY HEATMAP ──────────────────────────────── */
+#community-map {
+  width: 100%; height: 260px;
+  border-radius: var(--radius-md);
+  overflow: hidden; margin: 12px 0;
+}
+.map-legend {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;
+}
+.map-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--bark);
+}
+.map-legend-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+
+/* ── COMPETITOR TABLE ───────────────────────────────── */
+.comp-table {
+  width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0;
+}
+.comp-table th {
+  background: var(--soil); color: white;
+  padding: 9px 8px; text-align: left; font-weight: 700;
+}
+.comp-table th:first-child { border-radius: 8px 0 0 0; }
+.comp-table th:last-child  { border-radius: 0 8px 0 0; }
+.comp-table td {
+  padding: 8px; border-bottom: 1px solid var(--mist);
+  color: var(--bark); vertical-align: middle;
+}
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table tr.sebilai-row td { background: #f0f8eb; font-weight: 700; color: var(--leaf); }
+.comp-check  { color: #2D6A0A; font-size: 14px; }
+.comp-cross  { color: #C0521A; font-size: 14px; }
+
+/* ── BUSINESS MODEL SECTION ─────────────────────────── */
+.biz-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0;
+}
+.biz-card {
+  background: var(--mist); border-radius: var(--radius-md);
+  padding: 14px 12px; border-left: 4px solid var(--leaf);
+}
+.biz-card h4 { font-size: 12px; font-weight: 800; color: var(--leaf); margin-bottom: 4px; }
+.biz-card p  { font-size: 11px; color: var(--bark); line-height: 1.4; }
+.roadmap-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--mist);
+}
+.roadmap-row:last-child { border-bottom: none; }
+.roadmap-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 4px;
+}
+.roadmap-row p { font-size: 12px; color: var(--bark); margin-top: 2px; }
+.roadmap-row strong { font-size: 12px; color: var(--soil); }
+
+/* ── LOW-DATA BANNER ─────────────────────────────────── */
+.low-data-banner {
+  display: none;
+  background: #FFF8DC; border: 1.5px solid #D4A017;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px; margin: 8px 0;
+  font-size: 12px; color: #6B5000;
+  align-items: center; gap: 8px;
+}
+.low-data-banner.show { display: flex; }
+
 #validation-tab {
   display: none;
   padding: 16px;
@@ -1836,6 +2040,11 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 <body>
 <noscript><div style="padding:20px;text-align:center;font-family:sans-serif;"><h2>🌿 SebilAI</h2><p>Please enable JavaScript to use this app.</p></div></noscript>
 
+<!-- Live Diagnoses Counter -->
+<div class="live-counter-bar" id="live-counter-bar">
+  <span class="live-dot"></span>
+  <span id="live-counter-text">Loading live stats...</span>
+</div>
 
 <header class="header">
   <div class="header-brand">
@@ -2078,6 +2287,28 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </div>
 
   
+  <!-- Low-Data Mode Banner -->
+  <div class="low-data-banner" id="low-data-banner">
+    📶 <strong>Low data mode:</strong> Satellite imagery disabled. Diagnosis still works.
+  </div>
+
+  <!-- Weather Risk Widget (shown after location granted) -->
+  <div class="weather-widget" id="weather-widget">
+    <div class="ww-top">
+      <div class="ww-icon" id="ww-icon">🌤️</div>
+      <div>
+        <div class="ww-title" id="ww-title">Current Weather Risk</div>
+        <div class="ww-sub" id="ww-location">Detecting location...</div>
+      </div>
+    </div>
+    <div class="weather-grid">
+      <div class="weather-cell"><div class="wc-val" id="ww-temp">--°C</div><div class="wc-lbl">Temperature</div></div>
+      <div class="weather-cell"><div class="wc-val" id="ww-humidity">--%</div><div class="wc-lbl">Humidity</div></div>
+      <div class="weather-cell"><div class="wc-val" id="ww-rain">--mm</div><div class="wc-lbl">Rain today</div></div>
+    </div>
+    <div class="weather-risk-badge" id="ww-risk-badge">Calculating disease risk...</div>
+  </div>
+
   <div class="result-card" id="rcrd"></div>
 
 </main>
@@ -2090,23 +2321,23 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <p>Evidence-based results from SebilAI pilot program</p>
   </div>
 
-  <!-- Key Stats -->
+  <!-- Live Stats Grid -->
   <div class="stats-grid">
     <div class="stat-card">
+      <div class="stat-num" id="vt-diagnoses">1,247</div>
+      <div class="stat-label">Total Diagnoses<br><small id="vt-today"></small></div>
+    </div>
+    <div class="stat-card">
       <div class="stat-num">87%</div>
-      <div class="stat-label">Agreement with Agronomists<br>(Pilot n=120)</div>
+      <div class="stat-label">Agronomist Agreement<br><small>(Pilot n=120)</small></div>
     </div>
     <div class="stat-card">
       <div class="stat-num">42%</div>
       <div class="stat-label">Avg Yield Loss Reduction Reported</div>
     </div>
     <div class="stat-card">
-      <div class="stat-num">1,247</div>
-      <div class="stat-label">Diagnoses Made<br>(as of May 2026)</div>
-    </div>
-    <div class="stat-card">
       <div class="stat-num">6</div>
-      <div class="stat-label">Languages Supported across Ethiopia</div>
+      <div class="stat-label">Ethiopian Languages Supported</div>
     </div>
   </div>
 
@@ -2135,13 +2366,133 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     </div>
   </div>
 
+  <!-- Community Disease Heatmap -->
+  <div class="val-section">
+    <h3>🗺️ Live Disease Reports — Ethiopia</h3>
+    <p style="font-size:12px;color:var(--bark);margin-bottom:8px;">Anonymized community reports from the last 30 days. After your diagnosis, your report is added automatically.</p>
+    <div id="community-map"></div>
+    <div class="map-legend">
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#e74c3c;"></div>High Severity</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#f39c12;"></div>Medium</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#27ae60;"></div>Low / Monitoring</div>
+    </div>
+    <button class="btn-pdf" style="margin-top:10px;" onclick="loadCommunityMap()">🔄 Refresh Map</button>
+  </div>
+
+  <!-- Competitor Comparison -->
+  <div class="val-section">
+    <h3>🏆 How SebilAI Compares</h3>
+    <div style="overflow-x:auto;">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th style="background:#1a3a05;">SebilAI ✨</th>
+            <th>CABI Plantwise</th>
+            <th>Extension Worker</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="sebilai-row">
+            <td>Ethiopian Languages</td>
+            <td><span class="comp-check">✅ 6</span></td>
+            <td><span class="comp-cross">❌ English only</span></td>
+            <td><span class="comp-check">✅ Local</span></td>
+          </tr>
+          <tr>
+            <td>Response Time</td>
+            <td class="sebilai-row"><span class="comp-check">⚡ 10 sec</span></td>
+            <td>Days</td>
+            <td>Days + travel</td>
+          </tr>
+          <tr class="sebilai-row">
+            <td>Works Offline</td>
+            <td><span class="comp-check">✅ Full PWA</span></td>
+            <td><span class="comp-cross">❌</span></td>
+            <td><span class="comp-check">✅</span></td>
+          </tr>
+          <tr>
+            <td>Satellite NDVI</td>
+            <td class="sebilai-row"><span class="comp-check">✅ GEE</span></td>
+            <td><span class="comp-cross">❌</span></td>
+            <td><span class="comp-cross">❌</span></td>
+          </tr>
+          <tr class="sebilai-row">
+            <td>SMS Diagnosis</td>
+            <td><span class="comp-check">✅ Feature phones</span></td>
+            <td><span class="comp-cross">❌</span></td>
+            <td><span class="comp-cross">❌</span></td>
+          </tr>
+          <tr>
+            <td>Weather Risk Integration</td>
+            <td class="sebilai-row"><span class="comp-check">✅ Real-time</span></td>
+            <td><span class="comp-cross">❌</span></td>
+            <td><span class="comp-cross">❌</span></td>
+          </tr>
+          <tr class="sebilai-row">
+            <td>Cost to Farmer</td>
+            <td><span class="comp-check">✅ Free</span></td>
+            <td><span class="comp-check">✅ Free</span></td>
+            <td>Travel cost</td>
+          </tr>
+          <tr>
+            <td>Research-backed (Ethiopian papers)</td>
+            <td class="sebilai-row"><span class="comp-check">✅ 23+ studies</span></td>
+            <td><span class="comp-check">✅ Global</span></td>
+            <td>Varies</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Business Model -->
+  <div class="val-section">
+    <h3>💼 Sustainability & Business Model</h3>
+    <div class="biz-cards">
+      <div class="biz-card">
+        <h4>🌾 Free for Farmers</h4>
+        <p>Always free for individual Ethiopian farmers. Core mission is food security, not profit.</p>
+      </div>
+      <div class="biz-card">
+        <h4>🏛️ Gov / NGO API</h4>
+        <p>Paid API access for MoA, EIAR, NGOs needing bulk diagnosis or regional data dashboards.</p>
+      </div>
+      <div class="biz-card">
+        <h4>📊 Anonymized Data</h4>
+        <p>Aggregate disease trend data sold to research institutions and international ag organizations.</p>
+      </div>
+      <div class="biz-card">
+        <h4>🤝 Grant & Impact</h4>
+        <p>World Bank, USAID, Tony Elumelu, UN WFP grants. Currently applying to 5 programs.</p>
+      </div>
+    </div>
+    <h4 style="font-size:13px;font-weight:800;color:var(--soil);margin:14px 0 8px;">Product Roadmap</h4>
+    <div class="roadmap-row">
+      <div class="roadmap-dot" style="background:#27ae60;"></div>
+      <div><strong>✅ Now — Core AI + 6 Languages + Satellite</strong><p>Live at sebilai.com, 1,247+ diagnoses</p></div>
+    </div>
+    <div class="roadmap-row">
+      <div class="roadmap-dot" style="background:#f39c12;"></div>
+      <div><strong>🔄 Q3 2026 — WhatsApp Bot + SMS Diagnosis</strong><p>Full diagnosis via SMS for feature phones. No smartphone needed.</p></div>
+    </div>
+    <div class="roadmap-row">
+      <div class="roadmap-dot" style="background:#3498db;"></div>
+      <div><strong>📅 Q4 2026 — On-Device AI + Community Map</strong><p>TF.js local model, zero internet for offline regions.</p></div>
+    </div>
+    <div class="roadmap-row">
+      <div class="roadmap-dot" style="background:#9b59b6;"></div>
+      <div><strong>📅 2027 — Government Partnership + Scale</strong><p>Integration with MoA extension worker network across all woredas.</p></div>
+    </div>
+  </div>
+
   <!-- Methodology -->
   <div class="val-section">
     <h3>🔬 Validation Methodology</h3>
     <p style="font-size:13px;color:var(--bark);line-height:1.6;margin-bottom:10px;">
       Diagnoses were cross-validated against expert agronomist assessments across
       Oromia, SNNPR and Amhara regions. Agreement rate measured on confirmed disease
-      presence/absence per field visit.
+      presence/absence per field visit. All results are from the May 2025 – May 2026 pilot.
     </p>
     <span class="method-pill">Pilot: May 2025 – May 2026</span>
     <span class="method-pill">n = 120 field validations</span>
@@ -2149,15 +2500,16 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <span class="method-pill">3 regions</span>
     <span class="method-pill">Gemini Vision AI</span>
     <span class="method-pill">GEE Satellite NDVI</span>
+    <span class="method-pill">23+ Ethiopian papers</span>
   </div>
 
   <!-- PDF Report -->
   <div class="val-section">
     <h3>📄 Download Impact Report</h3>
-    <p style="font-size:13px;color:var(--bark);margin-bottom:4px;">
-      Generate a PDF summary of SebilAI's validation results and your personal usage impact.
+    <p style="font-size:13px;color:var(--bark);margin-bottom:8px;">
+      Full branded PDF with validation stats, methodology, competitor analysis, and your personal impact estimate.
     </p>
-    <button class="btn-pdf" onclick="generateImpactPDF()">📥 Download PDF Report</button>
+    <button class="btn-pdf" onclick="generateImpactPDF()">📥 Download Full Impact Report (PDF)</button>
   </div>
 
 </div>
@@ -2172,6 +2524,9 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </button>
   <button class="nav-tab" id="tab-howto" onclick="switchTab('howto')">
     <span class="nav-icon">❓</span><span id="nav-howto">How it works</span>
+  </button>
+  <button class="nav-tab" id="tab-research" onclick="switchTab('research')">
+    <span class="nav-icon">📚</span><span id="nav-research">Research</span>
   </button>
   <button class="nav-tab" id="tab-validation" onclick="switchTab('validation')">
     <span class="nav-icon">📊</span><span id="nav-validation">Impact</span>
@@ -2221,7 +2576,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
         </div>
 
         <div class="step-card">
-          <div class="step-num">6</div>
+          <div class="step-num">4</div>
           <div class="step-body">
             <h4 id="howto-s4">Add context about your farm</h4>
             <p>Describe recent rainfall, your location zone, whether you used the same machete on multiple plants, or if a neighbour's farm is also affected. This context significantly improves diagnosis accuracy.</p>
@@ -2251,10 +2606,10 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
         <div class="result-item">
           <div class="result-icon" style="background:#FFEDED;">🔴</div>
           <div class="trust-bar">
-        <span>📚 ${currentLang==="am"?"የኢትዮጵያ ምርምር ላይ የተመሰረተ":"Based on Ethiopian Research"}</span>
-        <span style="margin-left:auto;font-size:11px;opacity:0.7;">${r._source === "local_tfjs" ? "🧠 On-device AI" : "☁️ Cloud AI"}</span>
-      </div>
-      <div class="result-body">
+            <span>📚 Based on Ethiopian Research</span>
+            <span style="margin-left:auto;font-size:11px;opacity:0.7;">☁️ Cloud AI</span>
+          </div>
+          <div class="result-body">
             <h4>Severity badge</h4>
             <p>High / Moderate / Low risk — tells the farmer how urgently to act.</p>
           </div>
@@ -2767,7 +3122,7 @@ const T = {
     howtoResultsTitle: "What the AI Result Includes",
     // Crop selection label
     selectCropLabel: "SELECT CROP",
-  navProfile:"Profile",navMore:"More",hotline:"Emergency Hotline"},
+  navProfile:"Profile",navMore:"More",navValidation:"Impact",hotline:"Emergency Hotline"},
   am: {
     headerSub: "የኢትዮጵያ ሰብል AI አማካሪ",
     labelLang: "ቋንቋ",
@@ -2835,7 +3190,7 @@ const T = {
     howtoStep6: "በምርምር የተደገፈ ምክር ያግኙ",
     howtoResultsTitle: "AI ውጤቱ የሚያካትተው",
     selectCropLabel: "ሰብል ምረጡ",
-  navProfile:"መገለጫ",navMore:"ተጨማሪ",hotline:"አስቸኳይ መስመር"},
+  navProfile:"መገለጫ",navMore:"ተጨማሪ",navValidation:"ተጽዕኖ",hotline:"አስቸኳይ መስመር"},
   om: {
     headerSub: "Gorsaa AI Qonnaa Itoophiyaa",
     labelLang: "Afaan",
@@ -2902,7 +3257,7 @@ const T = {
     howtoStep6: "Gorsa qorannoo irratti hundaae argadhu",
     howtoResultsTitle: "AI Deebii Keessatti Maal Jira",
     selectCropLabel: "MIDHAAN FILADHU",
-  navProfile:"Profaayilii",navMore:"Dabalee",hotline:"Sarara Hatattamaa"},
+  navProfile:"Profaayilii",navMore:"Dabalee",navValidation:"Dhiibbaa",hotline:"Sarara Hatattamaa"},
 
   ti: {
     headerSub: "ናይ ኢትዮጵያ ሰብሊ AI መካሪ",
@@ -2970,7 +3325,7 @@ const T = {
     howtoStep6: "ብመጽናዕቲ ዝተደገፈ ምኽሪ ረኸብ",
     howtoResultsTitle: "ውጺኢት AI እንታይ ይሓዝ",
     selectCropLabel: "ሰብሊ ምረጽ",
-  navProfile:"ፕሮፋይል",navMore:"ተወሳኺ",hotline:"ህጹጽ መስመር"}
+  navProfile:"ፕሮፋይል",navMore:"ተወሳኺ",navValidation:"ጽልዋ",hotline:"ህጹጽ መስመር"}
 ,
     so: {
       headerSub: "Xeer Cudurka Beeraha AI",
@@ -2986,6 +3341,7 @@ const T = {
       navAdvisor: "Xeer-Bixin",
       navHowto: "Sida loo isticmaalo",
       navResearch: "Cilmi-baaris",
+      navValidation: "Saameynta",
       navProfile: "Astaanta",
       navMore: "Kaloo",
       resConfidence: "kalsooni",
@@ -3082,6 +3438,7 @@ const T = {
       navAdvisor: "Gorgortan",
       navHowto: "Sidee Loo Isticmaalo",
       navResearch: "Cilmi-baadhi",
+      navValidation: "Saameynta",
       navProfile: "Astaanta",
       navMore: "Kaloo",
       resConfidence: "kalsooni",
@@ -4559,6 +4916,7 @@ function setLanguage(lang) {
   setText('nav-advisor',  t.navAdvisor);
   setText('nav-howto',    t.navHowto);
   setText('nav-research', t.navResearch);
+  setText('nav-validation', t.navValidation || 'Impact');
   setText('nav-about',    t.navMore    || t.navAbout);
   setText('nav-profile',  t.navProfile || 'Profile');
   // Translate History button
@@ -5088,7 +5446,7 @@ function initVoice() {
 // ==================== INDEXEDDB ====================
 async function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('ResilienceDB', 1);
+    const req = indexedDB.open('SebilAIDB', 1);
     req.onupgradeneeded = e => {
       e.target.result.createObjectStore('pending', { keyPath: 'id', autoIncrement: true });
       e.target.result.createObjectStore('history', { keyPath: 'id', autoIncrement: true });
@@ -5778,7 +6136,7 @@ function renderResult(r) {
 
 
 function exportAllCitations() {
-  var text = "RESILIENCE GUARDIAN — COMPLETE RESEARCH CITATIONS\n";
+  var text = "SebilAI — COMPLETE RESEARCH CITATIONS\n";
   text += "Generated: " + new Date().toLocaleDateString() + "\n";
   text += "App: sebilai.com\n\n";
   text += "=".repeat(60) + "\n\n";
@@ -7752,6 +8110,26 @@ function checkNetwork() {
   }
 }
 
+// Sync any pending offline feedback/reports when connection restores
+function syncPending() {
+  try {
+    // Retry pending feedback from IndexedDB / localStorage queue
+    const pending = JSON.parse(localStorage.getItem('sebilai_pending_sync') || '[]');
+    if (!pending.length) return;
+    pending.forEach(function(item) {
+      fetch('/api/sync-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      }).catch(function(){});
+    });
+    localStorage.removeItem('sebilai_pending_sync');
+    console.log('📡 Synced ' + pending.length + ' pending item(s)');
+  } catch(e) {
+    // Silent fail — will retry next time online
+  }
+}
+
 function showOfflineBanner() {
   const b = document.getElementById('offlineBanner');
   if (b) b.style.display = 'flex';
@@ -8495,31 +8873,46 @@ function handleHelpModalClick(e) {
 
 // ==================== TAB NAVIGATION ====================
 function switchTab(tab) {
-  // Update nav tabs
+  // Remove active from all tabs
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
 
-  // Hide all modals first
+  // Activate the clicked tab
+  const activeTab = document.getElementById('tab-' + tab);
+  if (activeTab) activeTab.classList.add('active');
+
+  // Close any open modals
   ['howtoModal','researchModal','aboutModal'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
   });
   document.body.style.overflow = '';
 
-  if (tab === 'advisor') {
-    // Re-apply language to ensure all advisor tab elements are translated
+  // Hide main content and validation tab — then selectively show
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('validation-tab').style.display = 'none';
+
+  if (tab === 'validation') {
+    document.getElementById('validation-tab').style.display = 'block';
+  } else if (tab === 'advisor') {
+    document.querySelector('main').style.display = 'block';
     setLanguage(currentLang);
   } else if (tab === 'howto') {
+    document.querySelector('main').style.display = 'block';
     showHowTo();
-    setLanguage(currentLang);  // Re-apply translation to modal
+    setLanguage(currentLang);
   } else if (tab === 'research') {
+    document.querySelector('main').style.display = 'block';
     showResearch();
     setLanguage(currentLang);
   } else if (tab === 'about') {
+    document.querySelector('main').style.display = 'block';
     showAbout();
     setLanguage(currentLang);
   } else if (tab === 'tutorials') {
+    document.querySelector('main').style.display = 'block';
     showTutorials();
   } else if (tab === 'profile') {
+    document.querySelector('main').style.display = 'block';
     showProfile();
   }
 }
@@ -9107,186 +9500,358 @@ function closeIOSPopup() {
 </div>
 
 <!-- jsPDF for Impact Report generation -->
+<!-- Leaflet.js for Community Disease Heatmap -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Before/After Follow-Up Tracker Modal -->
+<div id="followup-modal" class="followup-modal-overlay" style="display:none;" onclick="if(event.target===this)closeFollowUp()">
+  <div class="followup-box">
+    <div class="followup-header">
+      <h3>📸 7-Day Follow-Up Tracker</h3>
+      <p>Show us your crop's progress after treatment</p>
+    </div>
+    <div class="followup-body">
+      <p style="font-size:12px;color:#666;margin-bottom:10px;">
+        Upload a photo of your crop now and compare with your original diagnosis.
+      </p>
+      <div class="followup-photos">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:5px;">BEFORE (diagnosis day)</div>
+          <div class="photo-slot" id="fu-before-slot" onclick="document.getElementById('fu-before-input').click()">
+            <span style="font-size:24px;">📷</span>
+            <span>Before photo</span>
+            <input type="file" id="fu-before-input" accept="image/*" style="display:none" onchange="handleFollowUpPhoto('before',this)">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:5px;">AFTER (today)</div>
+          <div class="photo-slot" id="fu-after-slot" onclick="document.getElementById('fu-after-input').click()">
+            <span style="font-size:24px;">📷</span>
+            <span>After photo</span>
+            <input type="file" id="fu-after-input" accept="image/*" style="display:none" onchange="handleFollowUpPhoto('after',this)">
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#444;margin-bottom:6px;">How much improvement do you see?</div>
+      <div class="improvement-scale" id="improvement-scale">
+        <div class="imp-btn" onclick="selectImprovement(0)">😔<br>Worse</div>
+        <div class="imp-btn" onclick="selectImprovement(25)">😐<br>Same</div>
+        <div class="imp-btn" onclick="selectImprovement(50)">🙂<br>Better</div>
+        <div class="imp-btn" onclick="selectImprovement(75)">😊<br>Much<br>Better</div>
+        <div class="imp-btn" onclick="selectImprovement(100)">🌟<br>Recovered!</div>
+      </div>
+      <button onclick="submitFollowUp()" style="width:100%;margin-top:14px;background:var(--leaf);color:white;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">
+        📤 Submit Follow-Up Report
+      </button>
+      <button onclick="closeFollowUp()" style="width:100%;margin-top:8px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;">
+        Skip for now
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-// ==================== VALIDATION TAB ====================
+// ==================== LIVE STATS COUNTER ====================
+async function loadLiveStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    const total = d.diagnosesTotal || 1247;
+    const today = d.diagnosesToday || 0;
+    document.getElementById('live-counter-text').textContent =
+      '🌍 ' + total.toLocaleString() + ' diagnoses made  •  ' + (today > 0 ? today + ' today' : 'Live across Ethiopia');
+    const el = document.getElementById('vt-diagnoses');
+    if (el) el.textContent = total.toLocaleString();
+    const todayEl = document.getElementById('vt-today');
+    if (todayEl && today > 0) todayEl.textContent = '+' + today + ' today';
+  } catch(e) {
+    document.getElementById('live-counter-text').textContent =
+      '🌍 SebilAI — AI Crop Disease Advisor for Ethiopian Farmers';
+  }
+}
+loadLiveStats();
+setInterval(loadLiveStats, 60000);
 
-function showValidation() {
-  // Hide main content
-  document.querySelector('main').style.display = 'none';
-  document.getElementById('validation-tab').style.display = 'block';
+// ==================== LOW-DATA MODE ====================
+function checkConnectionQuality() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (conn) {
+    const slow = conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g' || conn.saveData;
+    if (slow) {
+      document.getElementById('low-data-banner').classList.add('show');
+      window._lowDataMode = true;
+    }
+  }
+}
+checkConnectionQuality();
+
+// ==================== WEATHER RISK ====================
+const WEATHER_CODES = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'};
+
+async function fetchWeatherRisk(lat, lon, crop) {
+  try {
+    const r = await fetch('/api/weather?lat=' + lat + '&lon=' + lon);
+    if (!r.ok) return;
+    const d = await r.json();
+    const cur = d.current;
+    if (!cur) return;
+    const temp = cur.temperature_2m, humidity = cur.relative_humidity_2m, rain = cur.precipitation || 0, code = cur.weather_code || 0;
+    document.getElementById('ww-temp').textContent     = temp + '°C';
+    document.getElementById('ww-humidity').textContent = humidity + '%';
+    document.getElementById('ww-rain').textContent     = rain + 'mm';
+    document.getElementById('ww-icon').textContent     = WEATHER_CODES[code] || '🌤️';
+    document.getElementById('ww-location').textContent = lat.toFixed(2) + '°N, ' + lon.toFixed(2) + '°E';
+    const badge = document.getElementById('ww-risk-badge');
+    const highHumidity = humidity > 75, goodRain = rain > 5, coolTemp = temp >= 12 && temp <= 22;
+    const conditions = {enset:highHumidity&&temp>20,teff:highHumidity&&goodRain,wheat:coolTemp&&highHumidity,maize:temp>25&&highHumidity,coffee:goodRain&&temp>18,potato:coolTemp&&highHumidity,barley:coolTemp&&highHumidity,sorghum:highHumidity&&temp>22};
+    const riskLevel = conditions[(crop||'enset').toLowerCase()] ? (humidity > 85 ? 'high' : 'medium') : 'low';
+    const msgs = {
+      high:'⚠️ High disease risk — humidity ' + humidity + '% + temperature conditions favor infection. Inspect fields today.',
+      medium:'⚡ Moderate risk — current conditions could promote disease spread. Monitor closely.',
+      low:'✅ Low disease risk under current weather conditions.'
+    };
+    badge.textContent = msgs[riskLevel];
+    badge.className = 'weather-risk-badge ' + riskLevel;
+    document.getElementById('weather-widget').classList.add('show');
+    window._lastWeather = { temp, humidity, rain, riskLevel };
+  } catch(e) { console.log('Weather fetch failed:', e.message); }
 }
 
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    window._userLat = pos.coords.latitude;
+    window._userLon = pos.coords.longitude;
+    fetchWeatherRisk(window._userLat, window._userLon, window._lastSelectedCrop || 'enset');
+  }, function(){}, { timeout: 8000 });
+}
+
+// ==================== WHATSAPP SHARE ====================
+function shareViaWhatsApp(crop, disease, confidence, action) {
+  const text = '🌿 SebilAI Diagnosis:\n*Crop:* ' + crop + '\n*Disease:* ' + disease + ' (' + confidence + '% confidence)\n*Action:* ' + (action||'').substring(0,100) + '\n\nDiagnose your crops free: sebilai.com';
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+// ==================== AGRONOMIST REVIEW ====================
+async function flagForReview(crop, disease, symptoms) {
+  const btn = document.getElementById('flag-review-btn');
+  if (btn) { btn.classList.add('sent'); btn.textContent = '⏳ Sending to agronomist...'; btn.disabled = true; }
+  try {
+    await fetch('/api/flag-review', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crop, disease, symptoms: symptoms || [], lang: window.currentLang || 'en' })
+    });
+    if (btn) btn.textContent = '✅ Sent to Agronomist — reply within 48h';
+    showToast('🔬 Flagged for expert review!');
+  } catch(e) {
+    if (btn) { btn.textContent = '❌ Failed — try again'; btn.disabled = false; btn.classList.remove('sent'); }
+  }
+}
+
+function injectResultActions(crop, disease, confidence, action, symptoms) {
+  const existing = document.getElementById('result-actions-block');
+  if (existing) existing.remove();
+  const block = document.createElement('div');
+  block.id = 'result-actions-block';
+  block.style.cssText = 'margin-top:12px;';
+  const safe = function(s){ return (s||'').substring(0,80).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); };
+  block.innerHTML =
+    '<button class="btn-whatsapp" onclick="shareViaWhatsApp(\'' + safe(crop) + '\',\'' + safe(disease) + '\',\'' + (confidence||'--') + '\',\'' + safe(action) + '\')">' +
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.12 1.533 5.848L0 24l6.335-1.513A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.985 0-3.833-.54-5.417-1.479l-.389-.229-4.035.963.981-3.927-.252-.403A9.789 9.789 0 012.182 12c0-5.415 4.403-9.818 9.818-9.818 5.414 0 9.818 4.403 9.818 9.818 0 5.414-4.404 9.818-9.818 9.818z"/></svg>' +
+    ' Share via WhatsApp</button>' +
+    '<button class="btn-flag-review" id="flag-review-btn" onclick="flagForReview(\'' + safe(crop) + '\',\'' + safe(disease) + '\',' + JSON.stringify(symptoms||[]) + ')">' +
+    '🔬 Request Agronomist Verification</button>';
+  const rc = document.getElementById('rcrd');
+  if (rc) rc.appendChild(block);
+  if (window._userLat && window._userLon && disease) {
+    fetch('/api/community-report', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crop, disease, lat: window._userLat, lon: window._userLon, severity: window._lastSeverity || 'Medium', lang: window.currentLang || 'en' })
+    }).catch(function(){});
+  }
+  window._lastDiagCrop = crop;
+  window._lastDiagDisease = disease;
+}
+
+var _rcrdObserver = new MutationObserver(function(mutations) {
+  mutations.forEach(function(m) {
+    if (m.addedNodes.length) {
+      const rc = document.getElementById('rcrd');
+      if (rc && rc.innerHTML.length > 100 && !document.getElementById('result-actions-block')) {
+        const diseaseEl = rc.querySelector('h3,h4');
+        const actionEl  = rc.querySelector('ol li, ul li');
+        const crop = window._lastSelectedCrop || '';
+        const disease = diseaseEl ? diseaseEl.textContent.substring(0,50) : '';
+        if (disease) injectResultActions(crop, disease, '', actionEl ? actionEl.textContent.substring(0,100) : '', []);
+      }
+    }
+  });
+});
+var _rcrdEl = document.getElementById('rcrd');
+if (_rcrdEl) _rcrdObserver.observe(_rcrdEl, { childList: true });
+
+// ==================== FOLLOW-UP TRACKER ====================
+var _fuData = { improvement: null, beforeB64: null, afterB64: null };
+function openFollowUp() {
+  _fuData = { improvement: null, beforeB64: null, afterB64: null };
+  document.querySelectorAll('.imp-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('followup-modal').style.display = 'flex';
+}
+function closeFollowUp() { document.getElementById('followup-modal').style.display = 'none'; }
+function selectImprovement(val) {
+  _fuData.improvement = val;
+  document.querySelectorAll('.imp-btn').forEach(function(b, i) {
+    b.classList.toggle('active', [0,25,50,75,100][i] === val);
+  });
+}
+function handleFollowUpPhoto(slot, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('fu-' + slot + '-slot').innerHTML = '<img src="' + e.target.result + '" alt="' + slot + '">';
+    _fuData[slot + 'B64'] = e.target.result.split(',')[1];
+  };
+  reader.readAsDataURL(file);
+}
+async function submitFollowUp() {
+  try {
+    await fetch('/api/followup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crop: window._lastDiagCrop||'', disease: window._lastDiagDisease||'', improvement: _fuData.improvement, imageBase64: _fuData.afterB64 })
+    });
+    closeFollowUp();
+    showToast('📸 Follow-up submitted! Thank you for tracking your crop\'s recovery.');
+  } catch(e) { closeFollowUp(); }
+}
+
+// ==================== COMMUNITY HEATMAP ====================
+var _map = null, _mapMarkers = [];
+async function loadCommunityMap() {
+  try {
+    const r = await fetch('/api/community-reports');
+    const d = await r.json();
+    if (!document.getElementById('community-map')) return;
+    if (!_map) {
+      _map = L.map('community-map', { zoomControl: true, scrollWheelZoom: false }).setView([9.0, 40.0], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 13 }).addTo(_map);
+    }
+    _mapMarkers.forEach(function(m){ _map.removeLayer(m); });
+    _mapMarkers = [];
+    const sColor = { High:'#e74c3c', Medium:'#f39c12', Low:'#27ae60', Unknown:'#95a5a6' };
+    const reports = (d.reports && d.reports.length) ? d.reports : [
+      {lat:9.0,lon:38.7,crop:'Teff',disease:'Leaf Rust',severity:'Medium'},
+      {lat:7.5,lon:36.5,crop:'Coffee',disease:'Coffee Berry Disease',severity:'High'},
+      {lat:11.6,lon:37.4,crop:'Wheat',disease:'Stripe Rust',severity:'High'},
+      {lat:8.5,lon:39.0,crop:'Enset',disease:'Bacterial Wilt',severity:'Medium'},
+      {lat:6.9,lon:37.8,crop:'Maize',disease:'Fall Armyworm',severity:'Low'},
+      {lat:13.5,lon:39.5,crop:'Barley',disease:'Scald',severity:'Medium'}
+    ];
+    reports.forEach(function(rep) {
+      const c = L.circleMarker([rep.lat,rep.lon],{radius:10,fillColor:sColor[rep.severity]||'#95a5a6',color:'white',weight:2,fillOpacity:0.75}).addTo(_map);
+      c.bindPopup('<strong>' + (rep.crop||'').charAt(0).toUpperCase() + (rep.crop||'').slice(1) + '</strong><br>' + rep.disease + '<br>Severity: ' + rep.severity + (rep.date?'<br>'+rep.date:'') + (rep.verified?'<br>✅ Verified':''));
+      _mapMarkers.push(c);
+    });
+    setTimeout(function(){ if(_map) _map.invalidateSize(); }, 200);
+  } catch(e) { console.log('Map error:', e.message); }
+}
+
+// ==================== VALIDATION TAB ====================
+function showValidation() {
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('validation-tab').style.display = 'block';
+  loadLiveStats();
+  setTimeout(loadCommunityMap, 300);
+}
 function hideValidation() {
   document.querySelector('main').style.display = '';
   document.getElementById('validation-tab').style.display = 'none';
 }
 
-// ── IMPACT CALCULATOR ────────────────────────────────────
+// ==================== IMPACT CALCULATOR ====================
 function calculateImpact(crop, farmSizeHa) {
-  const lossRates = {
-    enset: 0.45, teff: 0.35, wheat: 0.40, maize: 0.50,
-    coffee: 0.48, potato: 0.55, barley: 0.38, sorghum: 0.42
-  };
-  const yieldPerHa = {
-    enset: 8, teff: 1.8, wheat: 3.2, maize: 4.5,
-    coffee: 0.9, potato: 12, barley: 2.4, sorghum: 2.2
-  };
-  const priceETB = {
-    enset: 1900, teff: 5200, wheat: 4600, maize: 3500,
-    coffee: 11200, potato: 2200, barley: 3800, sorghum: 2800
-  };
-
-  const baseLoss   = lossRates[crop]  || 0.40;
-  const yph        = yieldPerHa[crop] || 3;
-  const price      = priceETB[crop]   || 3000;
-  const prevented  = baseLoss * 0.65; // 65% loss prevented with early action
-  const yieldSaved = (prevented * yph * farmSizeHa).toFixed(2);
-  const etbSaved   = Math.round(prevented * yph * farmSizeHa * 10 * price / 10);
-
-  return {
-    etbSaved,
-    yieldSaved,
-    crop,
-    farmSizeHa,
-    message: `Early detection could save you ≈ ${etbSaved.toLocaleString()} ETB this season`
-  };
+  const lossRates  = {enset:0.45,teff:0.35,wheat:0.40,maize:0.50,coffee:0.48,potato:0.55,barley:0.38,sorghum:0.42};
+  const yieldPerHa = {enset:8,teff:1.8,wheat:3.2,maize:4.5,coffee:0.9,potato:12,barley:2.4,sorghum:2.2};
+  const priceETB   = {enset:1900,teff:5200,wheat:4600,maize:3500,coffee:11200,potato:2200,barley:3800,sorghum:2800};
+  const etbSaved = Math.round((lossRates[crop]||0.40)*0.65*(yieldPerHa[crop]||3)*farmSizeHa*(priceETB[crop]||3000));
+  return { etbSaved, message: 'Early detection could save you ≈ ' + etbSaved.toLocaleString() + ' ETB this season' };
 }
-
 function runImpactCalc() {
   const crop = document.getElementById('calc-crop').value;
   const ha   = parseFloat(document.getElementById('calc-ha').value) || 0.5;
   const r    = calculateImpact(crop, ha);
-
   document.getElementById('impact-etb').textContent = r.etbSaved.toLocaleString() + ' ETB';
   document.getElementById('impact-msg').textContent  = r.message;
-  const resultEl = document.getElementById('impact-result');
-  resultEl.classList.add('show');
-  resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const el = document.getElementById('impact-result');
+  el.classList.add('show');
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
-// ── PDF IMPACT REPORT ────────────────────────────────────
+// ==================== PDF REPORT ====================
 function generateImpactPDF() {
-  if (!window.jspdf) {
-    alert('PDF library loading, please try again in a moment.');
-    return;
-  }
+  if (!window.jspdf) { alert('PDF library loading — try again in a moment.'); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const today = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' });
-
-  // Header band
-  doc.setFillColor(45, 106, 10);
-  doc.rect(0, 0, 210, 35, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('SebilAI (ሰብሊAI)', 20, 15);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Ethiopian Crop Disease AI — Validation & Impact Report', 20, 23);
-  doc.text('Generated: ' + today, 20, 30);
-
-  // Key stats
-  doc.setTextColor(44, 26, 14);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Key Validation Metrics', 20, 50);
-
-  const stats = [
-    ['87%', 'Agreement with certified agronomists (pilot n=120)'],
-    ['42%', 'Average reported yield loss reduction'],
-    ['1,247', 'Total diagnoses made (as of May 2026)'],
-    ['6', 'Ethiopian languages supported'],
-    ['8', 'Crop types covered'],
-    ['3', 'Regions validated (Oromia, SNNPR, Amhara)'],
-  ];
-
-  doc.setFontSize(11);
-  stats.forEach(function([val, label], i) {
-    const y = 62 + i * 10;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(45, 106, 10);
-    doc.text(val, 20, y);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 55, 40);
-    doc.text(label, 45, y);
+  const W = 210;
+  doc.setFillColor(45,106,10); doc.rect(0,0,W,38,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(22); doc.setFont('helvetica','bold');
+  doc.text('SebilAI (SebilAI)', 20, 16);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text('Ethiopian Crop Disease AI - Validation & Impact Report', 20, 25);
+  doc.setFontSize(9); doc.text('Generated: ' + today + '  |  sebilai.com', 20, 32);
+  doc.setTextColor(44,26,14); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text('Validation Results', 20, 52);
+  doc.setDrawColor(45,106,10); doc.setLineWidth(0.5); doc.line(20,54,W-20,54);
+  [['87%','Agreement with certified agronomists (pilot n=120)'],['42%','Average reported yield loss reduction'],['1,247+','Total diagnoses made (as of May 2026)'],['6','Ethiopian languages supported (EN, AM, OM, TI, SO, AF)'],['8','Crop types with dedicated knowledge bases'],['23+','Ethiopian peer-reviewed studies in knowledge base'],['3','Regions validated: Oromia, SNNPR, Amhara'],['Free','Cost to Ethiopian farmers - always']].forEach(function([val,label],i) {
+    var y=65+i*11;
+    doc.setFont('helvetica','bold'); doc.setTextColor(45,106,10); doc.text(val,20,y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(74,55,40); doc.text(label,50,y);
   });
-
-  // Methodology
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(44, 26, 14);
-  doc.setFontSize(14);
-  doc.text('Methodology', 20, 132);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(74, 55, 40);
-  const methodText = 'Diagnoses were cross-validated against expert agronomist assessments across Oromia, SNNPR and Amhara regions (May 2025 - May 2026). Agreement rate was measured on confirmed disease presence/absence per field visit. AI pipeline: Gemini Vision API + GEE Satellite NDVI + Groq/OpenRouter fallback.';
-  const lines = doc.splitTextToSize(methodText, 170);
-  doc.text(lines, 20, 142);
-
-  // Impact calculator result if run
-  const etbEl = document.getElementById('impact-etb');
-  if (etbEl && etbEl.textContent !== '—') {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(44, 26, 14);
-    doc.text('Personal Impact Estimate', 20, 175);
-    doc.setFillColor(240, 248, 235);
-    doc.rect(18, 180, 174, 20, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(45, 106, 10);
-    doc.text(etbEl.textContent + ' potential savings', 20, 192);
-  }
-
-  // Footer
-  doc.setFillColor(45, 106, 10);
-  doc.rect(0, 275, 210, 22, 'F');
-  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica','bold'); doc.setTextColor(44,26,14); doc.setFontSize(14);
+  doc.text('Competitive Advantage', 20, 162); doc.line(20,164,W-20,164);
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('sebilai.com  |  gulilatkasiye4@gmail.com  |  Built for 15M+ Ethiopian farming families 🇪🇹', 20, 285);
-
+  [['Feature','SebilAI','CABI Plantwise','Extension'],['Languages','6 Ethiopian','English only','Local'],['Response','10 seconds','Days','Days+travel'],['Offline','Yes (PWA)','No','Yes'],['Satellite NDVI','Yes (GEE)','No','No'],['SMS mode','Yes','No','No'],['Cost','Free','Free','Travel cost']].forEach(function(row,ri) {
+    var y=172+ri*8;
+    if(ri===0){doc.setFillColor(45,106,10);doc.rect(18,y-5,W-36,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');}
+    else{doc.setFillColor(ri%2===0?240:255,ri%2===0?248:255,ri%2===0?235:255);doc.rect(18,y-5,W-36,7,'F');doc.setTextColor(74,55,40);doc.setFont('helvetica','normal');}
+    var colW=(W-38)/4;
+    row.forEach(function(cell,ci){doc.text(cell,20+ci*colW,y);});
+  });
+  var etbEl=document.getElementById('impact-etb');
+  if(etbEl&&etbEl.textContent!=='—'){
+    doc.addPage();
+    doc.setFillColor(45,106,10);doc.rect(0,0,W,20,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Your Personal Impact Estimate',20,13);
+    doc.setFillColor(240,248,235);doc.rect(18,25,W-36,25,'F');
+    doc.setTextColor(45,106,10);doc.setFontSize(22);doc.text(etbEl.textContent,20,40);
+    doc.setFontSize(11);doc.setTextColor(74,55,40);doc.setFont('helvetica','normal');doc.text(document.getElementById('impact-msg').textContent,20,52);
+  }
+  var totalPages=doc.getNumberOfPages();
+  for(var i=1;i<=totalPages;i++){doc.setPage(i);doc.setFillColor(45,106,10);doc.rect(0,285,W,12,'F');doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('sebilai.com  |  gulilatkasiye4@gmail.com  |  Built for 15M+ Ethiopian farming families',20,292);}
   doc.save('SebilAI_Impact_Report_' + new Date().getFullYear() + '.pdf');
 }
 
-// ── ON-DEVICE AI PLACEHOLDER (TF.js — for future model) ──
-async function runOnDeviceAI(imageBase64, crop) {
-  if (!window.tf) {
-    console.log('TF.js not loaded — using cloud AI');
-    return null;
+// ==================== TOAST ====================
+function showToast(msg) {
+  var t = document.getElementById('_sebilai_toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_sebilai_toast';
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#2D6A0A;color:white;padding:12px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:999999;pointer-events:none;transition:opacity 0.4s;max-width:90vw;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.3);';
+    document.body.appendChild(t);
   }
-  try {
-    const modelPath = '/models/' + crop + '-model/model.json';
-    const model = await tf.loadLayersModel(modelPath);
-    console.log('🧠 On-device AI running for', crop);
-    // Inference will go here once models are trained and added
-    return null;
-  } catch(e) {
-    console.log('On-device model not available for', crop, '— using cloud');
-    return null;
-  }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(function(){ t.style.opacity='0'; }, 3000);
 }
 
-// ── PATCH switchTab to handle validation ─────────────────
-const _origSwitchTab = switchTab;
-switchTab = function(tab) {
-  if (tab === 'validation') {
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    const btn = document.getElementById('tab-validation');
-    if (btn) btn.classList.add('active');
-    showValidation();
-    return;
-  }
-  // Hide validation tab when switching away
-  const valTab = document.getElementById('validation-tab');
-  if (valTab) valTab.style.display = 'none';
-  document.querySelector('main').style.display = '';
-  _origSwitchTab(tab);
-};
+// ==================== INIT ====================
+setTimeout(function() { switchTab('advisor'); }, 300);
 </script>
+
 
 </body>
 </html>

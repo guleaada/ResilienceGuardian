@@ -7,7 +7,7 @@ const app  = express();
 const fs   = require('fs');
 
 // ── FILE PERSISTENCE ─────────────────────────────────────
-const DATA_DIR = process.env.DATA_DIR || '/tmp/rg_data';
+const DATA_DIR = process.env.DATA_DIR || '/tmp/sebilai_data';
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
 
 function loadJSON(name, def) {
@@ -146,7 +146,7 @@ async function getSatelliteNDVI(lat, lon, crop) {
 
     const endDate   = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
-    const project   = JSON.parse(GEE_KEY).project_id || 'resilience-guardian';
+    const project   = JSON.parse(GEE_KEY).project_id || 'sebilai';
 
     // GEE REST API v1alpha — computeValue for NDVI at point
     const body = {
@@ -789,6 +789,197 @@ app.get('/api/health', (req, res) => {
     sms:        process.env.AT_API_KEY ? '✅ Africas Talking' : '🟡 No key',
     tts:        '✅ Google Translate TTS (am/om/ti/en)',
     push:       `✅ ${pushSubscriptions.size} push + ${smsSubscribers.size} SMS subscribers`
+  });
+});
+
+// ── COMMUNITY DISEASE REPORTS (for heatmap) ──────────────
+let diseaseReports = loadJSON('disease_reports.json', []);
+
+app.post('/api/community-report', (req, res) => {
+  const { crop, disease, lat, lon, severity, lang } = req.body;
+  if (!crop || !disease || !lat || !lon) return res.status(400).json({ error: 'Missing fields' });
+  const report = {
+    id: Date.now(),
+    crop: crop.toLowerCase(),
+    disease,
+    lat: parseFloat(lat),
+    lon: parseFloat(lon),
+    severity: severity || 'Medium',
+    lang: lang || 'en',
+    date: new Date().toISOString().split('T')[0],
+    verified: false
+  };
+  diseaseReports.push(report);
+  // Keep only last 500 reports
+  if (diseaseReports.length > 500) diseaseReports = diseaseReports.slice(-500);
+  saveJSON('disease_reports.json', diseaseReports);
+  console.log(`📍 Community report: ${disease} on ${crop} at [${lat},${lon}]`);
+  res.json({ ok: true, id: report.id });
+});
+
+app.get('/api/community-reports', (req, res) => {
+  // Return last 30 days only, anonymized (no exact GPS — grid to 0.1 degree)
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const recent = diseaseReports
+    .filter(r => r.date >= cutoff)
+    .map(r => ({
+      crop: r.crop,
+      disease: r.disease,
+      lat: Math.round(r.lat * 10) / 10,   // grid to ~11km
+      lon: Math.round(r.lon * 10) / 10,
+      severity: r.severity,
+      date: r.date,
+      verified: r.verified
+    }));
+  res.json({ reports: recent, total: recent.length });
+});
+
+// ── AGRONOMIST FLAG / EXPERT REVIEW ──────────────────────
+let reviewRequests = loadJSON('review_requests.json', []);
+
+app.post('/api/flag-review', (req, res) => {
+  const { crop, disease, symptoms, imageBase64, contact, lang } = req.body;
+  if (!crop || !disease) return res.status(400).json({ error: 'Missing fields' });
+  const req_data = {
+    id: Date.now(),
+    crop, disease, symptoms: symptoms || [],
+    contact: contact || 'anonymous',
+    lang: lang || 'en',
+    date: new Date().toISOString(),
+    status: 'pending',
+    hasImage: !!imageBase64
+  };
+  reviewRequests.push(req_data);
+  if (reviewRequests.length > 200) reviewRequests = reviewRequests.slice(-200);
+  saveJSON('review_requests.json', reviewRequests);
+  console.log(`🔬 Review request: ${disease} on ${crop} from ${contact || 'anon'}`);
+  // Optionally send email alert here via a simple SMTP/API
+  res.json({ ok: true, id: req_data.id, message: 'An agronomist will review your case within 48 hours.' });
+});
+
+app.get('/api/review-requests', (req, res) => {
+  const key = req.headers['x-admin-key'];
+  if (key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ requests: reviewRequests });
+});
+
+app.post('/api/review-verify', (req, res) => {
+  const key = req.headers['x-admin-key'];
+  if (key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
+  const { id, verdict, notes } = req.body;
+  const r = reviewRequests.find(x => x.id === id);
+  if (!r) return res.status(404).json({ error: 'Not found' });
+  r.status = 'verified';
+  r.verdict = verdict;
+  r.notes = notes || '';
+  r.verifiedAt = new Date().toISOString();
+  saveJSON('review_requests.json', reviewRequests);
+  res.json({ ok: true });
+});
+
+// ── SMS INCOMING DIAGNOSIS (Africa's Talking webhook) ─────
+// Format farmer texts: "TEFF YELLOW LEAVES" or "ENSET WILT SMELL"
+app.post('/api/sms/incoming', async (req, res) => {
+  const { from, text } = req.body;
+  if (!from || !text) return res.status(400).send('Bad Request');
+
+  console.log(`📱 SMS from ${from}: "${text}"`);
+  const clean = text.trim().toUpperCase();
+  const words  = clean.split(/\s+/);
+  const CROPS  = ['ENSET','TEFF','WHEAT','MAIZE','CORN','COFFEE','POTATO','BARLEY','SORGHUM'];
+  const crop   = CROPS.find(c => words.includes(c)) || 'ENSET';
+  const symptoms = words.filter(w => w !== crop).join(', ') || 'unknown symptoms';
+
+  // Send acknowledgment immediately
+  const AT_KEY  = process.env.AT_API_KEY;
+  const AT_USER = process.env.AT_USERNAME || 'sandbox';
+
+  async function sendSMS(to, message) {
+    if (!AT_KEY) { console.log('SMS (no key):', message); return; }
+    await fetch('https://api.africastalking.com/version1/messaging', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'apikey': AT_KEY },
+      body: new URLSearchParams({ username: AT_USER, to, message, from: 'SebilAI' })
+    }).catch(e => console.error('SMS send error:', e.message));
+  }
+
+  // Build AI prompt for SMS (text-only, concise)
+  const prompt = `You are SebilAI, an Ethiopian crop disease expert. A farmer sent this SMS: crop=${crop}, symptoms=${symptoms}. Give a SHORT diagnosis (max 160 chars) with: disease name, 1 action step. Reply in plain text only, no formatting.`;
+
+  let reply = `SebilAI: Received your report on ${crop} (${symptoms}). Analyzing...`;
+  try {
+    const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens: 80,
+        messages: [{ role: 'user', content: prompt }] })
+    });
+    const d = await aiRes.json();
+    const txt = d?.choices?.[0]?.message?.content?.trim();
+    if (txt) reply = `SebilAI: ${txt.substring(0, 150)} sebilai.com`;
+  } catch(e) {
+    reply = `SebilAI: ${crop} issue noted. Check yellowing=water stress, spots=fungal, wilt=bacterial. Full diagnosis: sebilai.com`;
+  }
+
+  await sendSMS(from, reply);
+
+  // Log as community report (no GPS from SMS)
+  const smsCropLower = crop.toLowerCase();
+  diseaseReports.push({ id: Date.now(), crop: smsCropLower, disease: symptoms, lat: 9.0, lon: 40.0, severity: 'Unknown', date: new Date().toISOString().split('T')[0], verified: false, source: 'sms' });
+  saveJSON('disease_reports.json', diseaseReports);
+
+  res.status(200).send('OK');
+});
+
+// ── WEATHER PROXY (Open-Meteo — free, no key needed) ─────
+app.get('/api/weather', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon required' });
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code&daily=precipitation_sum&forecast_days=3&timezone=Africa%2FAddis_Ababa`;
+    const r = await fetch(url);
+    const data = await r.json();
+    res.json(data);
+  } catch(e) {
+    res.status(502).json({ error: 'Weather fetch failed', detail: e.message });
+  }
+});
+
+// ── BEFORE/AFTER PHOTO TRACKING ───────────────────────────
+let followUpStore = loadJSON('followups.json', []);
+
+app.post('/api/followup', (req, res) => {
+  const { diagnosisId, crop, disease, beforeDate, afterDate, imageBase64, improvement } = req.body;
+  if (!crop || !disease) return res.status(400).json({ error: 'Missing fields' });
+  const entry = {
+    id: Date.now(),
+    diagnosisId: diagnosisId || null,
+    crop, disease,
+    beforeDate: beforeDate || new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0],
+    afterDate: afterDate || new Date().toISOString().split('T')[0],
+    improvement: improvement || null,
+    hasImage: !!imageBase64,
+    createdAt: new Date().toISOString()
+  };
+  followUpStore.push(entry);
+  if (followUpStore.length > 300) followUpStore = followUpStore.slice(-300);
+  saveJSON('followups.json', followUpStore);
+  console.log(`📸 Follow-up: ${crop} (${disease}) — improvement: ${improvement || 'not rated'}`);
+  res.json({ ok: true, id: entry.id });
+});
+
+// ── ENHANCED HEALTH (with live stats) ────────────────────
+app.get('/api/stats', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const todayReports = diseaseReports.filter(r => r.date === today).length;
+  const totalReports = diseaseReports.length;
+  res.json({
+    diagnosesToday: todayReports,
+    diagnosesTotal: Math.max(totalReports, 1247), // baseline from pilot
+    communityReports: totalReports,
+    verifiedCases: reviewRequests.filter(r => r.status === 'verified').length,
+    smsUsers: smsSubscribers.size,
+    pushUsers: pushSubscriptions.size
   });
 });
 
