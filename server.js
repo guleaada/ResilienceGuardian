@@ -50,6 +50,7 @@ const reqCounts    = new Map(); // per-minute
 const reqDayCounts = new Map(); // per-day
 setInterval(() => reqCounts.clear(), 60000);
 // Reset daily counts at midnight
+let reqDailyCount = loadJSON('daily_counts.json', { _date: new Date().toDateString() });
 setInterval(() => {
   const newDay = new Date().toDateString();
   if (reqDailyCount._date !== newDay) {
@@ -85,6 +86,26 @@ function getRiskFromNDVI(ndvi, crop) {
 // ── GEE JWT Helper ───────────────────────────────────────
 let _geeToken = null;
 let _geeTokenExpiry = 0;
+
+// Build a signed JWT using Node's built-in crypto (no extra package needed)
+async function createJWT(sa) {
+  const crypto  = require('crypto');
+  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const now     = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(JSON.stringify({
+    iss  : sa.client_email,
+    sub  : sa.client_email,
+    aud  : 'https://oauth2.googleapis.com/token',
+    iat  : now,
+    exp  : now + 3600,
+    scope: 'https://www.googleapis.com/auth/earthengine'
+  })).toString('base64url');
+  const signingInput = `${header}.${payload}`;
+  const pemKey       = sa.private_key.replace(/\\n/g, '\n');
+  const privateKey   = crypto.createPrivateKey(pemKey);
+  const signature    = crypto.sign('sha256', Buffer.from(signingInput), privateKey).toString('base64url');
+  return `${signingInput}.${signature}`;
+}
 
 async function getGEEToken() {
   if (_geeToken && Date.now() < _geeTokenExpiry) return _geeToken;
