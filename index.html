@@ -89,11 +89,11 @@ body::before {
   z-index: 100;
   background: var(--soil);
   border-bottom: 3px solid var(--leaf-mid);
-  padding: 0 20px;
+  padding: env(safe-area-inset-top, 0px) 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: calc(64px + env(safe-area-inset-top, 0px));
   box-shadow: var(--shadow-md);
 }
 
@@ -770,6 +770,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   display: flex;
   z-index: 100;
   box-shadow: 0 -4px 16px rgba(44,26,14,0.18);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .nav-tab {
   flex: 1;
