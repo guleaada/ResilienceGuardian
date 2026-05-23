@@ -1,11 +1,11 @@
-# 🌿 Resilience Guardian — ጠባቂ ጥንካሬ
+# 🌿 SebilAI — ሰብሊAI
 
 <div align="center">
 
 **Localized, Explainable, and Evolving AI for Ethiopian Smallholder Farmers**
 
-[![Live App](https://img.shields.io/badge/🌐%20Live-resilienceguardian.onrender.com-2D6A0A?style=for-the-badge)](https://resilienceguardian.onrender.com)
-[![PWA](https://img.shields.io/badge/📱%20PWA-Offline%20Capable-5A0FC8?style=for-the-badge)](https://resilienceguardian.onrender.com)
+[![Live App](https://img.shields.io/badge/🌐%20Live-sebilai.onrender.com-2D6A0A?style=for-the-badge)](https://sebilai.onrender.com)
+[![PWA](https://img.shields.io/badge/📱%20PWA-Offline%20Capable-5A0FC8?style=for-the-badge)](https://sebilai.onrender.com)
 [![Score](https://img.shields.io/badge/App%20Score-92--95%2F100-gold?style=for-the-badge)](#)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-red?style=for-the-badge)](LICENSE)
 [![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20አማርኛ%20%7C%20Oromiffa%20%7C%20ትግርኛ-blue?style=for-the-badge)](#)
@@ -25,7 +25,7 @@ gulilatkasiye4@gmail.com | +251 704 161 402<br>
 
 ## 🎯 Competition Narrative
 
-> **"Resilience Guardian: Localized, Explainable, and Evolving AI for Ethiopian Farmers"**
+> **"SebilAI: Localized, Explainable, and Evolving AI for Ethiopian Farmers"**
 
 This is not a generic AI wrapper. It is purpose-built for Ethiopia's unique challenges — low internet, multilingual needs, and culturally vital crops like Enset ("Tree Against Hunger") and Teff. Every diagnosis links to real Ethiopian research. Farmers contribute feedback that improves the AI. The system works completely offline for 42 diseases.
 
@@ -154,8 +154,8 @@ Verified tap-to-call numbers for all EIAR regional centers.
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/guleaada/ResilienceGuardian.git
-cd ResilienceGuardian
+git clone https://github.com/guleaada/SebilAI.git
+cd SebilAI
 npm install
 cp .env.example .env
 # Required: GROQ_API_KEY, GEMINI_API_KEY, OpenRouter_API_KEY
@@ -192,9 +192,9 @@ node server.js
 - [x] PDF report + WhatsApp share + citations export
 - [x] PWA installable on all devices
 - [x] Satellite NDVI panel (GEE + Sentinel-2 real REST auth)
-- [x] Push notifications with disease alerts (4 languages)
+- [x] Push notifications with disease alerts (6 languages)
 - [x] TF.js infrastructure built (model loading ready)
-- [x] Inline privacy policy (4 languages, consent flow)
+- [x] Inline privacy policy (6 languages, consent flow)
 - [x] Impact metrics dashboard
 - [x] Drone upload endpoint
 - [ ] Custom TF.js models per crop (MobileNetV2 training)
@@ -217,7 +217,7 @@ node server.js
 **Built for Ethiopia 🇪🇹 — With Purpose 🌍**
 
 **Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)**<br>
-[GitHub](https://github.com/guleaada) · [LinkedIn](https://linkedin.com/in/gulilat-k-worku-63a02520a) · [Live App](https://resilienceguardian.onrender.com) · [Privacy Policy](https://resilienceguardian.onrender.com/privacy.html)
+[GitHub](https://github.com/guleaada) · [LinkedIn](https://linkedin.com/in/gulilat-k-worku-63a02520a) · [Live App](https://sebilai.onrender.com) · [Privacy Policy](https://sebilai.onrender.com/privacy.html)
 
 *"Empowering those who feed the nation."*
 

@@ -4,6 +4,33 @@ const cors    = require('cors');
 const path    = require('path');
 
 const app  = express();
+const fs   = require('fs');
+
+// ── FILE PERSISTENCE ─────────────────────────────────────
+const DATA_DIR = process.env.DATA_DIR || '/tmp/rg_data';
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
+
+function loadJSON(name, def) {
+  try { return JSON.parse(fs.readFileSync(DATA_DIR + '/' + name, 'utf8')); }
+  catch(e) { return def; }
+}
+function saveJSON(name, data) {
+  try { fs.writeFileSync(DATA_DIR + '/' + name, JSON.stringify(data)); return true; }
+  catch(e) { return false; }
+}
+
+// Load persisted subscribers on startup
+let feedbackStore = loadJSON('feedback.json', []);
+const _pushData   = loadJSON('push_subscribers.json', {});
+const _smsData    = loadJSON('sms_subscribers.json', {});
+
+// Merge loaded data into existing Maps (defined later)
+setTimeout(function() {
+  Object.entries(_pushData).forEach(([k,v]) => pushSubscriptions.set(k, v));
+  Object.entries(_smsData).forEach(([k,v])  => smsSubscribers.set(k, v));
+  console.log('📂 Loaded: ' + feedbackStore.length + ' feedback, ' + pushSubscriptions.size + ' push, ' + smsSubscribers.size + ' SMS subscribers');
+}, 100);
+
 const PORT = process.env.PORT || 3000;
 const GROQ_KEY       = process.env.GROQ_API_KEY;
 const GEMINI_KEY     = process.env.GEMINI_API_KEY;
@@ -18,8 +45,19 @@ app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const reqCounts = new Map();
+// Per-minute + per-day rate limiting
+const reqCounts    = new Map(); // per-minute
+const reqDayCounts = new Map(); // per-day
 setInterval(() => reqCounts.clear(), 60000);
+// Reset daily counts at midnight
+setInterval(() => {
+  const newDay = new Date().toDateString();
+  if (reqDailyCount._date !== newDay) {
+    reqDayCounts.clear();
+    reqDailyCount = { _date: newDay };
+    saveJSON('daily_counts.json', reqDailyCount);
+  }
+}, 60000);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ── NDVI THRESHOLDS PER CROP ──────────────────────────────
@@ -201,13 +239,30 @@ app.post('/api/drone-upload', express.raw({type: '*/*', limit: '20mb'}), async (
     getSatelliteNDVI(lat, lon, crop)
   ]);
 
-  // In future: run local TF.js model on the drone image
-  const analysis = {
-    diagnosis: 'Further AI analysis required',
-    confidence: 0,
-    severity: 'Unknown',
-    recommendation: 'Upload to main diagnosis section for full AI analysis'
-  };
+  // Use AI to analyze drone image
+  let analysis = { diagnosis: 'Analyzing aerial view...', confidence: 0, severity: 'Unknown', recommendation: 'Upload a ground-level photo to main diagnosis for detailed analysis.' };
+  try {
+    if (req.body && Buffer.isBuffer(req.body) && req.body.length > 1000 && GROQ_KEY) {
+      const b64 = req.body.toString('base64');
+      const droneRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: 'Aerial farm image analysis. Crop: ' + crop + '. Identify disease hotspots, stress patterns, affected area %. JSON only: {"diagnosis":"name","confidence":80,"severity":"high|medium|low","affected_pct":15,"recommendation":"action"}' },
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }
+          ]}], max_tokens: 200, temperature: 0.2
+        })
+      });
+      if (droneRes.ok) {
+        const dd = await droneRes.json();
+        const txt = (dd.choices && dd.choices[0] && dd.choices[0].message && dd.choices[0].message.content) || '';
+        try { analysis = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
+        catch(e) { analysis.recommendation = txt.substring(0,150); analysis.confidence = 70; }
+      }
+    }
+  } catch(e) { console.error('Drone AI:', e.message); }
 
   res.json({
     status: 'success',
@@ -269,7 +324,7 @@ async function tryOpenRouter(parts, satContext) {
     console.log('📡 Trying OpenRouter...');
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'HTTP-Referer': 'https://resilienceguardian.onrender.com' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'HTTP-Referer': 'https://sebilai.onrender.com' },
       body: JSON.stringify({ model: 'meta-llama/llama-3.2-11b-vision-instruct:free', messages: [{ role: 'user', content }], max_tokens: 1600 })
     });
     const data = await res.json();
@@ -314,7 +369,7 @@ app.post('/api/send-sms', async (req, res) => {
   const AT_KEY  = process.env.AT_API_KEY;
   const AT_USER = process.env.AT_USERNAME || 'sandbox';
 
-  const message = `Resilience Guardian: ${disease} detected on ${crop||'your crop'}. Severity: ${severity||'unknown'}. Action: ${(action||'').substring(0,80)}. resilienceguardian.onrender.com`;
+  const message = `SebilAI: ${disease} detected on ${crop||'your crop'}. Severity: ${severity||'unknown'}. Action: ${(action||'').substring(0,80)}. sebilai.onrender.com`;
 
   if (!AT_KEY) {
     console.log('📲 SMS (no key):', phone, '|', message.substring(0,60));
@@ -329,7 +384,7 @@ app.post('/api/send-sms', async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'apikey': AT_KEY
       },
-      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'ResGuardian' })
+      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'SebilAI' })
     });
     const data = await resp.json();
     console.log('📲 SMS sent to', phone);
@@ -347,7 +402,9 @@ app.post('/api/tts', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'No text' });
 
   // Google Translate TTS supports: am (Amharic), om (Oromo), ti (Tigrinya)
-  const langMap = { am: 'am', om: 'om', ti: 'ti', en: 'en' };
+  // Language code mapping for Google TTS
+  // Afar (aa) uses Somali (so) as closest supported language
+  const langMap = { am: 'am', om: 'om', ti: 'ti', so: 'so', aa: 'so', en: 'en' };
   const ttsLang = langMap[lang] || 'en';
   const cleanText = text.replace(/[<>]/g, '').substring(0, 500);
 
@@ -355,7 +412,7 @@ app.post('/api/tts', async (req, res) => {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${ttsLang}&client=tw-ob&ttsspeed=0.9`;
     const resp = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ResilienceGuardian/3.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; SebilAI/3.0)',
         'Referer': 'https://translate.google.com/'
       }
     });
@@ -385,7 +442,7 @@ const pushSubscriptions = new Map();
 // Push message templates in 4 languages
 const PUSH_MESSAGES = {
   high_risk: {
-    en: (crop, region) => ({ title: '⚠️ Disease Alert — Resilience Guardian', body: `High disease risk for ${crop} in ${region} this week. Open app to check and get treatment advice.` }),
+    en: (crop, region) => ({ title: '⚠️ Disease Alert — SebilAI', body: `High disease risk for ${crop} in ${region} this week. Open app to check and get treatment advice.` }),
     am: (crop, region) => ({ title: '⚠️ የበሽታ ማንቂያ — ጠባቂ ጥንካሬ', body: `በዚህ ሳምንት በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ አለ። ምርመራ ለማግኘት ክፈቱ።` }),
     om: (crop, region) => ({ title: '⚠️ Beeksisa Dhukkubaa', body: `Dhukkubni ${crop} naannoo ${region} keessatti ol'aanaa dha. App banaa.` }),
     ti: (crop, region) => ({ title: '⚠️ ምልክታ ሕማም', body: `ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ። መተግበሪ ክፈት።` })
@@ -397,7 +454,7 @@ const PUSH_MESSAGES = {
     ti: (crop) => ({ title: '🌧️ ምልክታ ኩነታት ኣየር', body: `ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም ኣሎ።` })
   },
   weekly_healthy: {
-    en: (region) => ({ title: '✅ Weekly Check — Resilience Guardian', body: `Your region (${region}) looks healthy this week. Keep monitoring your crops.` }),
+    en: (region) => ({ title: '✅ Weekly Check — SebilAI', body: `Your region (${region}) looks healthy this week. Keep monitoring your crops.` }),
     am: (region) => ({ title: '✅ ሳምንታዊ ምልከታ', body: `ክልልዎ (${region}) በዚህ ሳምንት ጤናማ ይመስላል። ሰብሎችዎን መከታተሉን ይቀጥሉ።` }),
     om: (region) => ({ title: '✅ Ilaalcha Torbee', body: `Naannoon keessan (${region}) torbee kana fayyaalessa fakkaata.` }),
     ti: (region) => ({ title: '✅ ሰሙናዊ መርመራ', body: `ዞባኻ (${region}) ኣብዚ ሰሙን ጥዑይ ይርኤ።` })
@@ -430,7 +487,7 @@ app.post('/api/push-subscribe', (req, res) => {
   
   const key = subscription.endpoint.slice(-20);
   pushSubscriptions.set(key, { subscription, lang: lang||'en', region: region||'Addis Ababa', crop: crop||'enset', createdAt: new Date().toISOString() });
-  
+  saveJSON('push_subscribers.json', Object.fromEntries(pushSubscriptions));
   console.log(`🔔 Push subscriber added: ${region} | ${crop} | ${lang} | Total: ${pushSubscriptions.size}`);
   res.json({ ok: true, total: pushSubscriptions.size });
 });
@@ -546,16 +603,16 @@ const smsSubscribers = new Map();
 // SMS Alert message templates (4 languages)
 const SMS_ALERT_TEMPLATES = {
   high_risk: {
-    en: (crop, region) => `ResilienceGuardian ALERT: High ${crop} disease risk in ${region} this week. Open app for treatment advice: resilienceguardian.onrender.com`,
-    am: (crop, region) => `ጠባቂ ጥንካሬ ማንቂያ: በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ። ህክምና ለማግኘት: resilienceguardian.onrender.com`,
-    om: (crop, region) => `ResilienceGuardian: ${crop} dhukkubaaf sodaan ${region} keessatti ol'aanaa dha. App banaa: resilienceguardian.onrender.com`,
-    ti: (crop, region) => `ጠባቂ ጥንካሬ: ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ: resilienceguardian.onrender.com`
+    en: (crop, region) => `SebilAI ALERT: High ${crop} disease risk in ${region} this week. Open app for treatment advice: sebilai.onrender.com`,
+    am: (crop, region) => `ጠባቂ ጥንካሬ ማንቂያ: በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ። ህክምና ለማግኘት: sebilai.onrender.com`,
+    om: (crop, region) => `SebilAI: ${crop} dhukkubaaf sodaan ${region} keessatti ol'aanaa dha. App banaa: sebilai.onrender.com`,
+    ti: (crop, region) => `ጠባቂ ጥንካሬ: ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ: sebilai.onrender.com`
   },
   rain_alert: {
-    en: (crop) => `ResilienceGuardian: Heavy rain forecast. High ${crop} disease risk. Check your crops now: resilienceguardian.onrender.com`,
-    am: (crop) => `ጠባቂ ጥንካሬ: ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ አደጋ። resilienceguardian.onrender.com`,
-    om: (crop) => `ResilienceGuardian: Rooba cimaa eegama. ${crop} dhukkubaaf sodaa: resilienceguardian.onrender.com`,
-    ti: (crop) => `ጠባቂ ጥንካሬ: ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም: resilienceguardian.onrender.com`
+    en: (crop) => `SebilAI: Heavy rain forecast. High ${crop} disease risk. Check your crops now: sebilai.onrender.com`,
+    am: (crop) => `ጠባቂ ጥንካሬ: ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ አደጋ። sebilai.onrender.com`,
+    om: (crop) => `SebilAI: Rooba cimaa eegama. ${crop} dhukkubaaf sodaa: sebilai.onrender.com`,
+    ti: (crop) => `ጠባቂ ጥንካሬ: ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም: sebilai.onrender.com`
   }
 };
 
@@ -573,8 +630,8 @@ app.post('/api/sms-subscribe', (req, res) => {
     lang: lang || 'en',
     subscribedAt: new Date().toISOString()
   });
-
-  console.log(`📲 SMS alert subscriber: ${cleanPhone} | ${crop} | ${region} | ${lang} | Total: ${smsSubscribers.size}`);
+  saveJSON('sms_subscribers.json', Object.fromEntries(smsSubscribers));
+  console.log(`📲 SMS subscriber: ${cleanPhone} | ${crop} | ${region} | ${lang} | Total: ${smsSubscribers.size}`);
   res.json({ ok: true, total: smsSubscribers.size });
 });
 
@@ -607,7 +664,7 @@ async function sendSMSAlert(phone, message) {
         'Content-Type': 'application/x-www-form-urlencoded',
         'apikey': AT_KEY
       },
-      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'ResGuardian' })
+      body: new URLSearchParams({ username: AT_USER, to: phone, message, from: 'SebilAI' })
     });
     const data = await resp.json();
     console.log(`✅ SMS sent to ${phone}`);
@@ -618,15 +675,39 @@ async function sendSMSAlert(phone, message) {
   }
 }
 
+
+// ── GOOGLE TRANSLATE PROXY ────────────────────────────────
+// Free unofficial endpoint — no API key needed
+app.post('/api/translate', async (req, res) => {
+  const { text, target, source = 'en' } = req.body;
+  if (!text || !target) return res.status(400).json({ error: 'text and target required' });
+  
+  try {
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + source + '&tl=' + target + '&dt=t&q=' + encodeURIComponent(text.substring(0, 500));
+    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const data = await resp.json();
+    const translated = data[0]?.map(item => item[0]).filter(Boolean).join('') || text;
+    res.json({ ok: true, translated, source, target });
+  } catch(e) {
+    console.error('Translate error:', e.message);
+    res.json({ ok: false, translated: text, error: e.message });
+  }
+});
+
 // ── MAIN ANALYZE ENDPOINT ─────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
   const { parts, lat, lon } = req.body;
   if (!parts || !Array.isArray(parts)) return res.status(400).json({ error: 'Invalid request' });
 
   const ip = req.ip || 'unknown';
+  // Per-minute limit: 20 req/min
   const count = (reqCounts.get(ip) || 0) + 1;
   reqCounts.set(ip, count);
   if (count > 20) return res.status(429).json({ error: 'Too many requests. Wait 1 minute.' });
+  // Daily limit: 100 diagnoses per IP per day
+  const dayCount = (reqDayCounts.get(ip) || 0) + 1;
+  reqDayCounts.set(ip, dayCount);
+  if (dayCount > 100) return res.status(429).json({ error: 'Daily limit reached (100 diagnoses). Try again tomorrow.' });
 
   // Get satellite context if location provided
   let satContext = null;
@@ -652,8 +733,22 @@ app.post('/api/analyze', async (req, res) => {
 app.post('/api/feedback', (req, res) => {
   const { feedback } = req.body;
   if (!feedback || !Array.isArray(feedback)) return res.status(400).json({ error: 'Invalid' });
-  feedback.forEach(f => console.log('📊 FEEDBACK:', JSON.stringify({ crop: f.crop, disease: f.disease, accuracy: f.accuracy, comment: f.comment, region: f.region, lang: f.language })));
-  res.json({ ok: true, saved: feedback.length });
+  feedback.forEach(f => {
+    const entry = { crop: f.crop, disease: f.disease, accuracy: f.accuracy, comment: f.comment, region: f.region, lang: f.language, ts: new Date().toISOString() };
+    feedbackStore.push(entry);
+    console.log('📊 FEEDBACK:', JSON.stringify(entry));
+  });
+  // Persist to file (keep last 1000)
+  if (feedbackStore.length > 1000) feedbackStore = feedbackStore.slice(-1000);
+  saveJSON('feedback.json', feedbackStore);
+  res.json({ ok: true, saved: feedback.length, total: feedbackStore.length });
+});
+
+// Get all feedback (for admin dashboard)
+app.get('/api/feedback', (req, res) => {
+  const auth = req.headers['x-admin-key'];
+  if (auth !== (process.env.ADMIN_KEY || 'SebilAI_Admin_2025!')) return res.status(401).json({ error: 'Unauthorized' });
+  res.json({ feedback: feedbackStore.slice(-200), total: feedbackStore.length });
 });
 
 // ── HEALTH ────────────────────────────────────────────────
@@ -674,7 +769,7 @@ app.get('/api/health', (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
-  console.log(`\n🌿 Resilience Guardian v3.0`);
+  console.log(`\n🌿 SebilAI v3.0`);
   console.log(`   Groq:       ${GROQ_KEY       ? '✅' : '❌'}`);
   console.log(`   OpenRouter: ${OPENROUTER_KEY ? '✅' : '❌'}`);
   console.log(`   Gemini:     ${GEMINI_KEY     ? '✅' : '❌'}`);
