@@ -324,7 +324,7 @@ async function tryOpenRouter(parts, satContext) {
     console.log('📡 Trying OpenRouter...');
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'HTTP-Referer': 'https://sebilai.onrender.com' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'HTTP-Referer': 'https://sebilai.com' },
       body: JSON.stringify({ model: 'meta-llama/llama-3.2-11b-vision-instruct:free', messages: [{ role: 'user', content }], max_tokens: 1600 })
     });
     const data = await res.json();
@@ -369,7 +369,7 @@ app.post('/api/send-sms', async (req, res) => {
   const AT_KEY  = process.env.AT_API_KEY;
   const AT_USER = process.env.AT_USERNAME || 'sandbox';
 
-  const message = `SebilAI: ${disease} detected on ${crop||'your crop'}. Severity: ${severity||'unknown'}. Action: ${(action||'').substring(0,80)}. sebilai.onrender.com`;
+  const message = `SebilAI: ${disease} detected on ${crop||'your crop'}. Severity: ${severity||'unknown'}. Action: ${(action||'').substring(0,80)}. sebilai.com`;
 
   if (!AT_KEY) {
     console.log('📲 SMS (no key):', phone, '|', message.substring(0,60));
@@ -443,7 +443,7 @@ const pushSubscriptions = new Map();
 const PUSH_MESSAGES = {
   high_risk: {
     en: (crop, region) => ({ title: '⚠️ Disease Alert — SebilAI', body: `High disease risk for ${crop} in ${region} this week. Open app to check and get treatment advice.` }),
-    am: (crop, region) => ({ title: '⚠️ የበሽታ ማንቂያ — ጠባቂ ጥንካሬ', body: `በዚህ ሳምንት በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ አለ። ምርመራ ለማግኘት ክፈቱ።` }),
+    am: (crop, region) => ({ title: '⚠️ የበሽታ ማንቂያ — ሰብሊAI', body: `በዚህ ሳምንት በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ አለ። ምርመራ ለማግኘት ክፈቱ።` }),
     om: (crop, region) => ({ title: '⚠️ Beeksisa Dhukkubaa', body: `Dhukkubni ${crop} naannoo ${region} keessatti ol'aanaa dha. App banaa.` }),
     ti: (crop, region) => ({ title: '⚠️ ምልክታ ሕማም', body: `ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ። መተግበሪ ክፈት።` })
   },
@@ -603,16 +603,16 @@ const smsSubscribers = new Map();
 // SMS Alert message templates (4 languages)
 const SMS_ALERT_TEMPLATES = {
   high_risk: {
-    en: (crop, region) => `SebilAI ALERT: High ${crop} disease risk in ${region} this week. Open app for treatment advice: sebilai.onrender.com`,
-    am: (crop, region) => `ጠባቂ ጥንካሬ ማንቂያ: በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ። ህክምና ለማግኘት: sebilai.onrender.com`,
-    om: (crop, region) => `SebilAI: ${crop} dhukkubaaf sodaan ${region} keessatti ol'aanaa dha. App banaa: sebilai.onrender.com`,
-    ti: (crop, region) => `ጠባቂ ጥንካሬ: ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ: sebilai.onrender.com`
+    en: (crop, region) => `SebilAI ALERT: High ${crop} disease risk in ${region} this week. Open app for treatment advice: sebilai.com`,
+    am: (crop, region) => `ሰብሊAI ማንቂያ: በ${region} ለ${crop} ከፍተኛ የበሽታ አደጋ። ህክምና ለማግኘት: sebilai.com`,
+    om: (crop, region) => `SebilAI: ${crop} dhukkubaaf sodaan ${region} keessatti ol'aanaa dha. App banaa: sebilai.com`,
+    ti: (crop, region) => `ሰብሊAI: ኣብ ${region} ንሰብሊ ${crop} ልዑል ሓደጋ ሕማም ኣሎ: sebilai.com`
   },
   rain_alert: {
-    en: (crop) => `SebilAI: Heavy rain forecast. High ${crop} disease risk. Check your crops now: sebilai.onrender.com`,
-    am: (crop) => `ጠባቂ ጥንካሬ: ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ አደጋ። sebilai.onrender.com`,
-    om: (crop) => `SebilAI: Rooba cimaa eegama. ${crop} dhukkubaaf sodaa: sebilai.onrender.com`,
-    ti: (crop) => `ጠባቂ ጥንካሬ: ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም: sebilai.onrender.com`
+    en: (crop) => `SebilAI: Heavy rain forecast. High ${crop} disease risk. Check your crops now: sebilai.com`,
+    am: (crop) => `ሰብሊAI: ከባድ ዝናብ ይጠበቃል። ለ${crop} ከፍተኛ አደጋ። sebilai.com`,
+    om: (crop) => `SebilAI: Rooba cimaa eegama. ${crop} dhukkubaaf sodaa: sebilai.com`,
+    ti: (crop) => `ሰብሊAI: ዝናም ይጽበ። ንሰብሊ ${crop} ሓደጋ ሕማም: sebilai.com`
   }
 };
 
@@ -752,6 +752,11 @@ app.get('/api/feedback', (req, res) => {
 });
 
 // ── HEALTH ────────────────────────────────────────────────
+app.post('/api/sync-feedback', (req, res) => {
+  // Called by service worker background sync
+  res.json({ ok: true, synced: feedbackStore.length });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok', version: '3.1',

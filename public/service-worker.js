@@ -43,7 +43,7 @@ self.addEventListener('fetch', e => {
 
 // ── PUSH NOTIFICATIONS ───────────────────────────────────────────
 self.addEventListener('push', e => {
-  let data = { title: '🌿 Resilience Guardian', body: 'Disease alert for your crops', lang: 'en', crop: '', severity: '' };
+  let data = { title: '🌿 SebilAI', body: 'Disease alert for your crops', lang: 'en', crop: '', severity: '' };
 
   try {
     data = Object.assign(data, e.data.json());
