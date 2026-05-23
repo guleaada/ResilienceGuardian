@@ -560,8 +560,7 @@ app.post('/api/tts', async (req, res) => {
 
 
 // ── PUSH NOTIFICATIONS ───────────────────────────────────────────
-// In-memory subscription store (use Redis/DB in production)
-const pushSubscriptions = new Map();
+// (pushSubscriptions Map is declared and populated from SQLite at startup above)
 
 // Push message templates in 4 languages
 const PUSH_MESSAGES = {
@@ -721,8 +720,7 @@ setTimeout(runDailyDiseaseCheck, 30000);
 
 
 // ── SMS ALERT SUBSCRIBER STORE ───────────────────────────
-// In-memory (use database in production for persistence)
-const smsSubscribers = new Map();
+// (smsSubscribers Map is declared and populated from SQLite at startup above)
 
 // SMS Alert message templates (4 languages)
 const SMS_ALERT_TEMPLATES = {
