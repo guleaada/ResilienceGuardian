@@ -2577,31 +2577,31 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 
 </main>
 
-<!-- ── VALIDATION & IMPACT TAB ───────────────────────────── -->
+<!-- ── RESEARCH FOUNDATION & APPROACH TAB ────────────────── -->
 <div id="validation-tab">
 
   <div class="val-header">
-    <h2>📊 Validation & Real Impact</h2>
-    <p>Evidence-based results from SebilAI pilot program</p>
+    <h2>📚 Research Foundation & Approach</h2>
+    <p>SebilAI is built on Ethiopian agricultural research — seeking real-world validation partners</p>
   </div>
 
-  <!-- Live Stats Grid -->
+  <!-- Real Stats Grid (only facts) -->
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-num" id="vt-diagnoses">1,247</div>
-      <div class="stat-label">Total Diagnoses<br><small id="vt-today"></small></div>
+      <div class="stat-num">23+</div>
+      <div class="stat-label">Ethiopian peer-reviewed<br>research papers</div>
     </div>
     <div class="stat-card">
-      <div class="stat-num">87%</div>
-      <div class="stat-label">Agronomist Agreement<br><small>(Pilot n=120)</small></div>
+      <div class="stat-num">42</div>
+      <div class="stat-label">Diseases<br>diagnosable</div>
     </div>
     <div class="stat-card">
-      <div class="stat-num">42%</div>
-      <div class="stat-label">Avg Yield Loss Reduction Reported</div>
+      <div class="stat-num">8</div>
+      <div class="stat-label">Ethiopian crops<br>fully supported</div>
     </div>
     <div class="stat-card">
       <div class="stat-num">6</div>
-      <div class="stat-label">Ethiopian Languages Supported</div>
+      <div class="stat-label">Ethiopian languages<br>fully translated</div>
     </div>
   </div>
 
@@ -2734,7 +2734,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <h4 style="font-size:13px;font-weight:800;color:var(--soil);margin:14px 0 8px;">Product Roadmap</h4>
     <div class="roadmap-row">
       <div class="roadmap-dot" style="background:#27ae60;"></div>
-      <div><strong>✅ Now — Core AI + 6 Languages + Satellite + SMS Diagnosis</strong><p>Live at sebilai.com — 1,247+ diagnoses. SMS diagnosis active via Africa's Talking.</p></div>
+      <div><strong>✅ Now — Core AI + 6 Languages + Satellite + SMS Diagnosis</strong><p>Live at sebilai.com. Free for all farmers. SMS diagnosis active via Africa's Talking. Seeking validation partners.</p></div>
     </div>
     <div class="roadmap-row">
       <div class="roadmap-dot" style="background:#f39c12;"></div>
@@ -2771,19 +2771,31 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </div>
 
   <div class="val-section">
-    <h3>🔬 Validation Methodology</h3>
+    <h3>🔬 Our Approach — Research-Grounded, Validation-Ready</h3>
     <p style="font-size:13px;color:var(--bark);line-height:1.6;margin-bottom:10px;">
-      Diagnoses were cross-validated against expert agronomist assessments across
-      Oromia, SNNPR and Amhara regions. Agreement rate measured on confirmed disease
-      presence/absence per field visit. All results are from the May 2025 – May 2026 pilot.
+      SebilAI is built on 23+ peer-reviewed Ethiopian agricultural research papers from
+      EIAR, Hawassa University, Jimma University, Werabe ARC, Areka ARC and other institutions.
+      Every disease symptom, treatment recommendation, and risk factor is derived from
+      real Ethiopian field studies — not generic global datasets.
     </p>
-    <span class="method-pill">Pilot: May 2025 – May 2026</span>
-    <span class="method-pill">n = 120 field validations</span>
+    <p style="font-size:13px;color:var(--bark);line-height:1.6;margin-bottom:10px;">
+      <strong>Current stage:</strong> Early access. The system is live and functional but
+      has not yet completed formal field validation. We are actively seeking partnerships
+      with agricultural research centers, universities, NGOs, and extension services to
+      run rigorous field validation with real farmers across multiple regions.
+    </p>
+    <p style="font-size:13px;color:var(--bark);line-height:1.6;margin-bottom:10px;">
+      <strong>What we offer partners:</strong> Free unlimited access for validation studies,
+      full API access, anonymized data sharing, and co-authorship opportunities on
+      validation papers.
+    </p>
+    <span class="method-pill">23+ Ethiopian research papers</span>
     <span class="method-pill">8 crop types</span>
-    <span class="method-pill">3 regions</span>
-    <span class="method-pill">Gemini Vision AI</span>
+    <span class="method-pill">42 diseases</span>
+    <span class="method-pill">6 Ethiopian languages</span>
+    <span class="method-pill">Groq Llama 4 Vision AI</span>
     <span class="method-pill">GEE Satellite NDVI</span>
-    <span class="method-pill">23+ Ethiopian papers</span>
+    <span class="method-pill">Open for validation partnerships</span>
   </div>
 
   <!-- PDF Report -->
@@ -10030,25 +10042,33 @@ function closeIOSPopup() {
 <script>
 // ==================== LIVE STATS COUNTER ====================
 async function loadLiveStats() {
+  // Honest live counter — only shows real diagnosis count when available
   try {
     const r = await fetch('/api/stats', { headers: { 'Accept': 'application/json' } });
     if (!r.ok) throw new Error('stats not ok');
     const contentType = r.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) throw new Error('not json');
     const d = await r.json();
-    const total = (d && d.diagnosesTotal) || 1247;
-    const today = (d && d.diagnosesToday) || 0;
+    const total = (d && typeof d.diagnosesTotal === 'number') ? d.diagnosesTotal : 0;
+    const today = (d && typeof d.diagnosesToday === 'number') ? d.diagnosesToday : 0;
     const counterEl = document.getElementById('live-counter-text');
-    if (counterEl) counterEl.textContent =
-      '🌍 ' + total.toLocaleString() + ' diagnoses made  •  ' + (today > 0 ? today + ' today' : 'Live across Ethiopia');
+    if (!counterEl) return;
+    // Only show count if it's a real, meaningful number
+    if (total >= 10) {
+      counterEl.textContent =
+        '🌍 ' + total.toLocaleString() + ' diagnoses made  •  ' + (today > 0 ? today + ' today' : 'Live across Ethiopia');
+    } else {
+      counterEl.textContent =
+        '🌿 SebilAI — Free AI Crop Disease Advisor for Ethiopian Farmers';
+    }
     const el = document.getElementById('vt-diagnoses');
-    if (el) el.textContent = total.toLocaleString();
+    if (el && total > 0) el.textContent = total.toLocaleString();
     const todayEl = document.getElementById('vt-today');
     if (todayEl && today > 0) todayEl.textContent = '+' + today + ' today';
   } catch(e) {
     const counterEl = document.getElementById('live-counter-text');
     if (counterEl) counterEl.textContent =
-      '🌍 SebilAI — AI Crop Disease Advisor for Ethiopian Farmers';
+      '🌿 SebilAI — Free AI Crop Disease Advisor for Ethiopian Farmers';
   }
 }
 loadLiveStats();
@@ -10326,7 +10346,7 @@ function generateImpactPDF() {
   doc.setTextColor(44,26,14); doc.setFontSize(14); doc.setFont('helvetica','bold');
   doc.text('Validation Results', 20, 52);
   doc.setDrawColor(45,106,10); doc.setLineWidth(0.5); doc.line(20,54,W-20,54);
-  [['87%','Agreement with certified agronomists (pilot n=120)'],['42%','Average reported yield loss reduction'],['1,247+','Total diagnoses made (as of May 2026)'],['6','Ethiopian languages supported (EN, AM, OM, TI, SO, AF)'],['8','Crop types with dedicated knowledge bases'],['23+','Ethiopian peer-reviewed studies in knowledge base'],['3','Regions validated: Oromia, SNNPR, Amhara'],['Free','Cost to Ethiopian farmers - always']].forEach(function([val,label],i) {
+  [['23+','Ethiopian peer-reviewed studies in the knowledge base'],['42','Diseases the system can diagnose'],['8','Crop types with dedicated knowledge bases (Enset, Teff, Wheat, Maize, Coffee, Potato, Barley, Sorghum)'],['6','Ethiopian languages supported (EN, AM, OM, TI, SO, AF)'],['100%','Offline-capable diagnosis (no internet required)'],['Free','Cost to Ethiopian farmers - always']].forEach(function([val,label],i) {
     var y=65+i*11;
     doc.setFont('helvetica','bold'); doc.setTextColor(45,106,10); doc.text(val,20,y);
     doc.setFont('helvetica','normal'); doc.setTextColor(74,55,40); doc.text(label,50,y);
