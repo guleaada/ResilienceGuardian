@@ -14,13 +14,11 @@
   }
   body { background-color: #F7F3EC; }
 
-  /* PWA standalone mode only — push content below status bar.
-     44px fallback covers notch iPhones when env() fails.
-     For non-notch/Android: JS below overrides with exact value. */
+  /* PWA standalone mode only — counter bar will handle safe area
+     via its own padding-top (see .live-counter-bar). This prevents
+     scrolled content from appearing in the status bar gap. */
   @media all and (display-mode: standalone) {
-    html {
-      padding-top: env(safe-area-inset-top, 44px);
-    }
+    /* Safe area handled by .live-counter-bar padding, not html */
   }
   /* iOS Safari standalone (navigator.standalone) */
   /* Handled by JS below */
@@ -63,7 +61,6 @@
       sat = ratio > 1.9 ? 44 : 24; // tall phone = notch, else standard
     }
 
-    document.documentElement.style.paddingTop = sat + 'px';
     document.documentElement.style.setProperty('--safe-top', sat + 'px');
   }
 
@@ -166,7 +163,7 @@ body::before {
 /* ─── HEADER ─────────────────────────────────────────── */
 .header {
   position: sticky;
-  top: calc(var(--safe-top, 0px) + 30px); /* below status bar + counter bar (~30px) */
+  top: calc(var(--safe-top, 0px) + 30px); /* below counter bar (safe-area + ~30px content) */
   z-index: 100;
   background: var(--soil);
   border-bottom: 3px solid var(--leaf-mid);
@@ -1788,12 +1785,13 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 /* ── LIVE COUNTER BANNER ──────────────────────────────── */
 .live-counter-bar {
   position: sticky;
-  top: var(--safe-top, 0px); /* sticks just below status bar */
+  top: 0; /* extends to very top of viewport */
   z-index: 101; /* above the header */
   background: linear-gradient(90deg, var(--leaf), var(--leaf-mid));
   color: white;
   text-align: center;
-  padding: 7px 16px;
+  /* Safe area lives INSIDE the bar — content can't show above it */
+  padding: calc(7px + var(--safe-top, 0px)) 16px 7px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -10033,18 +10031,23 @@ function closeIOSPopup() {
 // ==================== LIVE STATS COUNTER ====================
 async function loadLiveStats() {
   try {
-    const r = await fetch('/api/stats');
+    const r = await fetch('/api/stats', { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) throw new Error('stats not ok');
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) throw new Error('not json');
     const d = await r.json();
-    const total = d.diagnosesTotal || 1247;
-    const today = d.diagnosesToday || 0;
-    document.getElementById('live-counter-text').textContent =
+    const total = (d && d.diagnosesTotal) || 1247;
+    const today = (d && d.diagnosesToday) || 0;
+    const counterEl = document.getElementById('live-counter-text');
+    if (counterEl) counterEl.textContent =
       '🌍 ' + total.toLocaleString() + ' diagnoses made  •  ' + (today > 0 ? today + ' today' : 'Live across Ethiopia');
     const el = document.getElementById('vt-diagnoses');
     if (el) el.textContent = total.toLocaleString();
     const todayEl = document.getElementById('vt-today');
     if (todayEl && today > 0) todayEl.textContent = '+' + today + ' today';
   } catch(e) {
-    document.getElementById('live-counter-text').textContent =
+    const counterEl = document.getElementById('live-counter-text');
+    if (counterEl) counterEl.textContent =
       '🌍 SebilAI — AI Crop Disease Advisor for Ethiopian Farmers';
   }
 }
@@ -10369,57 +10372,92 @@ function showToast(msg) {
 // ==================== SEASONAL ALERTS ====================
 async function loadSeasonalAlerts(crop) {
   try {
-    const url = '/api/seasonal-alerts' + (crop ? '?crop=' + encodeURIComponent(crop) : '');
-    const r = await fetch(url);
+    if (!crop || typeof crop !== 'string') return;
+    const url = '/api/seasonal-alerts?crop=' + encodeURIComponent(crop);
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return; // silent fail on 404/500
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return; // not JSON, skip
     const d = await r.json();
-    if (d.results && d.results.length > 0) {
-      const top = d.results[0];
-      if (top.alert) {
-        document.getElementById('seasonal-alert-icon').textContent = top.isPeakDiseaseRisk ? '⚠️' : '📅';
-        document.getElementById('seasonal-alert-title').textContent = top.isPeakDiseaseRisk ? 'Peak Disease Season — Act Now' : 'Upcoming Disease Risk';
-        document.getElementById('seasonal-alert-text').textContent = top.alert + ' Watch for: ' + top.watchDiseases.slice(0,2).join(', ') + '.';
-        document.getElementById('seasonal-alert').classList.add('show');
-      }
-    }
-  } catch(e) { console.log('Seasonal alert fetch failed:', e.message); }
+    if (!d || !d.results || !Array.isArray(d.results) || d.results.length === 0) return;
+    const top = d.results[0];
+    if (!top || !top.alert) return;
+    const iconEl  = document.getElementById('seasonal-alert-icon');
+    const titleEl = document.getElementById('seasonal-alert-title');
+    const textEl  = document.getElementById('seasonal-alert-text');
+    const alertEl = document.getElementById('seasonal-alert');
+    if (!iconEl || !titleEl || !textEl || !alertEl) return;
+    iconEl.textContent  = top.isPeakDiseaseRisk ? '⚠️' : '📅';
+    titleEl.textContent = top.isPeakDiseaseRisk ? 'Peak Disease Season — Act Now' : 'Upcoming Disease Risk';
+    const watchList = Array.isArray(top.watchDiseases) ? top.watchDiseases.slice(0,2).join(', ') : '';
+    textEl.textContent  = top.alert + (watchList ? ' Watch for: ' + watchList + '.' : '');
+    alertEl.classList.add('show');
+  } catch(e) {
+    // Silent — feature is non-critical, don't spam console
+  }
 }
 
 // ==================== MARKET PRICE ====================
 async function loadMarketPrice(crop) {
   try {
-    const r = await fetch('/api/market-price?crop=' + encodeURIComponent(crop));
+    if (!crop || typeof crop !== 'string') return;
+    const r = await fetch('/api/market-price?crop=' + encodeURIComponent(crop),
+      { headers: { 'Accept': 'application/json' } });
     if (!r.ok) return;
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return;
     const d = await r.json();
-    document.getElementById('mp-price').textContent = d.price.toLocaleString() + ' ETB';
-    document.getElementById('mp-label').textContent = 'per ' + d.unit + ' · ' + d.market;
-    document.getElementById('mp-source').textContent = 'Source: ECX ' + d.updated + ' · ' + d.note;
-    document.getElementById('market-price-card').classList.add('show');
-  } catch(e) { console.log('Market price fetch failed:', e.message); }
+    if (!d || typeof d.price !== 'number') return;
+    const priceEl  = document.getElementById('mp-price');
+    const labelEl  = document.getElementById('mp-label');
+    const sourceEl = document.getElementById('mp-source');
+    const cardEl   = document.getElementById('market-price-card');
+    if (!priceEl || !labelEl || !sourceEl || !cardEl) return;
+    priceEl.textContent  = d.price.toLocaleString() + ' ETB';
+    labelEl.textContent  = 'per ' + (d.unit || 'unit') + ' · ' + (d.market || 'Market');
+    sourceEl.textContent = 'Source: ECX ' + (d.updated || '') + ' · ' + (d.note || '');
+    cardEl.classList.add('show');
+  } catch(e) { /* silent */ }
 }
 
 // ==================== 14-DAY FORECAST ====================
 async function loadForecast(lat, lon, crop) {
   try {
-    const r = await fetch(`/api/forecast?lat=${lat}&lon=${lon}&crop=${encodeURIComponent(crop)}`);
+    if (typeof lat !== 'number' || typeof lon !== 'number' || !crop) return;
+    if (isNaN(lat) || isNaN(lon)) return;
+    const url = '/api/forecast?lat=' + lat + '&lon=' + lon + '&crop=' + encodeURIComponent(crop);
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!r.ok) return;
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return;
     const d = await r.json();
-    document.getElementById('forecast-threat').textContent = d.topThreat;
-    document.getElementById('forecast-summary').textContent = d.summary;
-    const strip = document.getElementById('forecast-strip');
-    strip.innerHTML = '';
-    (d.forecasts || []).slice(0, 10).forEach(function(f) {
+    if (!d) return;
+    const threatEl  = document.getElementById('forecast-threat');
+    const summaryEl = document.getElementById('forecast-summary');
+    const stripEl   = document.getElementById('forecast-strip');
+    const sectionEl = document.getElementById('forecast-section');
+    if (!threatEl || !summaryEl || !stripEl || !sectionEl) return;
+    threatEl.textContent  = d.topThreat || '';
+    summaryEl.textContent = d.summary || '';
+    stripEl.innerHTML = '';
+    const forecasts = Array.isArray(d.forecasts) ? d.forecasts : [];
+    forecasts.slice(0, 10).forEach(function(f) {
+      if (!f || !f.date) return;
       const div = document.createElement('div');
       div.className = 'forecast-day';
       const date = new Date(f.date);
+      if (isNaN(date.getTime())) return; // skip invalid dates
+      const tempMax = typeof f.tempMax === 'number' ? Math.round(f.tempMax) : '–';
+      const risk = f.risk || 'low';
       div.innerHTML =
         '<div class="fd-date">' + date.toLocaleDateString('en', {month:'short',day:'numeric'}) + '</div>' +
         '<div style="font-size:16px;margin:2px 0;">' + (f.rain > 5 ? '🌧️' : f.humidity > 75 ? '⛅' : '☀️') + '</div>' +
-        '<div class="fd-temp">' + Math.round(f.tempMax) + '°</div>' +
-        '<div class="fd-risk ' + f.risk + '">' + f.risk + '</div>';
-      strip.appendChild(div);
+        '<div class="fd-temp">' + tempMax + '°</div>' +
+        '<div class="fd-risk ' + risk + '">' + risk + '</div>';
+      stripEl.appendChild(div);
     });
-    document.getElementById('forecast-section').style.display = 'block';
-  } catch(e) { console.log('Forecast failed:', e.message); }
+    sectionEl.style.display = 'block';
+  } catch(e) { /* silent */ }
 }
 
 // Hook into crop selection to refresh weather/forecast for that crop
@@ -10436,30 +10474,49 @@ function onCropSelected(crop) {
 // ==================== OUTBREAK ALERTS ====================
 async function loadOutbreakAlerts() {
   try {
-    const r = await fetch('/api/outbreak-alerts');
+    const r = await fetch('/api/outbreak-alerts', { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return;
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return;
     const d = await r.json();
     const el = document.getElementById('outbreak-list');
     if (!el) return;
-    if (!d.alerts || d.alerts.length === 0) {
+    if (!d || !Array.isArray(d.alerts) || d.alerts.length === 0) {
       el.innerHTML = '<div style="font-size:12px;color:var(--bark);text-align:center;padding:12px;">✅ No active outbreaks in the last 7 days.</div>';
       return;
     }
     el.innerHTML = d.alerts.slice(0, 5).map(function(a) {
+      if (!a) return '';
+      const disease = a.disease || 'Unknown';
+      const crop    = a.crop || '';
+      const count   = a.count || 0;
+      const zone    = typeof a.zone === 'string' ? a.zone.replace('_', ' ') : 'Unknown';
+      const date    = typeof a.date === 'string' && a.date.indexOf('T') >= 0
+        ? a.date.split('T')[0] : (a.date || '');
       return '<div style="background:#fde8e8;border-left:4px solid #e74c3c;border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
-        '<div style="font-size:13px;font-weight:800;color:#c0392b;">🚨 ' + a.disease + ' on ' + a.crop + '</div>' +
-        '<div style="font-size:11px;color:#922b21;margin-top:3px;">' + a.count + '+ reports · Zone: ' + a.zone.replace('_',' ') + ' · ' + a.date.split('T')[0] + '</div>' +
+        '<div style="font-size:13px;font-weight:800;color:#c0392b;">🚨 ' + disease + ' on ' + crop + '</div>' +
+        '<div style="font-size:11px;color:#922b21;margin-top:3px;">' + count + '+ reports · Zone: ' + zone + ' · ' + date + '</div>' +
         '</div>';
     }).join('');
 
     // Also show banner on advisor tab if there's an active alert for current crop
-    const cropAlert = d.alerts.find(a => a.crop === (window._lastSelectedCrop || '').toLowerCase());
+    const currentCrop = (window._lastSelectedCrop || '').toLowerCase();
+    const cropAlert = d.alerts.find(function(a) { return a && a.crop === currentCrop; });
     if (cropAlert) {
-      document.getElementById('outbreak-alert-title').textContent = '🚨 Outbreak Alert: ' + cropAlert.disease;
-      document.getElementById('outbreak-alert-text').textContent =
-        cropAlert.count + ' reports of ' + cropAlert.disease + ' on ' + cropAlert.crop + ' detected in your region in the last 7 days. Inspect your crop immediately and consider preventive treatment.';
-      document.getElementById('outbreak-alert').classList.add('show');
+      const titleEl = document.getElementById('outbreak-alert-title');
+      const textEl  = document.getElementById('outbreak-alert-text');
+      const alertEl = document.getElementById('outbreak-alert');
+      if (titleEl && textEl && alertEl) {
+        titleEl.textContent = '🚨 Outbreak Alert: ' + (cropAlert.disease || 'Unknown');
+        textEl.textContent  = (cropAlert.count || 0) + ' reports of ' + (cropAlert.disease || 'this disease') +
+          ' on ' + (cropAlert.crop || 'your crop') + ' detected in your region in the last 7 days. ' +
+          'Inspect your crop immediately and consider preventive treatment.';
+        alertEl.classList.add('show');
+      }
     }
-  } catch(e) { console.log('Outbreak fetch failed:', e.message); }
+  } catch(e) {
+    // Silent — feature is non-critical
+  }
 }
 loadOutbreakAlerts();
 
