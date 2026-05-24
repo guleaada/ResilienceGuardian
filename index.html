@@ -39,6 +39,7 @@
 
 <style>
 :root {
+  --safe-top: env(safe-area-inset-top, 44px);
   --soil: #2C1A0E;
   --bark: #4A3728;
   --leaf: #2D6A0A;
@@ -89,11 +90,11 @@ body::before {
   z-index: 100;
   background: var(--soil);
   border-bottom: 3px solid var(--leaf-mid);
-  padding: env(safe-area-inset-top, 0px) 20px 0;
+  padding: var(--safe-top, 44px) 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: calc(64px + env(safe-area-inset-top, 0px));
+  height: calc(64px + var(--safe-top, 44px));
   box-shadow: var(--shadow-md);
 }
 
@@ -1710,7 +1711,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   color: white;
   text-align: center;
   padding: 7px 16px;
-  padding-top: calc(7px + env(safe-area-inset-top, 0px));
+  padding-top: calc(7px + var(--safe-top, 44px));
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -2184,6 +2185,27 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 </style>
 </head>
 <body>
+<script>
+// Detect real safe-area for standalone PWA mode
+(function(){
+  function applySafeArea(){
+    var el = document.documentElement;
+    // Try CSS env() first
+    var envVal = getComputedStyle(el).getPropertyValue('--safe-top').trim();
+    // If running as installed PWA on iOS, ensure minimum 44px
+    var isStandalone = window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    if(isStandalone){
+      // Force minimum 44px for notched phones, 20px for others
+      var minSafe = window.screen.height > 800 ? '44px' : '20px';
+      el.style.setProperty('--safe-top', 'max(' + minSafe + ', env(safe-area-inset-top, ' + minSafe + '))');
+    }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', applySafeArea);
+  } else { applySafeArea(); }
+})();
+</script>
 <noscript><div style="padding:20px;text-align:center;font-family:sans-serif;"><h2>🌿 SebilAI</h2><p>Please enable JavaScript to use this app.</p></div></noscript>
 
 <!-- Live Diagnoses Counter -->
@@ -3357,7 +3379,13 @@ const T = {
     howtoResultsTitle: "What the AI Result Includes",
     // Crop selection label
     selectCropLabel: "SELECT CROP",
-  navProfile:"Profile",navMore:"More",navValidation:"Impact",hotline:"Emergency Hotline"},
+  navProfile:"Profile",navMore:"More",navValidation:"Impact",hotline:"Emergency Hotline",
+  voiceTap:"Tap the mic to speak your problem",
+  voiceHint:'Say: "My teff has yellow leaves" or any crop + symptom',
+  voiceListening:"🔴 Listening...",
+  voiceDiagnosing:"🧠 Diagnosing...",
+  voiceNoSupport:"Voice not supported — type in the Advisor instead",
+  voiceClose:"✕ Close"},
   am: {
     headerSub: "የኢትዮጵያ ሰብል AI አማካሪ",
     labelLang: "ቋንቋ",
@@ -3425,7 +3453,13 @@ const T = {
     howtoStep6: "በምርምር የተደገፈ ምክር ያግኙ",
     howtoResultsTitle: "AI ውጤቱ የሚያካትተው",
     selectCropLabel: "ሰብል ምረጡ",
-  navProfile:"መገለጫ",navMore:"ተጨማሪ",navValidation:"ተጽዕኖ",hotline:"አስቸኳይ መስመር"},
+  navProfile:"መገለጫ",navMore:"ተጨማሪ",navValidation:"ተጽዕኖ",hotline:"አስቸኳይ መስመር",
+  voiceTap:"ስለ ችግርዎ ለመናገር ማይክሮፎኑን ይጫኑ",
+  voiceHint:'"የእኔ ጤፍ ቢጫ ቅጠሎች አሉት" ወይም ሌሎች ምልክቶችን ይናገሩ',
+  voiceListening:"🔴 እያዳመጥኩ ነው...",
+  voiceDiagnosing:"🧠 እየመረመርኩ ነው...",
+  voiceNoSupport:"ድምፅ አይደገፍም — በዋናው አማካሪ ይጠቀሙ",
+  voiceClose:"✕ ዝጋ"},
   om: {
     headerSub: "Gorsaa AI Qonnaa Itoophiyaa",
     labelLang: "Afaan",
@@ -3492,7 +3526,13 @@ const T = {
     howtoStep6: "Gorsa qorannoo irratti hundaae argadhu",
     howtoResultsTitle: "AI Deebii Keessatti Maal Jira",
     selectCropLabel: "MIDHAAN FILADHU",
-  navProfile:"Profaayilii",navMore:"Dabalee",navValidation:"Dhiibbaa",hotline:"Sarara Hatattamaa"},
+  navProfile:"Profaayilii",navMore:"Dabalee",navValidation:"Dhiibbaa",hotline:"Sarara Hatattamaa",
+  voiceTap:"Rakkoo keessan dubbachuuf maaykiroofooniitti tuqaa",
+  voiceHint:'"Teffin koo baalee keeltuu qaba" ykn mallattoo kamiiyyuu dubbadhu',
+  voiceListening:"🔴 Dhaggeeffachaa jira...",
+  voiceDiagnosing:"🧠 Qorachaa jira...",
+  voiceNoSupport:"Sagaleen hin deeggarmne — Gorsaa keessatti barreessi",
+  voiceClose:"✕ Cufii"},
 
   ti: {
     headerSub: "ናይ ኢትዮጵያ ሰብሊ AI መካሪ",
@@ -3560,7 +3600,13 @@ const T = {
     howtoStep6: "ብመጽናዕቲ ዝተደገፈ ምኽሪ ረኸብ",
     howtoResultsTitle: "ውጺኢት AI እንታይ ይሓዝ",
     selectCropLabel: "ሰብሊ ምረጽ",
-  navProfile:"ፕሮፋይል",navMore:"ተወሳኺ",navValidation:"ጽልዋ",hotline:"ህጹጽ መስመር"}
+  navProfile:"ፕሮፋይል",navMore:"ተወሳኺ",navValidation:"ጽልዋ",hotline:"ህጹጽ መስመር",
+  voiceTap:"ብዛዕባ ጸገምካ ንምዝራብ ማይክሮፎን ጠውቕ",
+  voiceHint:'"ጤፈይ ቢጫ ቅጠላት ኣለዎ" ወይ ካልእ ምልክት ዛረብ',
+  voiceListening:"🔴 እሰምዕ ኣለኹ...",
+  voiceDiagnosing:"🧠 እምርምር ኣለኹ...",
+  voiceNoSupport:"ድምጺ ኣይድገፍን — ኣብ ዋና ወኪል ጸሓፍ",
+  voiceClose:"✕ ዕጸው"}
 ,
     so: {
       headerSub: "Xeer Cudurka Beeraha AI",
@@ -3658,7 +3704,13 @@ const T = {
       howtoStep6:"La wadaag ama kaydi",
       howtoResultsTitle:"Waxa natiijooyinku ka kooban yihiin",
       selectCropLabel:"DOORO BEERAHA",
-      hotline:"Xariiqda Xaaladda Deg-degga",uploadText2:"Sawiro badan ayaa la taageeraa • Qaybta saxda ah xulo"},
+      hotline:"Xariiqda Xaaladda Deg-degga",uploadText2:"Sawiro badan ayaa la taageeraa • Qaybta saxda ah xulo",
+      voiceTap:"Dhibaatadaada si aad u sheegto maaykirofoonka taabo",
+      voiceHint:'"Teffkaygu caleemo huruud leh ayuu leeyahay" ama calaamad kasta sheeg',
+      voiceListening:"🔴 Dhegeysta...",
+      voiceDiagnosing:"🧠 Baarayaa...",
+      voiceNoSupport:"Cod lama taageerayo — Ku qor Xeer-Bixiyaha",
+      voiceClose:"✕ Xir"},
     aa: {
       headerSub: "SebilAI - Dagu Qoqqobay Ilaalad",
       labelLang: "Afaan",
@@ -3755,7 +3807,13 @@ const T = {
       howtoStep6:"La wadaag",
       howtoResultsTitle:"Natiijada waxa ka kooban",
       selectCropLabel:"ABUURTA FIL",
-      hotline:"Xariiqda Deg-degga",uploadText2:"Foto badan ayaa la taageeraa • Qaybta saxda ah xulo"}};
+      hotline:"Xariiqda Deg-degga",uploadText2:"Foto badan ayaa la taageeraa • Qaybta saxda ah xulo",
+      voiceTap:"Dhibaatadaada sheegasho maaykirofoonka taabo",
+      voiceHint:'"Teffkaygu caleemo huruud leh' + "'" + 'u leeyahay" ama calaamad sheeg',
+      voiceListening:"🔴 Maqla...",
+      voiceDiagnosing:"🧠 Baara...",
+      voiceNoSupport:"Cod lama taageerayo — Ku qor Gorgortan",
+      voiceClose:"✕ Xir"}};
 
 // ==================== LOCAL DISEASE DATABASE ====================
 const LOCAL_DISEASES = {
@@ -5154,6 +5212,17 @@ function setLanguage(lang) {
   setText('nav-validation', t.navValidation || 'Impact');
   setText('nav-about',    t.navMore    || t.navAbout);
   setText('nav-profile',  t.navProfile || 'Profile');
+  // Update voice overlay if it's open
+  if (t.voiceTap) {
+    var vsEl = document.getElementById('voice-status');
+    var vtEl = document.getElementById('voice-transcript');
+    var vcEl = document.getElementById('voice-close-btn');
+    if (vsEl && !vsEl.textContent.includes('🔴') && !vsEl.textContent.includes('🧠'))
+      vsEl.textContent = t.voiceTap;
+    if (vtEl && !vtEl.textContent.startsWith('Action:'))
+      vtEl.textContent = t.voiceHint;
+    if (vcEl) vcEl.textContent = t.voiceClose || '✕ Close';
+  }
   // Translate History button
   var histBtn = document.getElementById('history-btn');
   if (histBtn) {
@@ -9745,7 +9814,7 @@ function closeIOSPopup() {
   <div class="voice-orb" id="voice-orb" onclick="startVoiceListen()">🎤</div>
   <div class="voice-status" id="voice-status">Tap to speak your problem</div>
   <div class="voice-transcript" id="voice-transcript">Say: "My teff has yellow leaves" or any crop + symptom</div>
-  <button onclick="closeVoiceMode()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:10px 24px;border-radius:20px;font-size:13px;cursor:pointer;margin-top:8px;">✕ Close</button>
+  <button id="voice-close-btn" onclick="closeVoiceMode()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:10px 24px;border-radius:20px;font-size:13px;cursor:pointer;margin-top:8px;">✕ Close</button>
 </div>
 
 <!-- ── YIELD PREDICTION MODAL ────────────────────── -->
@@ -10283,9 +10352,11 @@ function toggleVoiceMode() {
   overlay.classList.contains('show') ? closeVoiceMode() : openVoiceMode();
 }
 function openVoiceMode() {
+  var t = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
   document.getElementById('voice-overlay').classList.add('show');
-  document.getElementById('voice-status').textContent = 'Tap the mic to speak your problem';
-  document.getElementById('voice-transcript').textContent = 'Say: "My teff has yellow leaves and spots"';
+  document.getElementById('voice-status').textContent = t.voiceTap || 'Tap the mic to speak your problem';
+  document.getElementById('voice-transcript').textContent = t.voiceHint || 'Say: "My teff has yellow leaves" or any crop + symptom';
+  document.getElementById('voice-close-btn').textContent = t.voiceClose || '✕ Close';
 }
 function closeVoiceMode() {
   document.getElementById('voice-overlay').classList.remove('show');
@@ -10296,19 +10367,20 @@ function closeVoiceMode() {
 }
 
 async function startVoiceListen() {
+  var t = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
   if (_voiceListening) {
     if (_voiceRecognition) _voiceRecognition.stop();
     return;
   }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    document.getElementById('voice-status').textContent = 'Voice not supported — type in the main Advisor instead';
+    document.getElementById('voice-status').textContent = t.voiceNoSupport || 'Voice not supported — type in the main Advisor instead';
     return;
   }
   _voiceListening = true;
   document.getElementById('voice-orb').classList.add('listening');
   document.getElementById('voice-mode-btn').classList.add('listening');
-  document.getElementById('voice-status').textContent = '🔴 Listening...';
+  document.getElementById('voice-status').textContent = t.voiceListening || '🔴 Listening...';
 
   _voiceRecognition = new SpeechRecognition();
   _voiceRecognition.lang = currentLang === 'am' ? 'am-ET' :
@@ -10320,7 +10392,8 @@ async function startVoiceListen() {
     const transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
     document.getElementById('voice-transcript').textContent = transcript;
     if (e.results[e.results.length - 1].isFinal) {
-      document.getElementById('voice-status').textContent = '🧠 Diagnosing...';
+      var t2 = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
+      document.getElementById('voice-status').textContent = t2.voiceDiagnosing || '🧠 Diagnosing...';
       runVoiceDiagnosis(transcript);
     }
   };

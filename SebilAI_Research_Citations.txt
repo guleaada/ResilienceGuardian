@@ -1,0 +1,48 @@
+SebilAI — COMPLETE RESEARCH CITATIONS
+Generated: 5/24/2026
+App: sebilai.com
+
+============================================================
+
+--- ENSET ---
+1. Negash T. et al. (2023). Integrated Management of Enset Bacterial Wilt. Bonga University.
+2. Temam B., Getahun M., Kebede M., Tsegaye Y. (2023). Community-Based EBW Management. Werabe ARC / Central Ethiopia ARI.
+3. Fekadu M. et al. (2021). Enset Disease & Pest Identification Using CNN (98.87% accuracy). Jimma University.
+4. McKnight Foundation / CCRP (2022). Integrated Enset Management Report. CGIAR.
+5. Areka Agricultural Research Center. Enset Clonal Diversity & Disease Resistance. EIAR.
+6. Temam B., Getahun M., Kebede M., Tsegaye Y. (2024). Community Based Integrated EBW Management Through Collective Actions. Journal of Life Science and Biomedicine, 13(4), 66-77.
+7. Tsadiku Alemu (2024). Economic Analysis of Loss Associated with Wilting Disease of Ensete ventricosum in Sidama Region. Trends in Agricultural Economics, 17(1), 1-7.
+
+--- TEFF ---
+1. Bekele E. et al. (2021). Major Tef Diseases in Ethiopia: Survey and Identification. EIAR Debre Zeit ARC.
+2. Hailu B. et al. (2021). Distribution of Tef Diseases in Central Highlands. Int. J. Applied Agricultural Sciences.
+3. Ashenafi Gemechu Degete (2025). Major Tef Diseases in Ethiopia and Their Management (Updated Review). EIAR Debre Zeit ARC.
+4. Gebremedhin H. et al. (2025). Teff: A Healthy Crop of the Century — Challenges and Opportunities Under Climate Change. Discover Crops, Springer.
+5. Ashenafi Gemechu Degete et al. (2025). Geographical Distribution, Incidence and Severity of Tef Diseases in Ethiopia (Updated Survey). EIAR Debre Zeit ARC.
+
+--- WHEAT ---
+1. Maccaferri M. et al. (2019). Early Warning System for Wheat Rust Ug99 in Ethiopia. Cambridge / CIMMYT / EIAR.
+
+--- MAIZE ---
+1. Beyene Y. et al. (2020). Ethiopian Maize Disease Survey & Management. MoA / FAO Ethiopia.
+2. IITA / CIMMYT (2019). Fall Armyworm (FAW) Emergency Response Guide. FAO.
+
+--- COFFEE ---
+1. Jimma University Research (2021). Coffee Berry Disease (CBD) Management. JARC.
+2. Jimma ARC / CABI (2020). Coffee Berry Borer (CBB) Biocontrol. Jimma ARC.
+
+--- POTATO ---
+1. Holeta ARC / CIP (2022). Late Blight Management in Ethiopian Highlands. CIP Ethiopia.
+2. Holeta ARC (2021). Potato Seed System & Bacterial Wilt in Ethiopia. HARC.
+
+--- BARLEY ---
+1. Adet ARC / ICARDA (2020). Barley Scald and Net Blotch Management. Adet ARC.
+2. ICARDA Ethiopia (2019). Highland Barley Disease Survey. Adet ARC.
+
+--- SORGHUM ---
+1. Melkassa ARC / ICRISAT (2021). Striga Management in Ethiopian Sorghum. ICRISAT.
+2. Chiro NSRTC / EIAR (2020). Sorghum Disease and Pest Management. Chiro NSRTC.
+
+============================================================
+Developed by Gulilat Kasiye Worku (ጉልላት ካስዬ ዎርቁ)
+© 2025 All rights reserved. CC BY-NC-ND 4.0

@@ -1446,6 +1446,17 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 app.get('/admin-feedback.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-feedback.html')));
 app.get('/manifest-admin.json', (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-admin.json')));
 app.get('/manifest-agro.json',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-agro.json')));
+// PWA icons — served as SVG with correct Content-Type
+app.get('/icons/icon-192.png', (req, res) => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.sendFile(path.join(__dirname, 'public', 'icon-192.svg'));
+});
+app.get('/icons/icon-512.png', (req, res) => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.sendFile(path.join(__dirname, 'public', 'icon-512.svg'));
+});
+app.get('/icon-192.svg', (req, res) => res.sendFile(path.join(__dirname, 'public', 'icon-192.svg')));
+app.get('/icon-512.svg', (req, res) => res.sendFile(path.join(__dirname, 'public', 'icon-512.svg')));
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
