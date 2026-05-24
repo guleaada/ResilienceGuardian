@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function() {
+  document.documentElement.style.backgroundColor = '#1a3a05';
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:env(safe-area-inset-top,0px);background:transparent;pointer-events:none;z-index:-1;';
+  document.documentElement.appendChild(probe);
+  function apply() {
+    var h = probe.getBoundingClientRect().height;
+    document.documentElement.removeChild(probe);
+    if (h <= 0) {
+      var sa = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      if (sa) h = window.screen.height / window.screen.width > 2 ? 44 : 20;
+    }
+    if (h > 0) {
+      document.documentElement.style.paddingTop = h + 'px';
+      document.documentElement.style.setProperty('--safe-top', h + 'px');
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+  else apply();
+})();
+</script>
 <meta charset="UTF-8">
 <style>
   html {

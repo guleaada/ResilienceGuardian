@@ -2,22 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<style>
-  /* BULLETPROOF STATUS BAR FIX — must be in <head> before anything renders */
-  html {
-    /* Background matches live counter bar so status bar area looks intentional */
-    background-color: #2D6A0A;
-    /* Push ALL content below the status bar */
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-  body {
-    /* Body content starts after safe area */
-    background-color: #F7F3EC;
-  }
-</style>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+  /* ── STATUS BAR FIX ─────────────────────────────────────
+     html background matches the counter bar color so the
+     status bar area is always the correct green color.
+     CSS alone for instant render — no flash of wrong color. */
+  html {
+    background-color: #2D6A0A;
+    scroll-behavior: smooth;
+  }
+  body { background-color: #F7F3EC; }
+
+  /* PWA standalone mode only — push content below status bar.
+     44px fallback covers notch iPhones when env() fails.
+     For non-notch/Android: JS below overrides with exact value. */
+  @media all and (display-mode: standalone) {
+    html {
+      padding-top: env(safe-area-inset-top, 44px);
+    }
+  }
+  /* iOS Safari standalone (navigator.standalone) */
+  /* Handled by JS below */
+</style>
+<script>
+/* ── DEFINITIVE SAFE AREA FIX ───────────────────────────
+   Runs immediately. Uses 3 methods in priority order:
+   1. CSS env() computed value (best — exact value)
+   2. screen.height - innerHeight (Android/Chrome standalone)
+   3. Device heuristic fallback (44px notch / 24px others)
+   Only applies in standalone PWA mode. ──────────────── */
+(function fixStatusBar() {
+  var isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) return; // Browser tab: OS handles safe areas
+
+  document.documentElement.style.backgroundColor = '#2D6A0A';
+
+  function applyPadding() {
+    // Method 1: Read CSS env() via computed style of a real element
+    var probe = document.createElement('div');
+    probe.style.cssText = [
+      'position:fixed', 'top:0', 'left:0', 'width:1px',
+      'height:env(safe-area-inset-top,0px)',
+      'visibility:hidden', 'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(probe);
+    var sat = parseFloat(getComputedStyle(probe).height) || 0;
+    document.body.removeChild(probe);
+
+    // Method 2: screen.height vs innerHeight (works on Android)
+    if (sat <= 0) {
+      var diff = window.screen.height - window.innerHeight;
+      if (diff > 8 && diff < 150) sat = diff;
+    }
+
+    // Method 3: Device heuristic — never show 0 in standalone
+    if (sat <= 0) {
+      var ratio = window.screen.height / window.screen.width;
+      sat = ratio > 1.9 ? 44 : 24; // tall phone = notch, else standard
+    }
+
+    document.documentElement.style.paddingTop = sat + 'px';
+    document.documentElement.style.setProperty('--safe-top', sat + 'px');
+  }
+
+  // Apply immediately if body exists, else wait for DOM
+  if (document.body) {
+    applyPadding();
+  } else {
+    document.addEventListener('DOMContentLoaded', applyPadding);
+    // Also apply immediately after body tag via MutationObserver
+    var mo = new MutationObserver(function() {
+      if (document.body) { mo.disconnect(); applyPadding(); }
+    });
+    mo.observe(document.documentElement, { childList: true });
+  }
+
+  // Re-apply on orientation change
+  window.addEventListener('orientationchange', function() {
+    setTimeout(applyPadding, 200);
+  });
+})();
+</script>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>SebilAI — Ethiopian Crop AI Advisor</title>
 <meta name="description" content="Offline AI Advisor for Enset, Teff, Wheat, Maize, Coffee, Potato, Barley and Sorghum">
@@ -4712,6 +4779,12 @@ function getUserLocation() {
       var lat = pos.coords.latitude;
       var lon = pos.coords.longitude;
       var locName = '📍 Your Location (' + lat.toFixed(2) + '°N, ' + lon.toFixed(2) + '°E)';
+      // ── Update shared coordinates for ALL weather features ──
+      window._userLat = lat;
+      window._userLon = lon;
+      var crop = window._lastSelectedCrop || 'enset';
+      fetchWeatherRisk(lat, lon, crop);
+      loadForecast(lat, lon, crop);
       getWeather(lat, lon, locName);
     },
     function(err) {
@@ -4738,6 +4811,14 @@ function loadSelectedRegion() {
   var name = sel.options[sel.selectedIndex].text;
   // Save region preference
   try { localStorage.setItem('rg_weather_region', val + '|' + name); } catch(e){}
+  // ── Update shared coordinates so ALL weather features use this region ──
+  window._userLat = lat;
+  window._userLon = lon;
+  // Update new weather widget + forecast strip
+  var crop = window._lastSelectedCrop || 'enset';
+  fetchWeatherRisk(lat, lon, crop);
+  loadForecast(lat, lon, crop);
+  // Run original weather display too
   getWeather(lat, lon, name);
 }
 
@@ -4757,6 +4838,9 @@ function autoLoadWeather() {
         }
       }
       getWeather(parseFloat(coords[0]), parseFloat(coords[1]), savedName);
+      // Keep shared coordinates in sync
+      window._userLat = parseFloat(coords[0]);
+      window._userLon = parseFloat(coords[1]);
       return;
     }
   } catch(e) {}
@@ -10009,13 +10093,55 @@ async function fetchWeatherRisk(lat, lon, crop) {
   } catch(e) { console.log('Weather fetch failed:', e.message); }
 }
 
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    window._userLat = pos.coords.latitude;
-    window._userLon = pos.coords.longitude;
-    fetchWeatherRisk(window._userLat, window._userLon, window._lastSelectedCrop || 'enset');
-  }, function(){}, { timeout: 8000 });
-}
+// ── WEATHER: Use saved region first, GPS as fallback ─────
+(function initWeatherRegion() {
+  // Check for saved region preference (set by dropdown)
+  try {
+    var saved = localStorage.getItem('rg_weather_region');
+    if (saved) {
+      var parts = saved.split('|');
+      var coords = parts[0].split(',');
+      var lat = parseFloat(coords[0]), lon = parseFloat(coords[1]);
+      var name = parts[1] || 'Ethiopia';
+      if (!isNaN(lat) && !isNaN(lon)) {
+        window._userLat = lat;
+        window._userLon = lon;
+        fetchWeatherRisk(lat, lon, window._lastSelectedCrop || 'enset');
+        return; // Use saved region, skip GPS
+      }
+    }
+  } catch(e) {}
+
+  // No saved region — try GPS but validate it's within Ethiopia/nearby
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      var lat = pos.coords.latitude;
+      var lon = pos.coords.longitude;
+      // Ethiopia bounding box: lat 3.4–15.0, lon 33.0–48.0
+      var inEthiopia = lat >= 3.0 && lat <= 16.0 && lon >= 32.0 && lon <= 49.0;
+      if (inEthiopia) {
+        window._userLat = lat;
+        window._userLon = lon;
+        fetchWeatherRisk(lat, lon, window._lastSelectedCrop || 'enset');
+      } else {
+        // GPS is outside Ethiopia — default to Addis Ababa
+        window._userLat = 9.03;
+        window._userLon = 38.74;
+        fetchWeatherRisk(9.03, 38.74, window._lastSelectedCrop || 'enset');
+      }
+    }, function() {
+      // GPS failed — default to Addis Ababa
+      window._userLat = 9.03;
+      window._userLon = 38.74;
+      fetchWeatherRisk(9.03, 38.74, window._lastSelectedCrop || 'enset');
+    }, { timeout: 8000 });
+  } else {
+    // No GPS — default to Addis Ababa
+    window._userLat = 9.03;
+    window._userLon = 38.74;
+    fetchWeatherRisk(9.03, 38.74, window._lastSelectedCrop || 'enset');
+  }
+})();
 
 // ==================== WHATSAPP SHARE ====================
 function shareViaWhatsApp(crop, disease, confidence, action) {
@@ -10293,7 +10419,7 @@ async function loadForecast(lat, lon, crop) {
   } catch(e) { console.log('Forecast failed:', e.message); }
 }
 
-// Hook into geolocation to load forecast when crop selected
+// Hook into crop selection to refresh weather/forecast for that crop
 function onCropSelected(crop) {
   window._lastSelectedCrop = crop;
   loadSeasonalAlerts(crop);
