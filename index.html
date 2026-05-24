@@ -2,6 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<style>
+  /* BULLETPROOF STATUS BAR FIX — must be in <head> before anything renders */
+  html {
+    /* Background matches live counter bar so status bar area looks intentional */
+    background-color: #2D6A0A;
+    /* Push ALL content below the status bar */
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  body {
+    /* Body content starts after safe area */
+    background-color: #F7F3EC;
+  }
+</style>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -39,7 +52,6 @@
 
 <style>
 :root {
-  --safe-top: env(safe-area-inset-top, 44px);
   --soil: #2C1A0E;
   --bark: #4A3728;
   --leaf: #2D6A0A;
@@ -90,11 +102,11 @@ body::before {
   z-index: 100;
   background: var(--soil);
   border-bottom: 3px solid var(--leaf-mid);
-  padding: var(--safe-top, 44px) 20px 0;
+  padding: 0 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: calc(64px + var(--safe-top, 44px));
+  height: 64px;
   box-shadow: var(--shadow-md);
 }
 
@@ -1711,7 +1723,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   color: white;
   text-align: center;
   padding: 7px 16px;
-  padding-top: calc(7px + var(--safe-top, 44px));
+  padding: 7px 16px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -2185,27 +2197,6 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 </style>
 </head>
 <body>
-<script>
-// Detect real safe-area for standalone PWA mode
-(function(){
-  function applySafeArea(){
-    var el = document.documentElement;
-    // Try CSS env() first
-    var envVal = getComputedStyle(el).getPropertyValue('--safe-top').trim();
-    // If running as installed PWA on iOS, ensure minimum 44px
-    var isStandalone = window.navigator.standalone === true ||
-      window.matchMedia('(display-mode: standalone)').matches;
-    if(isStandalone){
-      // Force minimum 44px for notched phones, 20px for others
-      var minSafe = window.screen.height > 800 ? '44px' : '20px';
-      el.style.setProperty('--safe-top', 'max(' + minSafe + ', env(safe-area-inset-top, ' + minSafe + '))');
-    }
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', applySafeArea);
-  } else { applySafeArea(); }
-})();
-</script>
 <noscript><div style="padding:20px;text-align:center;font-family:sans-serif;"><h2>🌿 SebilAI</h2><p>Please enable JavaScript to use this app.</p></div></noscript>
 
 <!-- Live Diagnoses Counter -->

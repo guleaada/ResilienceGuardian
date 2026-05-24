@@ -164,7 +164,11 @@ function requireAdminKey(req, res) {
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from root directory (files are at repo root, not in /public)
+app.use(express.static(__dirname));
+// Also try public/ as fallback if it exists
+const publicPath = path.join(__dirname, 'public');
+try { require('fs').accessSync(publicPath); app.use(express.static(publicPath)); } catch(e) {}
 
 // Per-minute + per-day rate limiting
 const reqCounts    = new Map(); // per-minute
@@ -1441,24 +1445,24 @@ app.get('/api/market-price', (req, res) => {
 });
 
 // Admin & Agronomist PWA pages + manifests
-app.get('/agronomist', (req, res) => res.sendFile(path.join(__dirname, 'public', 'agronomist-dashboard.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-feedback.html')));
-app.get('/admin-feedback.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-feedback.html')));
-app.get('/manifest-admin.json', (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-admin.json')));
-app.get('/manifest-agro.json',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-agro.json')));
+app.get('/agronomist', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'agronomist-dashboard.html')) ? path.join(__dirname, 'public', 'agronomist-dashboard.html') : path.join(__dirname, 'agronomist-dashboard.html'))));
+app.get('/admin', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'admin-feedback.html')) ? path.join(__dirname, 'public', 'admin-feedback.html') : path.join(__dirname, 'admin-feedback.html'))));
+app.get('/admin-feedback.html', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'admin-feedback.html')) ? path.join(__dirname, 'public', 'admin-feedback.html') : path.join(__dirname, 'admin-feedback.html'))));
+app.get('/manifest-admin.json', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'manifest-admin.json')) ? path.join(__dirname, 'public', 'manifest-admin.json') : path.join(__dirname, 'manifest-admin.json'))));
+app.get('/manifest-agro.json',  (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'manifest-agro.json')) ? path.join(__dirname, 'public', 'manifest-agro.json') : path.join(__dirname, 'manifest-agro.json'))));
 // PWA icons — served as SVG with correct Content-Type
 app.get('/icons/icon-192.png', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
-  res.sendFile(path.join(__dirname, 'public', 'icon-192.svg'));
+  res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-192.svg')) ? path.join(__dirname, 'public', 'icon-192.svg') : path.join(__dirname, 'icon-192.svg')));
 });
 app.get('/icons/icon-512.png', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
-  res.sendFile(path.join(__dirname, 'public', 'icon-512.svg'));
+  res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-512.svg')) ? path.join(__dirname, 'public', 'icon-512.svg') : path.join(__dirname, 'icon-512.svg')));
 });
-app.get('/icon-192.svg', (req, res) => res.sendFile(path.join(__dirname, 'public', 'icon-192.svg')));
-app.get('/icon-512.svg', (req, res) => res.sendFile(path.join(__dirname, 'public', 'icon-512.svg')));
+app.get('/icon-192.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-192.svg')) ? path.join(__dirname, 'public', 'icon-192.svg') : path.join(__dirname, 'icon-192.svg'))));
+app.get('/icon-512.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-512.svg')) ? path.join(__dirname, 'public', 'icon-512.svg') : path.join(__dirname, 'icon-512.svg'))));
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public', 'index.html') : path.join(__dirname, 'index.html'))));
 
 app.listen(PORT, () => {
   console.log(`\n🌿 SebilAI v3.0`);
