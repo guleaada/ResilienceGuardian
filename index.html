@@ -1580,7 +1580,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 /* ─── REFRESH BUTTON ──────────────────────────────────── */
 .refresh-btn {
   position: fixed;
-  top: 14px;
+  top: calc(var(--safe-top, 0px) + 14px); /* respects status bar */
   right: 16px;
   width: 36px;
   height: 36px;
@@ -1611,7 +1611,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 .update-toast {
   display: none;
   position: fixed;
-  top: 60px;
+  top: calc(var(--safe-top, 0px) + 60px); /* below status bar + counter bar */
   left: 50%;
   transform: translateX(-50%);
   background: var(--leaf);
