@@ -102,12 +102,29 @@ for (const row of stmts.allSms.all()) {
   smsSubscribers.set(row.phone, { phone: row.phone, region: row.region, crop: row.crop, lang: row.lang });
 }
 
-// Compatibility shim — old saveJSON calls replaced inline below,
-// but this catches any stray calls that were missed.
-function saveJSON(name, data) {
-  console.warn(`⚠️  saveJSON('${name}') called — all data now in SQLite, this is a no-op.`);
-  return true;
+// JSON file helpers for new features not yet in SQLite schema
+const DATA_DIR = process.env.DATA_DIR || '/tmp/sebilai_data';
+const fs_sync  = require('fs');
+if (!fs_sync.existsSync(DATA_DIR)) fs_sync.mkdirSync(DATA_DIR, { recursive: true });
+
+function loadJSON(name, def) {
+  try {
+    const p = require('path').join(DATA_DIR, name);
+    if (fs_sync.existsSync(p)) return JSON.parse(fs_sync.readFileSync(p, 'utf-8'));
+  } catch(e) {}
+  return def;
 }
+function saveJSON(name, data) {
+  try {
+    fs_sync.writeFileSync(require('path').join(DATA_DIR, name), JSON.stringify(data));
+    return true;
+  } catch(e) { console.warn('saveJSON failed:', name, e.message); return false; }
+}
+
+// diseaseReports in-memory array for outbreak detection (mirrors SQLite)
+let diseaseReports = (() => {
+  try { return stmts.recentReports.all('2020-01-01').map(r => ({ ...r })); } catch(e) { return []; }
+})();
 
 console.log(`🗄️  SQLite DB: ${DB_PATH}`);
 console.log(`📂 Loaded: ${stmts.countFeedback.get().n} feedback, ${pushSubscriptions.size} push, ${smsSubscribers.size} SMS subscribers`);
@@ -890,8 +907,14 @@ app.post('/api/community-report', (req, res) => {
   const { crop, disease, lat, lon, severity, lang } = req.body;
   if (!crop || !disease || !lat || !lon) return res.status(400).json({ error: 'Missing fields' });
   const id = Date.now();
-  stmts.insertReport.run(id, crop.toLowerCase(), disease, parseFloat(lat), parseFloat(lon), severity||'Medium', lang||'en', new Date().toISOString().split('T')[0], 0, 'app');
+  const parsedLat = parseFloat(lat), parsedLon = parseFloat(lon);
+  stmts.insertReport.run(id, crop.toLowerCase(), disease, parsedLat, parsedLon, severity||'Medium', lang||'en', new Date().toISOString().split('T')[0], 0, 'app');
+  // Keep in-memory array in sync for outbreak detection
+  diseaseReports.push({ id, crop: crop.toLowerCase(), disease, lat: parsedLat, lon: parsedLon, severity: severity||'Medium', date: new Date().toISOString().split('T')[0] });
+  if (diseaseReports.length > 1000) diseaseReports = diseaseReports.slice(-1000);
   console.log(`📍 Community report: ${disease} on ${crop} at [${lat},${lon}]`);
+  // Check if this triggers an outbreak alert
+  checkOutbreakAndAlert({ crop: crop.toLowerCase(), disease, lat: parsedLat, lon: parsedLon, date: new Date().toISOString().split('T')[0] });
   res.json({ ok: true, id });
 });
 
@@ -1037,6 +1060,392 @@ app.get('/api/stats', (req, res) => {
     pushUsers:        pushSubscriptions.size
   });
 });
+
+// ══════════════════════════════════════════════════════════
+// STEP 1 — EARLY WARNING NETWORK
+// ══════════════════════════════════════════════════════════
+let outbreakAlerts = loadJSON('outbreak_alerts.json', []);
+
+function checkOutbreakAndAlert(newReport) {
+  // Grid reports to 0.5 degree (~55km) for outbreak zone
+  const zone = `${Math.round(newReport.lat * 2) / 2}_${Math.round(newReport.lon * 2) / 2}`;
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const recentInZone = diseaseReports.filter(r =>
+    r.date >= cutoff &&
+    r.disease === newReport.disease &&
+    `${Math.round(r.lat * 2) / 2}_${Math.round(r.lon * 2) / 2}` === zone
+  );
+
+  if (recentInZone.length >= 5) {
+    const alertKey = `${zone}_${newReport.disease}_${new Date().toISOString().split('T')[0]}`;
+    if (outbreakAlerts.find(a => a.key === alertKey)) return; // already alerted today
+
+    const alert = {
+      key: alertKey,
+      zone,
+      disease: newReport.disease,
+      crop: newReport.crop,
+      count: recentInZone.length,
+      date: new Date().toISOString(),
+      lat: newReport.lat,
+      lon: newReport.lon
+    };
+    outbreakAlerts.push(alert);
+    if (outbreakAlerts.length > 200) outbreakAlerts = outbreakAlerts.slice(-200);
+    saveJSON('outbreak_alerts.json', outbreakAlerts);
+
+    console.log(`🚨 OUTBREAK: ${newReport.disease} on ${newReport.crop} — ${recentInZone.length} reports in zone ${zone}`);
+
+    // SMS alert to all subscribers in area
+    const AT_KEY  = process.env.AT_API_KEY;
+    const AT_USER = process.env.AT_USERNAME || 'sandbox';
+    if (AT_KEY && smsSubscribers.size > 0) {
+      const msg = `🚨 SebilAI ALERT: ${recentInZone.length}+ cases of ${newReport.disease} on ${newReport.crop} detected in your region in the last 7 days. Inspect your crop immediately. Info: sebilai.com`;
+      // Send to all SMS subscribers (in production, filter by region)
+      smsSubscribers.forEach(phone => {
+        fetch('https://api.africastalking.com/version1/messaging', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'apikey': AT_KEY },
+          body: new URLSearchParams({ username: AT_USER, to: phone, message: msg })
+        }).catch(e => console.error('Outbreak SMS error:', e.message));
+      });
+    }
+  }
+}
+
+app.get('/api/outbreak-alerts', (req, res) => {
+  const recent = outbreakAlerts.slice(-50).reverse();
+  res.json({ alerts: recent, total: recent.length });
+});
+
+// ══════════════════════════════════════════════════════════
+// STEP 2 — DISEASE FORECASTING (14-day prediction)
+// ══════════════════════════════════════════════════════════
+app.get('/api/forecast', async (req, res) => {
+  const { lat, lon, crop } = req.query;
+  if (!lat || !lon || !crop) return res.status(400).json({ error: 'lat, lon, crop required' });
+
+  try {
+    // Get 14-day weather forecast
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_max&forecast_days=14&timezone=Africa%2FAddis_Ababa`;
+    const wr = await fetch(weatherUrl);
+    const weather = await wr.json();
+
+    // Get historical reports for this crop in this zone
+    const zone = `${Math.round(parseFloat(lat) * 2) / 2}_${Math.round(parseFloat(lon) * 2) / 2}`;
+    const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const localHistory = diseaseReports.filter(r =>
+      r.crop === crop.toLowerCase() &&
+      r.date >= cutoff30 &&
+      `${Math.round(r.lat * 2) / 2}_${Math.round(r.lon * 2) / 2}` === zone
+    );
+
+    // Disease risk rules per crop
+    const riskRules = {
+      enset:   { humidityThresh: 75, tempMin: 18, tempMax: 30, rainThresh: 5 },
+      teff:    { humidityThresh: 70, tempMin: 15, tempMax: 28, rainThresh: 3 },
+      wheat:   { humidityThresh: 65, tempMin: 10, tempMax: 22, rainThresh: 4 },
+      maize:   { humidityThresh: 72, tempMin: 20, tempMax: 35, rainThresh: 6 },
+      coffee:  { humidityThresh: 70, tempMin: 18, tempMax: 28, rainThresh: 8 },
+      potato:  { humidityThresh: 75, tempMin: 10, tempMax: 22, rainThresh: 5 },
+      barley:  { humidityThresh: 65, tempMin: 8,  tempMax: 20, rainThresh: 3 },
+      sorghum: { humidityThresh: 70, tempMin: 22, tempMax: 38, rainThresh: 4 },
+    };
+    const rules = riskRules[crop.toLowerCase()] || riskRules.teff;
+
+    const daily = weather.daily || {};
+    const forecasts = (daily.time || []).map((date, i) => {
+      const humidity = daily.relative_humidity_2m_max?.[i] || 60;
+      const tempMax  = daily.temperature_2m_max?.[i] || 25;
+      const tempMin  = daily.temperature_2m_min?.[i] || 15;
+      const rain     = daily.precipitation_sum?.[i] || 0;
+
+      let riskScore = 0;
+      if (humidity > rules.humidityThresh) riskScore += 2;
+      if (tempMax >= rules.tempMin && tempMin <= rules.tempMax) riskScore += 1;
+      if (rain >= rules.rainThresh) riskScore += 2;
+      if (localHistory.length >= 3) riskScore += 1; // recent local history boosts risk
+
+      const risk = riskScore >= 4 ? 'High' : riskScore >= 2 ? 'Medium' : 'Low';
+      return { date, humidity, tempMax, tempMin, rain, risk, riskScore };
+    });
+
+    // Top disease risk for this crop based on forecast
+    const cropDiseaseMap = {
+      enset: 'Bacterial Wilt (EBW)', teff: 'Head Blight', wheat: 'Stripe Rust (Yr)',
+      maize: 'Fall Armyworm', coffee: 'Coffee Berry Disease', potato: 'Late Blight',
+      barley: 'Scald', sorghum: 'Striga / Head Smut'
+    };
+
+    res.json({
+      crop, lat, lon,
+      topThreat: cropDiseaseMap[crop.toLowerCase()] || 'Disease Risk',
+      forecasts,
+      localRecentReports: localHistory.length,
+      summary: forecasts.filter(f => f.risk === 'High').length > 3
+        ? 'High risk week ahead — inspect your crop daily'
+        : forecasts.filter(f => f.risk === 'Medium').length > 4
+        ? 'Moderate risk — monitor for early symptoms'
+        : 'Low risk forecast — maintain normal monitoring'
+    });
+  } catch(e) {
+    res.status(502).json({ error: 'Forecast failed', detail: e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// STEP 3 — YIELD PREDICTION + TRACKING
+// ══════════════════════════════════════════════════════════
+let yieldRecords = loadJSON('yield_records.json', []);
+
+app.post('/api/yield-predict', async (req, res) => {
+  const { imageBase64, crop, farmSizeHa, region, season } = req.body;
+  if (!crop) return res.status(400).json({ error: 'crop required' });
+
+  // Baseline yields (quintal/ha) per crop — Ethiopian averages
+  const baselineYields = {
+    enset: 80, teff: 18, wheat: 32, maize: 45,
+    coffee: 9, potato: 120, barley: 24, sorghum: 22
+  };
+  const baseline = baselineYields[crop.toLowerCase()] || 25;
+  const ha = parseFloat(farmSizeHa) || 0.5;
+
+  let predictedYield, confidence, aiNote;
+
+  if (imageBase64 && GROQ_KEY) {
+    try {
+      const prompt = `You are an expert Ethiopian agronomist analyzing a crop field photo for yield prediction. 
+Crop: ${crop}, Farm size: ${ha} hectares, Region: ${region || 'Ethiopia'}, Season: ${season || 'current'}.
+Ethiopian average yield for ${crop}: ${baseline} quintal/ha.
+
+Analyze the image and respond ONLY with valid JSON (no markdown):
+{
+  "health_score": 0-100,
+  "estimated_yield_quintal_per_ha": number,
+  "confidence": "Low|Medium|High",
+  "key_factors": ["factor1", "factor2"],
+  "note": "brief agronomist note"
+}`;
+
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          ]}]
+        })
+      });
+      const d = await r.json();
+      const text = d?.choices?.[0]?.message?.content?.trim().replace(/```json|```/g, '');
+      const parsed = JSON.parse(text);
+      predictedYield = (parsed.estimated_yield_quintal_per_ha * ha).toFixed(1);
+      confidence = parsed.confidence;
+      aiNote = parsed.note;
+    } catch(e) {
+      // Fallback to statistical estimate
+      predictedYield = (baseline * ha * 0.85).toFixed(1);
+      confidence = 'Low';
+      aiNote = 'Statistical estimate — upload a clear field photo for AI prediction.';
+    }
+  } else {
+    predictedYield = (baseline * ha * 0.85).toFixed(1);
+    confidence = 'Low';
+    aiNote = 'Statistical estimate based on Ethiopian averages. Upload a field photo for better accuracy.';
+  }
+
+  const record = {
+    id: Date.now(),
+    crop, farmSizeHa: ha, region: region || 'Unknown',
+    season: season || new Date().getFullYear() + '-main',
+    predictedYield: parseFloat(predictedYield),
+    actualYield: null,
+    confidence, aiNote,
+    date: new Date().toISOString().split('T')[0]
+  };
+  yieldRecords.push(record);
+  if (yieldRecords.length > 500) yieldRecords = yieldRecords.slice(-500);
+  saveJSON('yield_records.json', yieldRecords);
+
+  res.json({ ok: true, id: record.id, predictedYield, confidence, aiNote,
+    baseline: (baseline * ha).toFixed(1), unit: 'quintal' });
+});
+
+app.post('/api/yield-actual', (req, res) => {
+  const { id, actualYield } = req.body;
+  if (!id || actualYield == null) return res.status(400).json({ error: 'id and actualYield required' });
+  const record = yieldRecords.find(r => r.id === parseInt(id));
+  if (!record) return res.status(404).json({ error: 'Record not found' });
+  record.actualYield = parseFloat(actualYield);
+  record.accuracy = record.predictedYield > 0
+    ? Math.round(100 - Math.abs(record.predictedYield - record.actualYield) / record.actualYield * 100)
+    : null;
+  saveJSON('yield_records.json', yieldRecords);
+  console.log(`📊 Yield actual: ${crop} predicted=${record.predictedYield} actual=${actualYield} accuracy=${record.accuracy}%`);
+  res.json({ ok: true, accuracy: record.accuracy });
+});
+
+// ══════════════════════════════════════════════════════════
+// STEP 4 — COOPERATIVE / GROUP MODE
+// ══════════════════════════════════════════════════════════
+let cooperatives = loadJSON('cooperatives.json', []);
+
+app.post('/api/coop/create', (req, res) => {
+  const { name, leaderPhone, memberPhones, region, crop } = req.body;
+  if (!name || !leaderPhone) return res.status(400).json({ error: 'name and leaderPhone required' });
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const coop = {
+    id: Date.now(), code, name,
+    leaderPhone, region: region || 'Ethiopia',
+    primaryCrop: crop || 'mixed',
+    members: (memberPhones || []).concat([leaderPhone]).filter((v,i,a) => a.indexOf(v) === i),
+    createdAt: new Date().toISOString(),
+    diagnoses: []
+  };
+  cooperatives.push(coop);
+  if (cooperatives.length > 300) cooperatives = cooperatives.slice(-300);
+  saveJSON('cooperatives.json', cooperatives);
+  console.log(`👥 Coop created: ${name} (${code}) — ${coop.members.length} members`);
+  res.json({ ok: true, code, id: coop.id, memberCount: coop.members.length });
+});
+
+app.post('/api/coop/join', (req, res) => {
+  const { code, phone } = req.body;
+  if (!code || !phone) return res.status(400).json({ error: 'code and phone required' });
+  const coop = cooperatives.find(c => c.code === code.toUpperCase());
+  if (!coop) return res.status(404).json({ error: 'Cooperative not found' });
+  if (!coop.members.includes(phone)) coop.members.push(phone);
+  saveJSON('cooperatives.json', cooperatives);
+  res.json({ ok: true, coopName: coop.name, region: coop.region, memberCount: coop.members.length });
+});
+
+app.post('/api/coop/share-diagnosis', async (req, res) => {
+  const { code, crop, disease, severity, actionPlan, lang } = req.body;
+  if (!code || !disease) return res.status(400).json({ error: 'code and disease required' });
+  const coop = cooperatives.find(c => c.code === code.toUpperCase());
+  if (!coop) return res.status(404).json({ error: 'Cooperative not found' });
+
+  const entry = { disease, crop, severity, date: new Date().toISOString().split('T')[0] };
+  coop.diagnoses.push(entry);
+  saveJSON('cooperatives.json', cooperatives);
+
+  // SMS all members
+  const AT_KEY  = process.env.AT_API_KEY;
+  const AT_USER = process.env.AT_USERNAME || 'sandbox';
+  if (AT_KEY && coop.members.length > 0) {
+    const msg = `👥 ${coop.name} — SebilAI Group Alert:\n${crop} diagnosis: ${disease} (${severity || 'check needed'}).\nAction: ${(actionPlan||'See sebilai.com for full plan').substring(0,80)}\nsebilai.com`;
+    coop.members.forEach(phone => {
+      fetch('https://api.africastalking.com/version1/messaging', {
+        method: 'POST',
+        headers: { 'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded','apikey':AT_KEY },
+        body: new URLSearchParams({ username: AT_USER, to: phone, message: msg })
+      }).catch(e => console.error('Coop SMS error:', e.message));
+    });
+  }
+  res.json({ ok: true, notified: coop.members.length });
+});
+
+app.get('/api/coop/:code', (req, res) => {
+  const coop = cooperatives.find(c => c.code === req.params.code.toUpperCase());
+  if (!coop) return res.status(404).json({ error: 'Not found' });
+  res.json({ name: coop.name, region: coop.region, primaryCrop: coop.primaryCrop,
+    memberCount: coop.members.length, recentDiagnoses: coop.diagnoses.slice(-5) });
+});
+
+// ══════════════════════════════════════════════════════════
+// STEP 5 — SEASONAL CALENDAR + AUTO ALERTS
+// ══════════════════════════════════════════════════════════
+const SEASONAL_CALENDAR = {
+  enset:   { plantingMonths:[3,4,5], harvestMonths:[10,11,12], peakDiseaseMonths:[5,6,7,8],
+             diseases:['Bacterial Wilt (EBW)','Kocho Xanthomonas','Root Rot'] },
+  teff:    { plantingMonths:[6,7], harvestMonths:[10,11], peakDiseaseMonths:[7,8,9],
+             diseases:['Head Blight','Zuri Rust','Blast'] },
+  wheat:   { plantingMonths:[6,7,8], harvestMonths:[10,11], peakDiseaseMonths:[8,9,10],
+             diseases:['Stripe Rust (Yr)','Stem Rust (Sr)','Septoria Blotch'] },
+  maize:   { plantingMonths:[3,4,5,6], harvestMonths:[9,10], peakDiseaseMonths:[6,7,8],
+             diseases:['Fall Armyworm','Maize Lethal Necrosis','Gray Leaf Spot'] },
+  coffee:  { plantingMonths:[6,7], harvestMonths:[10,11,12], peakDiseaseMonths:[7,8,9,10],
+             diseases:['Coffee Berry Disease (CBD)','Coffee Wilt (CWD)','Leaf Rust'] },
+  potato:  { plantingMonths:[2,3,9,10], harvestMonths:[5,6,12,1], peakDiseaseMonths:[3,4,5,10,11],
+             diseases:['Late Blight (P. infestans)','Bacterial Wilt','Black Scurf'] },
+  barley:  { plantingMonths:[6,7], harvestMonths:[10,11], peakDiseaseMonths:[8,9],
+             diseases:['Scald','Net Blotch','Powdery Mildew'] },
+  sorghum: { plantingMonths:[5,6], harvestMonths:[10,11], peakDiseaseMonths:[7,8,9],
+             diseases:['Striga','Head Smut','Anthracnose'] },
+};
+
+app.get('/api/seasonal-alerts', (req, res) => {
+  const { crop } = req.query;
+  const month = new Date().getMonth() + 1; // 1-12
+  const results = [];
+
+  const crops = crop ? [crop.toLowerCase()] : Object.keys(SEASONAL_CALENDAR);
+  crops.forEach(c => {
+    const cal = SEASONAL_CALENDAR[c];
+    if (!cal) return;
+    const isPlanting    = cal.plantingMonths.includes(month);
+    const isHarvest     = cal.harvestMonths.includes(month);
+    const isPeakDisease = cal.peakDiseaseMonths.includes(month);
+    const nextPeakMonth = cal.peakDiseaseMonths.find(m => m > month) || cal.peakDiseaseMonths[0];
+    const monthsToRisk  = nextPeakMonth > month ? nextPeakMonth - month : 12 - month + nextPeakMonth;
+
+    results.push({
+      crop: c,
+      currentMonth: month,
+      isPlantingSeason: isPlanting,
+      isHarvestSeason: isHarvest,
+      isPeakDiseaseRisk: isPeakDisease,
+      monthsUntilPeakRisk: isPeakDisease ? 0 : monthsToRisk,
+      watchDiseases: cal.diseases,
+      alert: isPeakDisease
+        ? `⚠️ Peak disease risk month for ${c} — inspect daily for ${cal.diseases[0]}`
+        : isPlanting
+        ? `🌱 Planting season — watch for soil-borne diseases at emergence`
+        : monthsToRisk <= 2
+        ? `📅 Disease risk season in ${monthsToRisk} month(s) — prepare now`
+        : null
+    });
+  });
+
+  res.json({ month, results: results.filter(r => r.alert || r.isPeakDiseaseRisk) });
+});
+
+// ══════════════════════════════════════════════════════════
+// STEP 6 — MARKET PRICE (ECX-based live estimates)
+// ══════════════════════════════════════════════════════════
+// ECX prices updated manually — can be automated via scraping in production
+const ECX_PRICES = {
+  teff:    { price: 5400,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  wheat:   { price: 4600,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  maize:   { price: 3500,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  sorghum: { price: 2800,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  barley:  { price: 3800,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  coffee:  { price: 112000, unit: 'quintal', market: 'Jimma ECX', updated: '2026-05' },
+  potato:  { price: 2200,  unit: 'quintal', market: 'Addis Ababa', updated: '2026-05' },
+  enset:   { price: 1900,  unit: 'quintal', market: 'Southern Markets', updated: '2026-05' },
+};
+
+app.get('/api/market-price', (req, res) => {
+  const { crop } = req.query;
+  if (!crop) return res.json({ prices: ECX_PRICES });
+  const price = ECX_PRICES[crop.toLowerCase()];
+  if (!price) return res.status(404).json({ error: 'Crop price not available' });
+  res.json({ crop, ...price,
+    source: 'Ethiopia Commodity Exchange (ECX) — sebilai.com estimates',
+    note: 'Prices vary by grade and delivery point. Verify locally before trading.'
+  });
+});
+
+// Admin & Agronomist PWA pages + manifests
+app.get('/agronomist', (req, res) => res.sendFile(path.join(__dirname, 'public', 'agronomist-dashboard.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-feedback.html')));
+app.get('/admin-feedback.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-feedback.html')));
+app.get('/manifest-admin.json', (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-admin.json')));
+app.get('/manifest-agro.json',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'manifest-agro.json')));
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 

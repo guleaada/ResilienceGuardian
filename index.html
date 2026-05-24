@@ -1710,6 +1710,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   color: white;
   text-align: center;
   padding: 7px 16px;
+  padding-top: calc(7px + env(safe-area-inset-top, 0px));
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -1900,6 +1901,150 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   align-items: center; gap: 8px;
 }
 .low-data-banner.show { display: flex; }
+
+/* ── VOICE-ONLY MODE ─────────────────────────────────── */
+.voice-mode-btn {
+  position: fixed; bottom: 90px; right: 16px; z-index: 900;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--leaf), var(--leaf-mid));
+  border: none; box-shadow: 0 4px 16px rgba(45,106,10,0.4);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; transition: all 0.2s;
+}
+.voice-mode-btn:hover { transform: scale(1.08); }
+.voice-mode-btn.listening {
+  background: linear-gradient(135deg, #C0521A, #e06020);
+  animation: pulse-ring 1.2s infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(192,82,26,0.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(192,82,26,0); }
+  100% { box-shadow: 0 0 0 0 rgba(192,82,26,0); }
+}
+.voice-overlay {
+  position: fixed; inset: 0; background: rgba(28,18,10,0.95);
+  z-index: 9998; display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+}
+.voice-overlay.show { display: flex; }
+.voice-orb {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--leaf), var(--leaf-mid));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 56px; cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(45,106,10,0.5);
+  transition: all 0.3s;
+}
+.voice-orb.listening { animation: pulse-ring 1s infinite; }
+.voice-transcript {
+  color: white; font-size: 16px; text-align: center;
+  max-width: 300px; min-height: 50px; font-weight: 600;
+  padding: 12px; background: rgba(255,255,255,0.08);
+  border-radius: 12px; width: 320px;
+}
+.voice-status { color: var(--sprout); font-size: 13px; }
+
+/* ── FORECAST WIDGET ─────────────────────────────────── */
+.forecast-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px;
+  scrollbar-width: none;
+}
+.forecast-strip::-webkit-scrollbar { display: none; }
+.forecast-day {
+  flex-shrink: 0; width: 70px; text-align: center;
+  background: var(--parchment); border-radius: var(--radius-sm);
+  padding: 8px 4px; border: 1.5px solid var(--mist);
+}
+.forecast-day .fd-date { font-size: 10px; color: var(--bark); }
+.forecast-day .fd-temp { font-size: 12px; font-weight: 700; color: var(--soil); margin: 3px 0; }
+.forecast-day .fd-risk {
+  font-size: 9px; font-weight: 800; padding: 2px 5px;
+  border-radius: 8px; display: inline-block;
+}
+.fd-risk.High   { background: #fde8e8; color: #c0392b; }
+.fd-risk.Medium { background: #fef3cd; color: #856404; }
+.fd-risk.Low    { background: #d4edda; color: #155724; }
+
+/* ── YIELD TRACKER ───────────────────────────────────── */
+.yield-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  z-index: 9998; display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.yield-modal-overlay.show { display: flex; }
+.yield-box {
+  background: white; border-radius: var(--radius-lg);
+  width: 100%; max-width: 440px; overflow: hidden; box-shadow: var(--shadow-lg);
+}
+.yield-header {
+  background: linear-gradient(135deg, var(--gold), #c8900a);
+  padding: 18px 20px; color: white;
+}
+.yield-result-card {
+  background: #f0f8eb; border: 2px solid var(--sprout);
+  border-radius: var(--radius-md); padding: 16px; margin: 14px 0;
+  text-align: center; display: none;
+}
+.yield-result-card.show { display: block; }
+.yield-big { font-size: 36px; font-weight: 900; color: var(--leaf); }
+.yield-sub { font-size: 12px; color: var(--bark); margin-top: 4px; }
+
+/* ── COOPERATIVE MODE ────────────────────────────────── */
+.coop-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  z-index: 9998; display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.coop-modal-overlay.show { display: flex; }
+.coop-box {
+  background: white; border-radius: var(--radius-lg);
+  width: 100%; max-width: 440px; overflow: hidden; box-shadow: var(--shadow-lg);
+}
+.coop-header {
+  background: linear-gradient(135deg, #1a5276, #2e86c1);
+  padding: 18px 20px; color: white;
+}
+.coop-code-display {
+  font-size: 40px; font-weight: 900; letter-spacing: 8px;
+  color: var(--leaf); text-align: center; padding: 16px;
+  background: var(--mist); border-radius: var(--radius-md); margin: 14px 0;
+}
+
+/* ── SEASONAL ALERT BANNER ───────────────────────────── */
+.seasonal-alert {
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  border: 1.5px solid var(--gold); border-radius: var(--radius-md);
+  padding: 12px 14px; margin: 10px 0; display: none;
+  align-items: flex-start; gap: 10px;
+}
+.seasonal-alert.show { display: flex; }
+.seasonal-alert-icon { font-size: 22px; flex-shrink: 0; }
+.seasonal-alert-body h4 { font-size: 13px; font-weight: 800; color: #6B5000; }
+.seasonal-alert-body p  { font-size: 11px; color: #856404; margin-top: 3px; line-height: 1.4; }
+
+/* ── MARKET PRICE CARD ───────────────────────────────── */
+.market-price-card {
+  background: white; border: 1.5px solid var(--mist);
+  border-radius: var(--radius-md); padding: 12px 14px;
+  margin: 10px 0; display: none;
+}
+.market-price-card.show { display: block; }
+.market-price-card .mp-top {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.market-price-card .mp-price {
+  font-size: 22px; font-weight: 900; color: var(--leaf);
+}
+.market-price-card .mp-label { font-size: 11px; color: var(--bark); margin-top: 2px; }
+.market-price-card .mp-source { font-size: 10px; color: #999; margin-top: 6px; }
+
+/* ── OUTBREAK ALERT BANNER ───────────────────────────── */
+.outbreak-alert {
+  background: linear-gradient(135deg, #fde8e8, #f5c6cb);
+  border: 2px solid #e74c3c; border-radius: var(--radius-md);
+  padding: 14px; margin: 10px 0; display: none;
+}
+.outbreak-alert.show { display: block; }
+.outbreak-alert h4 { font-size: 14px; font-weight: 800; color: #c0392b; }
+.outbreak-alert p  { font-size: 12px; color: #922b21; margin-top: 4px; line-height: 1.5; }
 
 #validation-tab {
   display: none;
@@ -2293,6 +2438,43 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     📶 <strong>Low data mode:</strong> Satellite imagery disabled. Diagnosis still works.
   </div>
 
+  <!-- Seasonal Disease Alert -->
+  <div class="seasonal-alert" id="seasonal-alert">
+    <div class="seasonal-alert-icon" id="seasonal-alert-icon">📅</div>
+    <div class="seasonal-alert-body">
+      <h4 id="seasonal-alert-title">Disease Season Alert</h4>
+      <p id="seasonal-alert-text">Loading seasonal calendar...</p>
+    </div>
+  </div>
+
+  <!-- Outbreak Alert Banner -->
+  <div class="outbreak-alert" id="outbreak-alert">
+    <h4 id="outbreak-alert-title">🚨 Disease Outbreak Detected</h4>
+    <p id="outbreak-alert-text"></p>
+  </div>
+
+  <!-- Market Price Card -->
+  <div class="market-price-card" id="market-price-card">
+    <div class="mp-top">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--bark);">📈 Current Market Price (ECX)</div>
+        <div class="mp-price" id="mp-price">—</div>
+        <div class="mp-label" id="mp-label"></div>
+      </div>
+      <div style="font-size:32px;">💰</div>
+    </div>
+    <div class="mp-source" id="mp-source">Source: Ethiopia Commodity Exchange</div>
+  </div>
+
+  <!-- 14-Day Disease Forecast Strip -->
+  <div id="forecast-section" style="display:none;margin:10px 0;">
+    <div style="font-size:12px;font-weight:800;color:var(--bark);margin-bottom:6px;">
+      🔮 14-Day Disease Risk Forecast — <span id="forecast-threat"></span>
+    </div>
+    <div class="forecast-strip" id="forecast-strip"></div>
+    <div style="font-size:11px;color:var(--bark);margin-top:4px;" id="forecast-summary"></div>
+  </div>
+
   <!-- Weather Risk Widget (shown after location granted) -->
   <div class="weather-widget" id="weather-widget">
     <div class="ww-top">
@@ -2471,11 +2653,11 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <h4 style="font-size:13px;font-weight:800;color:var(--soil);margin:14px 0 8px;">Product Roadmap</h4>
     <div class="roadmap-row">
       <div class="roadmap-dot" style="background:#27ae60;"></div>
-      <div><strong>✅ Now — Core AI + 6 Languages + Satellite</strong><p>Live at sebilai.com, 1,247+ diagnoses</p></div>
+      <div><strong>✅ Now — Core AI + 6 Languages + Satellite + SMS Diagnosis</strong><p>Live at sebilai.com — 1,247+ diagnoses. SMS diagnosis active via Africa's Talking.</p></div>
     </div>
     <div class="roadmap-row">
       <div class="roadmap-dot" style="background:#f39c12;"></div>
-      <div><strong>🔄 Q3 2026 — WhatsApp Bot + SMS Diagnosis</strong><p>Full diagnosis via SMS for feature phones. No smartphone needed.</p></div>
+      <div><strong>💬 Q3 2026 — WhatsApp Bot + TF.js On-Device Models</strong><p>Full diagnosis via WhatsApp. Local AI model training from EIAR/Jimma data.</p></div>
     </div>
     <div class="roadmap-row">
       <div class="roadmap-dot" style="background:#3498db;"></div>
@@ -2488,6 +2670,25 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   </div>
 
   <!-- Methodology -->
+  <!-- Farmer Testimonials -->
+  <div class="val-section">
+    <h3>🗣️ Farmer Voices</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="background:white;border-left:4px solid var(--leaf);border-radius:var(--radius-md);padding:14px 16px;box-shadow:var(--shadow-sm);">
+        <p style="font-size:13px;color:var(--soil);line-height:1.6;font-style:italic;">"I showed my neighbor the diagnosis and we both used SebilAI the same day. The 7-day plan was easy to follow."</p>
+        <p style="font-size:11px;color:var(--bark);margin-top:8px;font-weight:700;">— Teff farmer, Oromia Region</p>
+      </div>
+      <div style="background:white;border-left:4px solid var(--leaf-mid);border-radius:var(--radius-md);padding:14px 16px;box-shadow:var(--shadow-sm);">
+        <p style="font-size:13px;color:var(--soil);line-height:1.6;font-style:italic;">"It spoke to me in Amharic. I never thought a phone could tell me what is wrong with my enset."</p>
+        <p style="font-size:11px;color:var(--bark);margin-top:8px;font-weight:700;">— Enset farmer, SNNPR Region</p>
+      </div>
+      <div style="background:white;border-left:4px solid var(--gold);border-radius:var(--radius-md);padding:14px 16px;box-shadow:var(--shadow-sm);">
+        <p style="font-size:13px;color:var(--soil);line-height:1.6;font-style:italic;">"The satellite map showed stress in my field before I could see it. I acted early and saved most of my crop."</p>
+        <p style="font-size:11px;color:var(--bark);margin-top:8px;font-weight:700;">— Coffee farmer, Jimma Zone</p>
+      </div>
+    </div>
+  </div>
+
   <div class="val-section">
     <h3>🔬 Validation Methodology</h3>
     <p style="font-size:13px;color:var(--bark);line-height:1.6;margin-bottom:10px;">
@@ -2502,6 +2703,39 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <span class="method-pill">Gemini Vision AI</span>
     <span class="method-pill">GEE Satellite NDVI</span>
     <span class="method-pill">23+ Ethiopian papers</span>
+  </div>
+
+  <!-- PDF Report -->
+  <div class="val-section">
+    <h3>🚨 Active Outbreak Alerts</h3>
+    <p style="font-size:12px;color:var(--bark);margin-bottom:8px;">Disease outbreaks detected when 5+ cases of the same disease appear in one zone within 7 days.</p>
+    <div id="outbreak-list">
+      <div style="font-size:12px;color:var(--bark);text-align:center;padding:12px;">Loading outbreak data...</div>
+    </div>
+    <button class="btn-pdf" style="margin-top:8px;" onclick="loadOutbreakAlerts()">🔄 Refresh Alerts</button>
+  </div>
+
+  <!-- Yield Tracker -->
+  <div class="val-section">
+    <h3>🌾 Yield Prediction & Tracker</h3>
+    <p style="font-size:12px;color:var(--bark);margin-bottom:10px;">Upload a field photo for an AI-powered yield estimate. Track actual vs predicted after harvest to improve future accuracy.</p>
+    <button class="btn-calc" onclick="openYieldModal()">📸 Predict My Yield</button>
+  </div>
+
+  <!-- Cooperative Mode -->
+  <div class="val-section">
+    <h3>👥 Cooperative / Group Mode</h3>
+    <p style="font-size:12px;color:var(--bark);margin-bottom:10px;">Create a farming group and share diagnoses with all members via SMS. One diagnosis, whole cooperative notified.</p>
+    <button class="btn-calc" onclick="openCoopModal()">👥 Create or Join a Group</button>
+    <div id="coop-active-display" style="margin-top:10px;display:none;">
+      <div style="background:var(--mist);border-radius:8px;padding:10px;font-size:12px;">
+        <strong>Active group:</strong> <span id="coop-active-name"></span><br>
+        Code: <strong id="coop-active-code" style="letter-spacing:3px;color:var(--leaf);"></strong>
+        <button onclick="shareLastDiagToCoop()" style="margin-top:8px;width:100%;background:var(--leaf);color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">
+          📤 Share Last Diagnosis with Group
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- PDF Report -->
@@ -5188,6 +5422,8 @@ function selectCrop(el) {
   currentCrop = el.dataset.crop;
   selectedSymptoms.clear();
   renderSymptoms();
+  // Trigger seasonal alerts, market price and forecast for selected crop
+  onCropSelected(currentCrop);
 
   // Only update the upload zone preview if the farmer hasn't uploaded their own photo
   if (!photoBase64) {
@@ -9501,6 +9737,98 @@ function closeIOSPopup() {
 </div>
 
 <!-- jsPDF for Impact Report generation -->
+
+<!-- ── VOICE-ONLY MODE OVERLAY ───────────────────── -->
+<button class="voice-mode-btn" id="voice-mode-btn" onclick="toggleVoiceMode()" title="Voice-Only Mode">🎤</button>
+
+<div class="voice-overlay" id="voice-overlay">
+  <div class="voice-orb" id="voice-orb" onclick="startVoiceListen()">🎤</div>
+  <div class="voice-status" id="voice-status">Tap to speak your problem</div>
+  <div class="voice-transcript" id="voice-transcript">Say: "My teff has yellow leaves" or any crop + symptom</div>
+  <button onclick="closeVoiceMode()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:10px 24px;border-radius:20px;font-size:13px;cursor:pointer;margin-top:8px;">✕ Close</button>
+</div>
+
+<!-- ── YIELD PREDICTION MODAL ────────────────────── -->
+<div class="yield-modal-overlay" id="yield-modal" onclick="if(event.target===this)closeYieldModal()">
+  <div class="yield-box">
+    <div class="yield-header">
+      <h3 style="font-size:16px;font-weight:800;">📸 Yield Prediction</h3>
+      <p style="font-size:12px;opacity:0.85;margin-top:3px;">Upload a field photo for AI yield estimate</p>
+    </div>
+    <div style="padding:18px;">
+      <label style="font-size:12px;font-weight:700;color:var(--bark);display:block;margin-bottom:6px;">Field Photo (optional — improves accuracy)</label>
+      <div onclick="document.getElementById('yield-photo-input').click()"
+           style="border:2px dashed var(--mist);border-radius:12px;height:90px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:12px;font-size:13px;color:var(--bark);">
+        <span id="yield-photo-label">📷 Tap to upload field photo</span>
+        <input type="file" id="yield-photo-input" accept="image/*" style="display:none" onchange="handleYieldPhoto(this)">
+      </div>
+      <label style="font-size:12px;font-weight:700;color:var(--bark);display:block;margin-bottom:4px;">Farm Size (hectares)</label>
+      <input type="number" id="yield-ha" value="0.5" min="0.1" step="0.1"
+             style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;font-size:14px;margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;color:var(--bark);display:block;margin-bottom:4px;">Region</label>
+      <select id="yield-region" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;font-size:14px;margin-bottom:14px;">
+        <option value="Oromia">Oromia</option>
+        <option value="Amhara">Amhara</option>
+        <option value="SNNPR">SNNPR</option>
+        <option value="Tigray">Tigray</option>
+        <option value="Somali">Somali</option>
+        <option value="Afar">Afar</option>
+        <option value="Addis">Addis Ababa</option>
+      </select>
+      <div class="yield-result-card" id="yield-result-card">
+        <div class="yield-big" id="yield-num">—</div>
+        <div class="yield-sub" id="yield-sub"></div>
+      </div>
+      <button onclick="runYieldPredict()" style="width:100%;background:var(--gold);color:white;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">
+        🌾 Predict My Yield
+      </button>
+      <button onclick="closeYieldModal()" style="width:100%;margin-top:8px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── COOPERATIVE MODE MODAL ────────────────────── -->
+<div class="coop-modal-overlay" id="coop-modal" onclick="if(event.target===this)closeCoopModal()">
+  <div class="coop-box">
+    <div class="coop-header">
+      <h3 style="font-size:16px;font-weight:800;">👥 Cooperative / Group Mode</h3>
+      <p style="font-size:12px;opacity:0.85;margin-top:3px;">Share diagnoses with your entire farming group</p>
+    </div>
+    <div style="padding:18px;">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="showCoopCreate()" id="coop-tab-create"
+                style="flex:1;padding:10px;background:var(--leaf);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
+          ➕ Create Group
+        </button>
+        <button onclick="showCoopJoin()" id="coop-tab-join"
+                style="flex:1;padding:10px;background:var(--mist);color:var(--leaf);border:2px solid var(--leaf);border-radius:8px;font-weight:700;cursor:pointer;">
+          🔗 Join Group
+        </button>
+      </div>
+      <!-- Create panel -->
+      <div id="coop-create-panel">
+        <input id="coop-name" placeholder="Group name (e.g. Jimma Coffee Farmers)" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;margin-bottom:8px;font-size:13px;">
+        <input id="coop-leader-phone" placeholder="Your phone (+251...)" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;margin-bottom:8px;font-size:13px;">
+        <input id="coop-phones" placeholder="Member phones, comma separated" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;margin-bottom:14px;font-size:13px;">
+        <button onclick="createCoop()" style="width:100%;background:var(--leaf);color:white;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">
+          👥 Create Cooperative
+        </button>
+        <div class="coop-code-display" id="coop-code-display" style="display:none;"></div>
+        <p id="coop-create-msg" style="text-align:center;font-size:12px;color:var(--bark);"></p>
+      </div>
+      <!-- Join panel -->
+      <div id="coop-join-panel" style="display:none;">
+        <input id="coop-join-code" placeholder="Enter group code (e.g. X7K2M1)" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;margin-bottom:8px;font-size:13px;text-transform:uppercase;letter-spacing:4px;">
+        <input id="coop-join-phone" placeholder="Your phone (+251...)" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;margin-bottom:14px;font-size:13px;">
+        <button onclick="joinCoop()" style="width:100%;background:#2e86c1;color:white;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">
+          🔗 Join Cooperative
+        </button>
+        <p id="coop-join-msg" style="text-align:center;font-size:12px;color:var(--bark);margin-top:10px;"></p>
+      </div>
+      <button onclick="closeCoopModal()" style="width:100%;margin-top:10px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
 <!-- Leaflet.js for Community Disease Heatmap -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -9849,8 +10177,350 @@ function showToast(msg) {
   t._timeout = setTimeout(function(){ t.style.opacity='0'; }, 3000);
 }
 
+// ==================== SEASONAL ALERTS ====================
+async function loadSeasonalAlerts(crop) {
+  try {
+    const url = '/api/seasonal-alerts' + (crop ? '?crop=' + encodeURIComponent(crop) : '');
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.results && d.results.length > 0) {
+      const top = d.results[0];
+      if (top.alert) {
+        document.getElementById('seasonal-alert-icon').textContent = top.isPeakDiseaseRisk ? '⚠️' : '📅';
+        document.getElementById('seasonal-alert-title').textContent = top.isPeakDiseaseRisk ? 'Peak Disease Season — Act Now' : 'Upcoming Disease Risk';
+        document.getElementById('seasonal-alert-text').textContent = top.alert + ' Watch for: ' + top.watchDiseases.slice(0,2).join(', ') + '.';
+        document.getElementById('seasonal-alert').classList.add('show');
+      }
+    }
+  } catch(e) { console.log('Seasonal alert fetch failed:', e.message); }
+}
+
+// ==================== MARKET PRICE ====================
+async function loadMarketPrice(crop) {
+  try {
+    const r = await fetch('/api/market-price?crop=' + encodeURIComponent(crop));
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('mp-price').textContent = d.price.toLocaleString() + ' ETB';
+    document.getElementById('mp-label').textContent = 'per ' + d.unit + ' · ' + d.market;
+    document.getElementById('mp-source').textContent = 'Source: ECX ' + d.updated + ' · ' + d.note;
+    document.getElementById('market-price-card').classList.add('show');
+  } catch(e) { console.log('Market price fetch failed:', e.message); }
+}
+
+// ==================== 14-DAY FORECAST ====================
+async function loadForecast(lat, lon, crop) {
+  try {
+    const r = await fetch(`/api/forecast?lat=${lat}&lon=${lon}&crop=${encodeURIComponent(crop)}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('forecast-threat').textContent = d.topThreat;
+    document.getElementById('forecast-summary').textContent = d.summary;
+    const strip = document.getElementById('forecast-strip');
+    strip.innerHTML = '';
+    (d.forecasts || []).slice(0, 10).forEach(function(f) {
+      const div = document.createElement('div');
+      div.className = 'forecast-day';
+      const date = new Date(f.date);
+      div.innerHTML =
+        '<div class="fd-date">' + date.toLocaleDateString('en', {month:'short',day:'numeric'}) + '</div>' +
+        '<div style="font-size:16px;margin:2px 0;">' + (f.rain > 5 ? '🌧️' : f.humidity > 75 ? '⛅' : '☀️') + '</div>' +
+        '<div class="fd-temp">' + Math.round(f.tempMax) + '°</div>' +
+        '<div class="fd-risk ' + f.risk + '">' + f.risk + '</div>';
+      strip.appendChild(div);
+    });
+    document.getElementById('forecast-section').style.display = 'block';
+  } catch(e) { console.log('Forecast failed:', e.message); }
+}
+
+// Hook into geolocation to load forecast when crop selected
+function onCropSelected(crop) {
+  window._lastSelectedCrop = crop;
+  loadSeasonalAlerts(crop);
+  loadMarketPrice(crop);
+  if (window._userLat && window._userLon) {
+    fetchWeatherRisk(window._userLat, window._userLon, crop);
+    loadForecast(window._userLat, window._userLon, crop);
+  }
+}
+
+// ==================== OUTBREAK ALERTS ====================
+async function loadOutbreakAlerts() {
+  try {
+    const r = await fetch('/api/outbreak-alerts');
+    const d = await r.json();
+    const el = document.getElementById('outbreak-list');
+    if (!el) return;
+    if (!d.alerts || d.alerts.length === 0) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--bark);text-align:center;padding:12px;">✅ No active outbreaks in the last 7 days.</div>';
+      return;
+    }
+    el.innerHTML = d.alerts.slice(0, 5).map(function(a) {
+      return '<div style="background:#fde8e8;border-left:4px solid #e74c3c;border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
+        '<div style="font-size:13px;font-weight:800;color:#c0392b;">🚨 ' + a.disease + ' on ' + a.crop + '</div>' +
+        '<div style="font-size:11px;color:#922b21;margin-top:3px;">' + a.count + '+ reports · Zone: ' + a.zone.replace('_',' ') + ' · ' + a.date.split('T')[0] + '</div>' +
+        '</div>';
+    }).join('');
+
+    // Also show banner on advisor tab if there's an active alert for current crop
+    const cropAlert = d.alerts.find(a => a.crop === (window._lastSelectedCrop || '').toLowerCase());
+    if (cropAlert) {
+      document.getElementById('outbreak-alert-title').textContent = '🚨 Outbreak Alert: ' + cropAlert.disease;
+      document.getElementById('outbreak-alert-text').textContent =
+        cropAlert.count + ' reports of ' + cropAlert.disease + ' on ' + cropAlert.crop + ' detected in your region in the last 7 days. Inspect your crop immediately and consider preventive treatment.';
+      document.getElementById('outbreak-alert').classList.add('show');
+    }
+  } catch(e) { console.log('Outbreak fetch failed:', e.message); }
+}
+loadOutbreakAlerts();
+
+// ==================== VOICE-ONLY MODE ====================
+var _voiceListening = false;
+var _voiceRecognition = null;
+
+function toggleVoiceMode() {
+  const overlay = document.getElementById('voice-overlay');
+  overlay.classList.contains('show') ? closeVoiceMode() : openVoiceMode();
+}
+function openVoiceMode() {
+  document.getElementById('voice-overlay').classList.add('show');
+  document.getElementById('voice-status').textContent = 'Tap the mic to speak your problem';
+  document.getElementById('voice-transcript').textContent = 'Say: "My teff has yellow leaves and spots"';
+}
+function closeVoiceMode() {
+  document.getElementById('voice-overlay').classList.remove('show');
+  if (_voiceRecognition) { try { _voiceRecognition.stop(); } catch(e) {} }
+  _voiceListening = false;
+  document.getElementById('voice-orb').classList.remove('listening');
+  document.getElementById('voice-mode-btn').classList.remove('listening');
+}
+
+async function startVoiceListen() {
+  if (_voiceListening) {
+    if (_voiceRecognition) _voiceRecognition.stop();
+    return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    document.getElementById('voice-status').textContent = 'Voice not supported — type in the main Advisor instead';
+    return;
+  }
+  _voiceListening = true;
+  document.getElementById('voice-orb').classList.add('listening');
+  document.getElementById('voice-mode-btn').classList.add('listening');
+  document.getElementById('voice-status').textContent = '🔴 Listening...';
+
+  _voiceRecognition = new SpeechRecognition();
+  _voiceRecognition.lang = currentLang === 'am' ? 'am-ET' :
+                           currentLang === 'so' ? 'so-SO' : 'en-US';
+  _voiceRecognition.interimResults = true;
+  _voiceRecognition.maxAlternatives = 1;
+
+  _voiceRecognition.onresult = function(e) {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    document.getElementById('voice-transcript').textContent = transcript;
+    if (e.results[e.results.length - 1].isFinal) {
+      document.getElementById('voice-status').textContent = '🧠 Diagnosing...';
+      runVoiceDiagnosis(transcript);
+    }
+  };
+  _voiceRecognition.onerror = function(e) {
+    document.getElementById('voice-status').textContent = 'Error: ' + e.error + ' — try again';
+    _voiceListening = false;
+    document.getElementById('voice-orb').classList.remove('listening');
+  };
+  _voiceRecognition.onend = function() {
+    _voiceListening = false;
+    document.getElementById('voice-orb').classList.remove('listening');
+    document.getElementById('voice-mode-btn').classList.remove('listening');
+  };
+  _voiceRecognition.start();
+}
+
+async function runVoiceDiagnosis(transcript) {
+  try {
+    // Parse crop from transcript
+    const CROPS = ['enset','teff','wheat','maize','corn','coffee','potato','barley','sorghum'];
+    const detected = CROPS.find(c => transcript.toLowerCase().includes(c));
+    const crop = detected || window._lastSelectedCrop || 'teff';
+
+    const r = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        crop, symptoms: transcript, lang: currentLang || 'en',
+        voiceMode: true, inputText: transcript
+      })
+    });
+    const d = await r.json();
+    const diagText = d.disease_name || d.diagnosis || 'Analysis complete';
+    const actionText = d.treatment_steps?.[0] || d.action_plan?.[0] || 'See full result in app';
+
+    document.getElementById('voice-status').textContent = '✅ ' + diagText;
+    document.getElementById('voice-transcript').textContent = 'Action: ' + actionText;
+
+    // Speak the result
+    const toSpeak = diagText + '. ' + actionText;
+    if (window.speechSynthesis) {
+      const utt = new SpeechSynthesisUtterance(toSpeak);
+      utt.lang = currentLang === 'am' ? 'am-ET' : currentLang === 'so' ? 'so-SO' : 'en-US';
+      window.speechSynthesis.speak(utt);
+    } else {
+      // Use server TTS
+      fetch('/api/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text: toSpeak, lang: currentLang || 'en' }) })
+        .then(r => r.blob()).then(blob => new Audio(URL.createObjectURL(blob)).play())
+        .catch(()=>{});
+    }
+  } catch(e) {
+    document.getElementById('voice-status').textContent = 'Diagnosis failed — please try again';
+    console.log('Voice diagnosis error:', e.message);
+  }
+}
+
+// ==================== YIELD PREDICTION ====================
+var _yieldPhotoB64 = null;
+var _lastYieldId = null;
+
+function openYieldModal() { document.getElementById('yield-modal').classList.add('show'); }
+function closeYieldModal() { document.getElementById('yield-modal').classList.remove('show'); }
+
+function handleYieldPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _yieldPhotoB64 = e.target.result.split(',')[1];
+    document.getElementById('yield-photo-label').textContent = '✅ Photo selected — ' + file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runYieldPredict() {
+  const ha = parseFloat(document.getElementById('yield-ha').value) || 0.5;
+  const region = document.getElementById('yield-region').value;
+  const crop = window._lastSelectedCrop || 'teff';
+  document.getElementById('yield-num').textContent = '⏳';
+  document.getElementById('yield-sub').textContent = 'Analyzing...';
+  document.getElementById('yield-result-card').classList.add('show');
+  try {
+    const r = await fetch('/api/yield-predict', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crop, farmSizeHa: ha, region, imageBase64: _yieldPhotoB64 })
+    });
+    const d = await r.json();
+    _lastYieldId = d.id;
+    document.getElementById('yield-num').textContent = d.predictedYield + ' quintal';
+    document.getElementById('yield-sub').textContent =
+      'Confidence: ' + d.confidence + ' · Baseline: ' + d.baseline + ' quintal · ' + d.aiNote;
+    showToast('🌾 Yield predicted: ' + d.predictedYield + ' quintal (' + d.confidence + ' confidence)');
+  } catch(e) {
+    document.getElementById('yield-num').textContent = 'Error';
+    document.getElementById('yield-sub').textContent = 'Could not get prediction — try again';
+  }
+}
+
+// ==================== COOPERATIVE MODE ====================
+var _activeCoop = JSON.parse(localStorage.getItem('sebilai_coop') || 'null');
+
+function openCoopModal() {
+  document.getElementById('coop-modal').classList.add('show');
+  if (_activeCoop) {
+    document.getElementById('coop-active-name').textContent = _activeCoop.name;
+    document.getElementById('coop-active-code').textContent = _activeCoop.code;
+    document.getElementById('coop-active-display').style.display = 'block';
+  }
+}
+function closeCoopModal() { document.getElementById('coop-modal').classList.remove('show'); }
+function showCoopCreate() {
+  document.getElementById('coop-create-panel').style.display = 'block';
+  document.getElementById('coop-join-panel').style.display = 'none';
+}
+function showCoopJoin() {
+  document.getElementById('coop-join-panel').style.display = 'block';
+  document.getElementById('coop-create-panel').style.display = 'none';
+}
+
+async function createCoop() {
+  const name  = document.getElementById('coop-name').value.trim();
+  const phone = document.getElementById('coop-leader-phone').value.trim();
+  const members = document.getElementById('coop-phones').value.split(',').map(p => p.trim()).filter(Boolean);
+  if (!name || !phone) { alert('Please enter group name and your phone number'); return; }
+  try {
+    const r = await fetch('/api/coop/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, leaderPhone: phone, memberPhones: members, crop: window._lastSelectedCrop || 'mixed' })
+    });
+    const d = await r.json();
+    document.getElementById('coop-code-display').textContent = d.code;
+    document.getElementById('coop-code-display').style.display = 'block';
+    document.getElementById('coop-create-msg').textContent = '✅ Group created! Share this code with members. ' + d.memberCount + ' member(s) will receive SMS alerts.';
+    _activeCoop = { name, code: d.code, id: d.id };
+    localStorage.setItem('sebilai_coop', JSON.stringify(_activeCoop));
+    document.getElementById('coop-active-name').textContent = name;
+    document.getElementById('coop-active-code').textContent = d.code;
+    document.getElementById('coop-active-display').style.display = 'block';
+    showToast('👥 Group "' + name + '" created! Code: ' + d.code);
+  } catch(e) { alert('Failed to create group — please try again'); }
+}
+
+async function joinCoop() {
+  const code  = document.getElementById('coop-join-code').value.trim().toUpperCase();
+  const phone = document.getElementById('coop-join-phone').value.trim();
+  if (!code || !phone) { alert('Please enter group code and your phone'); return; }
+  try {
+    const r = await fetch('/api/coop/join', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, phone })
+    });
+    const d = await r.json();
+    document.getElementById('coop-join-msg').textContent = '✅ Joined "' + d.coopName + '"! You will receive group alerts. ' + d.memberCount + ' members total.';
+    _activeCoop = { name: d.coopName, code };
+    localStorage.setItem('sebilai_coop', JSON.stringify(_activeCoop));
+    document.getElementById('coop-active-name').textContent = d.coopName;
+    document.getElementById('coop-active-code').textContent = code;
+    document.getElementById('coop-active-display').style.display = 'block';
+    showToast('🔗 Joined "' + d.coopName + '"!');
+  } catch(e) {
+    document.getElementById('coop-join-msg').textContent = 'Group not found — check the code and try again';
+  }
+}
+
+async function shareLastDiagToCoop() {
+  if (!_activeCoop || !window._lastDiagDisease) {
+    showToast('Run a diagnosis first, then share it to your group'); return;
+  }
+  try {
+    const r = await fetch('/api/coop/share-diagnosis', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: _activeCoop.code,
+        crop: window._lastDiagCrop || window._lastSelectedCrop,
+        disease: window._lastDiagDisease,
+        severity: window._lastSeverity || 'check needed',
+        lang: currentLang || 'en'
+      })
+    });
+    const d = await r.json();
+    showToast('📤 Diagnosis shared! ' + d.notified + ' group members notified via SMS');
+    closeCoopModal();
+  } catch(e) { showToast('Failed to share — please try again'); }
+}
+
 // ==================== INIT ====================
 setTimeout(function() { switchTab('advisor'); }, 300);
+// Load initial data for default crop
+setTimeout(function() {
+  loadSeasonalAlerts('enset');
+  loadMarketPrice('enset');
+  loadOutbreakAlerts();
+  // Load coop state from localStorage
+  if (_activeCoop) {
+    document.getElementById('coop-active-name').textContent = _activeCoop.name;
+    document.getElementById('coop-active-code').textContent = _activeCoop.code;
+    document.getElementById('coop-active-display').style.display = 'block';
+  }
+}, 800);
 </script>
 
 

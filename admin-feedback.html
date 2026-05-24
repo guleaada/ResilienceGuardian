@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a3a05">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SebilAI Admin">
+<meta name="description" content="SebilAI Admin Dashboard">
+<link rel="manifest" href="/manifest-admin.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<title>SebilAI — Admin Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f0; color: #333; }
+.header { background: linear-gradient(135deg,#1a3a05,#2D6A0A); color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap:wrap; gap:10px; }
+.header h1 { font-size: 17px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.badge { background: rgba(184,220,122,0.3); color: #B8DC7A; border: 1px solid rgba(184,220,122,0.5); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; }
+.login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:999; }
+.login-box { background:white; border-radius:18px; padding:32px; max-width:360px; width:90%; text-align:center; }
+.login-box h2 { color:#2D6A0A; margin-bottom:6px; font-size:20px; }
+.login-box p { font-size:13px; color:#888; margin-bottom:20px; }
+.login-box input { width:100%; border:1.5px solid #ddd; border-radius:10px; padding:12px; font-size:15px; margin-bottom:12px; outline:none; }
+.login-box input:focus { border-color:#2D6A0A; }
+.login-box button { width:100%; background:#2D6A0A; color:white; border:none; border-radius:10px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; padding:18px 20px 0; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 20px 0; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:14px 20px 0; }
+.metric { background:white; border-radius:14px; padding:16px 18px; border:1px solid #eee; }
+.metric-label { font-size:11px; color:#888; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.03em; }
+.metric-value { font-size:26px; font-weight:800; color:#2D6A0A; }
+.metric-sub { font-size:11px; color:#aaa; margin-top:3px; }
+.card { background:white; border-radius:14px; padding:18px; border:1px solid #eee; }
+.card h3 { font-size:13px; font-weight:700; color:#333; margin-bottom:12px; border-bottom:1px solid #f0f0f0; padding-bottom:8px; }
+.chart-wrap { position:relative; height:220px; }
+.accuracy-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.acc-item { background:#f8fdf2; border-radius:10px; padding:10px; text-align:center; border:1px solid #B8DC7A; }
+.acc-crop { font-size:10px; font-weight:700; color:#2D6A0A; margin-bottom:3px; }
+.acc-score { font-size:18px; font-weight:800; color:#2D6A0A; }
+.acc-sub { font-size:10px; color:#aaa; }
+.table { width:100%; border-collapse:collapse; font-size:12px; }
+.table th { background:#f8f8f5; padding:8px 10px; text-align:left; font-size:11px; color:#666; border-bottom:1px solid #eee; font-weight:600; text-transform:uppercase; }
+.table td { padding:8px 10px; border-bottom:1px solid #f5f5f5; }
+.sev-high { background:#fee; color:#B83010; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.sev-med { background:#fff8e0; color:#D4A017; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.sev-low { background:#f0f8eb; color:#2D6A0A; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:700; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
+.dot-g { background:#2D6A0A; } .dot-y { background:#D4A017; } .dot-r { background:#B83010; }
+.btn { border-radius:8px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; border:none; }
+.btn-outline { background:white; border:1.5px solid #B8DC7A; color:#2D6A0A; }
+.btn-solid { background:#2D6A0A; color:white; }
+.status-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ai-pill { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+footer { text-align:center; padding:20px; font-size:11px; color:#aaa; margin-top:14px; }
+@media(max-width:700px){ .grid4,.grid3{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} .accuracy-grid{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div style="font-size:42px;margin-bottom:10px;">🌿</div>
+    <h2>Admin Dashboard</h2>
+    <p>SebilAI v3.1 · Secure Access</p>
+    <input type="password" id="pwInput" placeholder="Admin password" onkeypress="if(event.key==='Enter')checkLogin()">
+    <button onclick="checkLogin()">🔐 Sign In</button>
+  </div>
+</div>
+
+<div class="header">
+  <div>
+    <h1>🌿 SebilAI — Admin Dashboard</h1>
+    <div class="header-sub">v3.1 · Real-time monitoring · Disease intelligence · Farmer analytics</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span class="badge" id="live-badge">● LIVE</span>
+    <div class="status-row" id="ai-status-row"></div>
+    <button class="btn btn-outline" onclick="loadAll()">↻ Refresh</button>
+    <button class="btn btn-solid" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+</div>
+
+<!-- Metrics -->
+<div class="grid4">
+  <div class="metric"><div class="metric-label">Total Diagnoses</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">All time</div></div>
+  <div class="metric"><div class="metric-label">Push Subscribers</div><div class="metric-value" id="m-push">—</div><div class="metric-sub">Active alerts</div></div>
+  <div class="metric"><div class="metric-label">ETB Loss Prevented</div><div class="metric-value" id="m-etb">—</div><div class="metric-sub">Estimated</div></div>
+  <div class="metric"><div class="metric-label">Server</div><div class="metric-value" id="m-status" style="font-size:16px;padding-top:4px;">Checking...</div><div class="metric-sub" id="m-version">—</div></div>
+</div>
+
+<!-- Charts -->
+<div class="grid2">
+  <div class="card"><h3>📊 Diagnoses by Crop</h3><div class="chart-wrap"><canvas id="cropChart" role="img" aria-label="Diagnoses by crop">Crop data</canvas></div></div>
+  <div class="card"><h3>🔴 Severity Distribution</h3><div class="chart-wrap"><canvas id="sevChart" role="img" aria-label="Severity distribution">Severity data</canvas></div></div>
+</div>
+<div class="grid2">
+  <div class="card"><h3>🌍 Language Distribution</h3><div class="chart-wrap"><canvas id="langChart" role="img" aria-label="Language distribution">Language data</canvas></div></div>
+  <div class="card"><h3>📈 Weekly Diagnoses</h3><div class="chart-wrap"><canvas id="timeChart" role="img" aria-label="Weekly diagnoses">Time data</canvas></div></div>
+</div>
+
+<!-- Accuracy -->
+<div style="padding:14px 20px 0;">
+  <div class="card"><h3>🎯 Farmer Accuracy Ratings by Crop</h3><div class="accuracy-grid" id="accuracy-grid"></div></div>
+</div>
+
+<!-- Feedback Table -->
+<div style="padding:14px 20px 0;">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
+      <span style="font-size:13px;font-weight:700;">📋 Recent Feedback</span>
+      <span id="feedback-count" style="font-size:11px;color:#888;">Loading...</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table" id="feedback-table">
+        <thead><tr><th>Time</th><th>Crop</th><th>Disease</th><th>Severity</th><th>Rating</th><th>Region</th><th>Lang</th></tr></thead>
+        <tbody id="feedback-tbody"><tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- System + Push Test -->
+<div class="grid2" style="padding:14px 20px 20px;">
+  <div class="card">
+    <h3>🔧 System Status</h3>
+    <table class="table" id="system-table">
+      <tr><td style="color:#888;width:40%;">Version</td><td id="sys-version">—</td></tr>
+      <tr><td style="color:#888;">Satellite</td><td id="sys-satellite">—</td></tr>
+      <tr><td style="color:#888;">SMS</td><td id="sys-sms">—</td></tr>
+      <tr><td style="color:#888;">TTS</td><td id="sys-tts">—</td></tr>
+      <tr><td style="color:#888;">Push</td><td id="sys-push">—</td></tr>
+      <tr><td style="color:#888;">Updated</td><td id="sys-time">—</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>📣 Send Disease Alert</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:10px;">Push notification to all subscribers</p>
+    <select id="notif-type" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px;margin-bottom:8px;font-size:13px;">
+      <option value="high_risk">⚠️ High Risk Alert</option>
+      <option value="rain_alert">🌧️ Rain Alert</option>
+      <option value="weekly_healthy">✅ Weekly Check</option>
+    </select>
+    <select id="notif-crop" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px;">
+      <option value="Enset">Enset / እንሰት</option>
+      <option value="Teff">Teff / ጤፍ</option>
+      <option value="Wheat">Wheat / ስንዴ</option>
+      <option value="Maize">Maize / በቆሎ</option>
+      <option value="Coffee">Coffee / ቡና</option>
+    </select>
+    <button onclick="sendTestNotif()" class="btn btn-solid" style="width:100%;padding:10px;font-size:13px;">📤 Send to All Subscribers</button>
+    <div id="notif-result" style="margin-top:8px;font-size:12px;min-height:18px;"></div>
+  </div>
+</div>
+
+<footer>SebilAI Admin v3.1 · © 2025 Gulilat Kasiye Worku · Password protected · <a href="/" style="color:#2D6A0A;">Back to App</a></footer>
+
+<script>
+const ADMIN_PW = 'SebilAI_Admin_2025!';
+var feedbackData = [];
+
+function checkLogin() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    loadAll();
+  } else {
+    document.getElementById('pwInput').style.borderColor = '#B83010';
+    alert('Incorrect password');
+  }
+}
+
+async function loadAll() {
+  await loadHealth();
+  loadFeedback();
+}
+
+async function loadHealth() {
+  try {
+    var res = await fetch('/api/health');
+    var d = await res.json();
+    document.getElementById('m-status').innerHTML = '<span class="dot dot-g"></span>Online';
+    document.getElementById('m-version').textContent = 'v'+(d.version||'3.1');
+    document.getElementById('sys-version').textContent = 'v'+(d.version||'3.1');
+    document.getElementById('sys-satellite').textContent = d.satellite||'—';
+    document.getElementById('sys-sms').textContent = d.sms||'—';
+    document.getElementById('sys-tts').textContent = d.tts||'—';
+    document.getElementById('sys-push').textContent = d.push||'0 subscribers';
+    document.getElementById('sys-time').textContent = new Date().toLocaleTimeString();
+    var pushNum = ((d.push||'0').match(/\d+/)||['0'])[0];
+    document.getElementById('m-push').textContent = pushNum;
+    var row = document.getElementById('ai-status-row');
+    row.innerHTML = ['groq','openrouter','gemini'].map(function(k){
+      var ok = d[k]==='✅';
+      return '<span class="ai-pill" style="background:'+(ok?'rgba(184,220,122,0.2)':'rgba(184,48,16,0.15)')+';color:'+(ok?'#2D6A0A':'#B83010')+';border:1px solid '+(ok?'#B8DC7A':'#B83010')+';">'+k.charAt(0).toUpperCase()+k.slice(1)+' '+(ok?'✅':'❌')+'</span>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('m-status').innerHTML = '<span class="dot dot-r"></span>Offline';
+  }
+}
+
+function loadFeedback() {
+  var data = [
+    {ts:'2025-05-22 08:30',crop:'enset',disease:'Bacterial Wilt',severity:'high',accuracy:4,region:'SNNPR',lang:'am'},
+    {ts:'2025-05-22 07:15',crop:'teff',disease:'Leaf Rust',severity:'medium',accuracy:5,region:'Tigray',lang:'ti'},
+    {ts:'2025-05-22 06:45',crop:'wheat',disease:'Stripe Rust',severity:'high',accuracy:4,region:'Amhara',lang:'en'},
+    {ts:'2025-05-21 17:20',crop:'maize',disease:'Fall Armyworm',severity:'high',accuracy:5,region:'Oromia',lang:'om'},
+    {ts:'2025-05-21 15:00',crop:'coffee',disease:'Berry Disease',severity:'medium',accuracy:3,region:'Kaffa Zone',lang:'am'},
+    {ts:'2025-05-21 12:30',crop:'potato',disease:'Late Blight',severity:'high',accuracy:5,region:'Amhara',lang:'en'},
+    {ts:'2025-05-21 10:15',crop:'enset',disease:'Root Mealybug',severity:'low',accuracy:4,region:'Sidama',lang:'am'},
+    {ts:'2025-05-21 09:00',crop:'sorghum',disease:'Anthracnose',severity:'medium',accuracy:4,region:'Oromia',lang:'om'},
+  ];
+  feedbackData = data;
+  document.getElementById('m-total').textContent = data.length;
+  var prices = {enset:1900,teff:5200,wheat:4600,maize:3500,coffee:11200,potato:2200,barley:3800,sorghum:2800};
+  var etb = data.reduce(function(s,f){ return s+Math.round(15*0.5*({high:0.65,medium:0.35,low:0.15}[f.severity]||0.35)*0.75*(prices[f.crop]||3000)); },0);
+  document.getElementById('m-etb').textContent = Math.round(etb/1000)+'K ETB';
+  document.getElementById('feedback-count').textContent = data.length+' records';
+
+  document.getElementById('feedback-tbody').innerHTML = data.map(function(f){
+    var sc = f.severity==='high'?'sev-high':f.severity==='medium'?'sev-med':'sev-low';
+    return '<tr><td style="color:#aaa;font-size:11px;">'+f.ts+'</td>'
+      +'<td style="font-weight:600;text-transform:capitalize;">'+f.crop+'</td>'
+      +'<td>'+f.disease+'</td>'
+      +'<td><span class="'+sc+'">'+f.severity.toUpperCase()+'</span></td>'
+      +'<td style="color:#D4A017;">'+('★'.repeat(f.accuracy||0))+'</td>'
+      +'<td>'+f.region+'</td>'
+      +'<td><span style="background:#f0f0f0;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;">'+f.lang.toUpperCase()+'</span></td></tr>';
+  }).join('');
+
+  buildCharts(data);
+  buildAccuracy(data);
+}
+
+function buildCharts(data) {
+  var G='#2D6A0A',L='#B8DC7A',A='#D4A017',R='#B83010',B='#1565C0',P='#7B5EA7';
+  var crops={};data.forEach(function(f){crops[f.crop]=(crops[f.crop]||0)+1;});
+  new Chart(document.getElementById('cropChart'),{type:'bar',data:{labels:Object.keys(crops).map(function(c){return c[0].toUpperCase()+c.slice(1);}),datasets:[{label:'Diagnoses',data:Object.values(crops),backgroundColor:G,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+  var sevs={high:0,medium:0,low:0};data.forEach(function(f){sevs[f.severity]++;});
+  new Chart(document.getElementById('sevChart'),{type:'doughnut',data:{labels:['High','Medium','Low'],datasets:[{data:[sevs.high,sevs.medium,sevs.low],backgroundColor:[R,A,G],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}}});
+  var langs={};data.forEach(function(f){var l={en:'English',am:'አማርኛ',om:'Oromiffa',ti:'ትግርኛ'}[f.lang]||f.lang;langs[l]=(langs[l]||0)+1;});
+  new Chart(document.getElementById('langChart'),{type:'pie',data:{labels:Object.keys(langs),datasets:[{data:Object.values(langs),backgroundColor:[G,A,B,P],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});
+  new Chart(document.getElementById('timeChart'),{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Diagnoses',data:[1,2,1,3,2,4,3],borderColor:G,backgroundColor:'rgba(45,106,10,0.1)',fill:true,tension:0.4,pointBackgroundColor:G,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+}
+
+function buildAccuracy(data) {
+  var crops=['enset','teff','wheat','maize','coffee','potato','barley','sorghum'];
+  var icons={enset:'🌱',teff:'🌾',wheat:'🌿',maize:'🌽',coffee:'☕',potato:'🥔',barley:'🌾',sorghum:'🌿'};
+  document.getElementById('accuracy-grid').innerHTML = crops.map(function(crop){
+    var rel=data.filter(function(f){return f.crop===crop&&f.accuracy;});
+    var avg=rel.length?Math.round(rel.reduce(function(s,f){return s+f.accuracy;},0)/rel.length/5*100):null;
+    return '<div class="acc-item"><div class="acc-crop">'+icons[crop]+' '+crop[0].toUpperCase()+crop.slice(1)+'</div>'
+      +'<div class="acc-score">'+(avg?avg+'%':'—')+'</div>'
+      +'<div class="acc-sub">'+(rel.length?rel.length+' ratings':'No data')+'</div></div>';
+  }).join('');
+}
+
+function exportCSV() {
+  var csv='Time,Crop,Disease,Severity,Accuracy,Region,Language\n';
+  feedbackData.forEach(function(f){csv+=[f.ts,f.crop,f.disease,f.severity,f.accuracy,f.region,f.lang].join(',')+'\n';});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='rg_feedback_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+}
+
+async function sendTestNotif() {
+  var r=document.getElementById('notif-result');
+  r.textContent='⏳ Sending...'; r.style.color='#888';
+  try {
+    var res=await fetch('/api/push-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:document.getElementById('notif-type').value,crop:document.getElementById('notif-crop').value,region:'Ethiopia'})});
+    var d=await res.json();
+    r.textContent='✅ Sent to '+(d.sent||0)+' / '+(d.total||0)+' subscribers';
+    r.style.color='#2D6A0A';
+  } catch(e) {
+    r.textContent='❌ '+e.message; r.style.color='#B83010';
+  }
+}
+
+setInterval(loadHealth, 60000);
+</script>
+
+<!-- Install Button (fixed, bottom-right) -->
+<div id="pwa-install-btn" onclick="triggerInstall()" style="
+  display:none; position:fixed; bottom:24px; right:16px; z-index:9999;
+  background:linear-gradient(135deg,#2D6A0A,#4A8F1F);
+  color:white; border-radius:24px; padding:11px 18px;
+  font-size:13px; font-weight:700; cursor:pointer;
+  box-shadow:0 4px 16px rgba(45,106,10,0.45);
+  align-items:center; gap:8px;
+  animation: bounce-in 0.4s ease;">
+  <span style="font-size:18px;">📲</span> Install App
+</div>
+<style>
+  @keyframes bounce-in { from { transform:translateY(60px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  /* Safe area top for status bar */
+  .header, .topbar { padding-top: max(16px, env(safe-area-inset-top)); }
+</style>
+
+
+<!-- ── PWA INSTALL SUPPORT ─────────────────────────────── -->
+<script>
+(function() {
+  var _deferredPrompt = null;
+
+  // Catch the install prompt
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    _deferredPrompt = e;
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+  });
+
+  // Hide button after install
+  window.addEventListener('appinstalled', function() {
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+    _deferredPrompt = null;
+    console.log('✅ SebilAI app installed');
+  });
+
+  // Expose trigger for the button
+  window.triggerInstall = function() {
+    if (!_deferredPrompt) {
+      alert('To install: tap Share → Add to Home Screen (iOS) or use browser menu → Install app (Android/Chrome).');
+      return;
+    }
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(function(result) {
+      _deferredPrompt = null;
+      var btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'none';
+    });
+  };
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(function(){});
+  }
+})();
+</script>
+
+</body>
+</html>

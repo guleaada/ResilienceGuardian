@@ -1,0 +1,22 @@
+{
+  "name": "SebilAI Agronomist",
+  "short_name": "SebilAI Agro",
+  "description": "SebilAI Agronomist Dashboard — Disease Map, Expert Reviews & Forecasts",
+  "start_url": "/agronomist",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#2D6A0A",
+  "theme_color": "#2D6A0A",
+  "scope": "/",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["productivity", "medical"],
+  "lang": "en",
+  "shortcuts": [
+    { "name": "Disease Map", "url": "/agronomist#map", "description": "View community disease map" },
+    { "name": "Reviews", "url": "/agronomist#reviews", "description": "Review pending cases" },
+    { "name": "Forecasts", "url": "/agronomist#forecast", "description": "14-day disease forecast" }
+  ]
+}
