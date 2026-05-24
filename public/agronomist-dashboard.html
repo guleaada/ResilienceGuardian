@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SebilAI — Agronomist Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f7f2; color: #2C1A0E; }
+.topbar {
+  background: #2D6A0A; color: white; padding: 0 24px;
+  height: 60px; display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100;
+}
+.topbar h1 { font-size: 18px; font-weight: 800; }
+.topbar .tright { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.auth-screen {
+  max-width: 380px; margin: 80px auto; background: white;
+  border-radius: 16px; padding: 32px; box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  text-align: center;
+}
+.auth-screen h2 { color: #2D6A0A; margin-bottom: 8px; }
+.auth-screen p { color: #666; font-size: 13px; margin-bottom: 20px; }
+input[type=password], input[type=text], select, textarea {
+  width: 100%; padding: 11px 14px; border: 1.5px solid #e0e0e0;
+  border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none;
+  font-family: inherit;
+}
+input:focus, select:focus, textarea:focus { border-color: #2D6A0A; }
+.btn { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; border: none; transition: all 0.2s; }
+.btn-primary { background: #2D6A0A; color: white; width: 100%; }
+.btn-primary:hover { background: #4A8F1F; }
+.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 8px; }
+.btn-success { background: #27ae60; color: white; }
+.btn-danger  { background: #e74c3c; color: white; }
+.btn-info    { background: #2980b9; color: white; }
+
+.dashboard { display: none; }
+.dashboard.show { display: block; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px 24px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; }
+@media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr 1fr; } .grid-2 { grid-template-columns: 1fr; } }
+.stat-card {
+  background: white; border-radius: 12px; padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #2D6A0A;
+}
+.stat-card .snum { font-size: 36px; font-weight: 900; color: #2D6A0A; }
+.stat-card .slbl { font-size: 12px; color: #666; margin-top: 4px; }
+.panel {
+  background: white; border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.panel h3 { font-size: 15px; font-weight: 800; color: #2C1A0E; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+#woreda-map { width: 100%; height: 340px; border-radius: 10px; }
+.review-item {
+  border: 1.5px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 10px;
+}
+.review-item .ri-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.review-item h4 { font-size: 13px; font-weight: 800; color: #2C1A0E; }
+.review-item .ri-meta { font-size: 11px; color: #999; margin-top: 2px; }
+.badge {
+  font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+}
+.badge-pending  { background: #fff3cd; color: #856404; }
+.badge-verified { background: #d4edda; color: #155724; }
+.badge-high     { background: #fde8e8; color: #c0392b; }
+.badge-medium   { background: #fff3cd; color: #856404; }
+.badge-low      { background: #d4edda; color: #155724; }
+.ri-actions { display: flex; gap: 6px; margin-top: 10px; }
+.verify-notes { display: none; margin-top: 8px; }
+.verify-notes textarea { height: 60px; }
+.chart-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.chart-bar-label { font-size: 12px; width: 80px; flex-shrink: 0; color: #444; }
+.chart-bar-track { flex: 1; background: #f0f0f0; border-radius: 4px; height: 18px; }
+.chart-bar-fill  { background: #2D6A0A; border-radius: 4px; height: 18px; min-width: 4px; transition: width 0.5s; }
+.chart-bar-val { font-size: 11px; font-weight: 700; color: #2D6A0A; width: 30px; }
+.forecast-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.forecast-table th { background: #2D6A0A; color: white; padding: 7px 8px; text-align: left; }
+.forecast-table td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+.forecast-table tr:last-child td { border-bottom: none; }
+.tab-bar { display: flex; gap: 4px; padding: 16px 24px 0; }
+.tab-btn {
+  padding: 8px 16px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none; background: #e8f5d8; color: #2D6A0A; transition: all 0.2s;
+}
+.tab-btn.active { background: white; box-shadow: 0 -2px 6px rgba(0,0,0,0.06); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.toast {
+  position: fixed; top: 70px; right: 20px; background: #2D6A0A; color: white;
+  padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+  z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: none;
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="topbar">
+  <h1>🌿 SebilAI — Agronomist Dashboard</h1>
+  <div class="tright">
+    <span id="status-pill" style="background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:10px;font-size:11px;">●  Loading...</span>
+    <button onclick="logout()" class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white;border:none;display:none;" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="auth-screen">
+  <div style="font-size:48px;margin-bottom:10px;">🔬</div>
+  <h2>Agronomist Login</h2>
+  <p>Enter your SebilAI admin key to access the dashboard</p>
+  <input type="password" id="admin-key-input" placeholder="Admin key" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn btn-primary" onclick="doLogin()">Login →</button>
+  <p id="auth-error" style="color:#e74c3c;font-size:12px;margin-top:8px;"></p>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showDashTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="showDashTab('reviews')">🔬 Review Requests</button>
+    <button class="tab-btn" onclick="showDashTab('map')">🗺️ Disease Map</button>
+    <button class="tab-btn" onclick="showDashTab('forecast')">🔮 Forecast</button>
+    <button class="tab-btn" onclick="showDashTab('outbreaks')">🚨 Outbreaks</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="grid-3" id="stats-grid">
+      <div class="stat-card"><div class="snum" id="s-total">—</div><div class="slbl">Total Diagnoses</div></div>
+      <div class="stat-card" style="border-color:#f39c12;"><div class="snum" id="s-today" style="color:#f39c12;">—</div><div class="slbl">Diagnoses Today</div></div>
+      <div class="stat-card" style="border-color:#2980b9;"><div class="snum" id="s-pending" style="color:#2980b9;">—</div><div class="slbl">Pending Reviews</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>📈 Disease Distribution (Last 30 Days)</h3>
+        <div id="disease-chart"><div style="color:#999;font-size:13px;">Loading...</div></div>
+      </div>
+      <div class="panel">
+        <h3>🌱 Active Outbreaks</h3>
+        <div id="outbreak-summary"><div style="color:#999;font-size:13px;">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEWS TAB -->
+  <div class="tab-content" id="tab-reviews" style="padding:0 24px 24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 8px;">
+      <h3 style="font-size:16px;font-weight:800;">🔬 Expert Review Requests</h3>
+      <button class="btn btn-sm btn-info" onclick="loadReviews()">🔄 Refresh</button>
+    </div>
+    <div id="reviews-list"><div style="color:#999;font-size:13px;">Loading...</div></div>
+  </div>
+
+  <!-- MAP TAB -->
+  <div class="tab-content" id="tab-map" style="padding:20px 24px;">
+    <div class="panel">
+      <h3>🗺️ Community Disease Reports — Ethiopia</h3>
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <select id="map-filter-crop" onchange="refreshMap()" style="width:auto;margin-bottom:0;">
+          <option value="">All Crops</option>
+          <option value="enset">Enset</option><option value="teff">Teff</option>
+          <option value="wheat">Wheat</option><option value="maize">Maize</option>
+          <option value="coffee">Coffee</option><option value="potato">Potato</option>
+          <option value="barley">Barley</option><option value="sorghum">Sorghum</option>
+        </select>
+        <select id="map-filter-severity" onchange="refreshMap()" style="width:auto;margin-bottom:0;">
+          <option value="">All Severity</option>
+          <option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option>
+        </select>
+      </div>
+      <div id="woreda-map"></div>
+      <div style="margin-top:8px;font-size:11px;color:#999;" id="map-count">Loading reports...</div>
+    </div>
+  </div>
+
+  <!-- FORECAST TAB -->
+  <div class="tab-content" id="tab-forecast" style="padding:20px 24px;">
+    <div class="panel">
+      <h3>🔮 14-Day Disease Forecast by Region</h3>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <select id="fc-crop" style="width:auto;margin-bottom:0;">
+          <option value="teff">Teff</option><option value="wheat">Wheat</option>
+          <option value="maize">Maize</option><option value="coffee">Coffee</option>
+          <option value="enset">Enset</option><option value="potato">Potato</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadForecastDash()" style="width:auto;">Run Forecast</button>
+      </div>
+      <div id="forecast-results"><div style="color:#999;font-size:13px;">Select a crop and click Run Forecast</div></div>
+    </div>
+  </div>
+
+  <!-- OUTBREAKS TAB -->
+  <div class="tab-content" id="tab-outbreaks" style="padding:20px 24px;">
+    <div class="panel">
+      <h3>🚨 Outbreak Alerts History</h3>
+      <div id="outbreaks-list"><div style="color:#999;font-size:13px;">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var ADMIN_KEY = '';
+var _map = null, _markers = [];
+var _allReports = [];
+
+// ── AUTH ──────────────────────────────────────────────────
+function doLogin() {
+  const key = document.getElementById('admin-key-input').value.trim();
+  if (!key) return;
+  fetch('/api/review-requests', { headers: { 'x-admin-key': key } })
+    .then(r => {
+      if (r.status === 403) throw new Error('Invalid key');
+      return r.json();
+    })
+    .then(d => {
+      ADMIN_KEY = key;
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('dashboard').classList.add('show');
+      document.getElementById('logout-btn').style.display = 'block';
+      loadAll();
+    })
+    .catch(e => {
+      document.getElementById('auth-error').textContent = '❌ ' + e.message;
+    });
+}
+function logout() {
+  ADMIN_KEY = '';
+  document.getElementById('auth-screen').style.display = 'block';
+  document.getElementById('dashboard').classList.remove('show');
+  document.getElementById('logout-btn').style.display = 'none';
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function showDashTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'map') setTimeout(initMap, 200);
+  if (name === 'forecast') {}
+}
+
+// ── LOAD ALL ──────────────────────────────────────────────
+function loadAll() {
+  loadStats(); loadReviews(); loadOutbreaks();
+  fetch('/api/community-reports').then(r => r.json()).then(d => {
+    _allReports = d.reports || [];
+    renderDiseaseChart();
+    document.getElementById('map-count').textContent = _allReports.length + ' reports loaded';
+  });
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function loadStats() {
+  fetch('/api/stats').then(r => r.json()).then(d => {
+    document.getElementById('s-total').textContent = (d.diagnosesTotal || 0).toLocaleString();
+    document.getElementById('s-today').textContent = d.diagnosesToday || 0;
+    document.getElementById('status-pill').textContent = '●  Live';
+  }).catch(() => {});
+
+  fetch('/api/review-requests', { headers: { 'x-admin-key': ADMIN_KEY } })
+    .then(r => r.json()).then(d => {
+      const pending = (d.requests || []).filter(r => r.status === 'pending').length;
+      document.getElementById('s-pending').textContent = pending;
+    });
+}
+
+// ── DISEASE CHART ─────────────────────────────────────────
+function renderDiseaseChart() {
+  const counts = {};
+  _allReports.forEach(r => { counts[r.disease] = (counts[r.disease] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = sorted[0]?.[1] || 1;
+  const el = document.getElementById('disease-chart');
+  el.innerHTML = sorted.map(([disease, count]) =>
+    '<div class="chart-bar">' +
+    '<div class="chart-bar-label">' + disease.substring(0, 12) + '</div>' +
+    '<div class="chart-bar-track"><div class="chart-bar-fill" style="width:' + Math.round(count/max*100) + '%"></div></div>' +
+    '<div class="chart-bar-val">' + count + '</div>' +
+    '</div>'
+  ).join('') || '<div style="color:#999;font-size:13px;">No reports yet</div>';
+}
+
+// ── OUTBREAK SUMMARY ──────────────────────────────────────
+function loadOutbreaks() {
+  fetch('/api/outbreak-alerts').then(r => r.json()).then(d => {
+    const el = document.getElementById('outbreak-summary');
+    const listEl = document.getElementById('outbreaks-list');
+    if (!d.alerts || d.alerts.length === 0) {
+      el.innerHTML = '<div style="color:#27ae60;font-size:13px;">✅ No active outbreaks</div>';
+      listEl.innerHTML = '<div style="color:#27ae60;font-size:13px;">✅ No active outbreaks in the last 7 days</div>';
+      return;
+    }
+    el.innerHTML = d.alerts.slice(0, 4).map(a =>
+      '<div style="background:#fde8e8;border-radius:8px;padding:10px;margin-bottom:8px;">' +
+      '<div style="font-size:12px;font-weight:800;color:#c0392b;">🚨 ' + a.disease + ' — ' + a.crop + '</div>' +
+      '<div style="font-size:11px;color:#666;margin-top:2px;">' + a.count + ' reports · ' + a.date.split('T')[0] + '</div>' +
+      '</div>'
+    ).join('');
+    listEl.innerHTML = d.alerts.map(a =>
+      '<div style="background:#fde8e8;border:1.5px solid #e74c3c;border-radius:10px;padding:14px;margin-bottom:10px;">' +
+      '<div style="font-size:14px;font-weight:800;color:#c0392b;">🚨 ' + a.disease + ' on ' + a.crop + '</div>' +
+      '<div style="font-size:12px;color:#666;margin-top:4px;">Zone: ' + a.zone + ' · ' + a.count + ' reports · ' + a.date.split('T')[0] + '</div>' +
+      '</div>'
+    ).join('');
+  }).catch(() => {});
+}
+
+// ── REVIEW REQUESTS ───────────────────────────────────────
+function loadReviews() {
+  fetch('/api/review-requests', { headers: { 'x-admin-key': ADMIN_KEY } })
+    .then(r => r.json()).then(d => {
+      const el = document.getElementById('reviews-list');
+      if (!d.requests || d.requests.length === 0) {
+        el.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;padding:20px;">No review requests yet</div>';
+        return;
+      }
+      el.innerHTML = d.requests.slice().reverse().map(req =>
+        '<div class="review-item" id="req-' + req.id + '">' +
+        '<div class="ri-top">' +
+        '<div><h4>' + req.crop + ' — ' + req.disease + '</h4><div class="ri-meta">' + req.contact + ' · ' + req.lang + ' · ' + (req.date||'').split('T')[0] + '</div></div>' +
+        '<span class="badge badge-' + req.status + '">' + req.status + '</span>' +
+        '</div>' +
+        (req.symptoms ? '<div style="font-size:11px;color:#666;margin-bottom:8px;">Symptoms: ' + JSON.parse(req.symptoms||'[]').join(', ') + '</div>' : '') +
+        (req.status === 'pending' ?
+          '<div class="ri-actions">' +
+          '<button class="btn btn-sm btn-success" onclick="showVerifyForm(' + req.id + ',true)">✅ Confirm</button>' +
+          '<button class="btn btn-sm btn-danger" onclick="showVerifyForm(' + req.id + ',false)">❌ Dispute</button>' +
+          '</div>' +
+          '<div class="verify-notes" id="verify-notes-' + req.id + '">' +
+          '<textarea id="verify-text-' + req.id + '" placeholder="Agronomist notes (optional)..."></textarea>' +
+          '<button class="btn btn-sm btn-primary" onclick="submitVerify(' + req.id + ',_verdictFor' + req.id + ')">Submit Verdict</button>' +
+          '</div>'
+          : '<div style="font-size:11px;color:#27ae60;margin-top:6px;">✅ Verified · ' + (req.verdict||'') + '</div>'
+        ) +
+        '</div>'
+      ).join('');
+    });
+}
+
+var _verdictRegistry = {};
+function showVerifyForm(id, confirmed) {
+  _verdictRegistry[id] = confirmed ? 'confirmed' : 'disputed';
+  const el = document.getElementById('verify-notes-' + id);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+async function submitVerify(id, verdict) {
+  const notes = document.getElementById('verify-text-' + id)?.value || '';
+  const v = _verdictRegistry[id] || 'confirmed';
+  try {
+    await fetch('/api/review-verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ id, verdict: v, notes })
+    });
+    showToast('✅ Verdict submitted');
+    loadReviews();
+  } catch(e) { showToast('Failed — try again'); }
+}
+
+// ── MAP ───────────────────────────────────────────────────
+function initMap() {
+  if (_map) { refreshMap(); return; }
+  _map = L.map('woreda-map', { scrollWheelZoom: true }).setView([9.0, 40.0], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 15
+  }).addTo(_map);
+  refreshMap();
+}
+
+function refreshMap() {
+  if (!_map) return;
+  _markers.forEach(m => _map.removeLayer(m));
+  _markers = [];
+  const cropFilter = document.getElementById('map-filter-crop')?.value || '';
+  const sevFilter  = document.getElementById('map-filter-severity')?.value || '';
+  const sColor = { High:'#e74c3c', Medium:'#f39c12', Low:'#27ae60', Unknown:'#95a5a6' };
+
+  const filtered = _allReports.filter(r =>
+    (!cropFilter || r.crop === cropFilter) &&
+    (!sevFilter  || r.severity === sevFilter)
+  );
+
+  filtered.forEach(r => {
+    const c = L.circleMarker([r.lat, r.lon], {
+      radius: 10, fillColor: sColor[r.severity]||'#95a5a6',
+      color: 'white', weight: 2, fillOpacity: 0.8
+    }).addTo(_map);
+    c.bindPopup(
+      '<strong>' + (r.crop||'').charAt(0).toUpperCase() + (r.crop||'').slice(1) + '</strong><br>' +
+      r.disease + '<br>Severity: <strong>' + r.severity + '</strong><br>' + r.date +
+      (r.verified ? '<br>✅ Verified' : '')
+    );
+    _markers.push(c);
+  });
+  document.getElementById('map-count').textContent = filtered.length + ' of ' + _allReports.length + ' reports shown';
+  setTimeout(() => _map.invalidateSize(), 100);
+}
+
+// ── FORECAST ──────────────────────────────────────────────
+async function loadForecastDash() {
+  const crop = document.getElementById('fc-crop').value;
+  const el = document.getElementById('forecast-results');
+  el.innerHTML = '<div style="color:#999;">Loading forecast...</div>';
+  // Use Addis Ababa as default center — in production, use extension worker's region
+  try {
+    const r = await fetch('/api/forecast?lat=9.0&lon=40.0&crop=' + crop);
+    const d = await r.json();
+    el.innerHTML =
+      '<div style="background:#fde8e8;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+      '<strong>Top Threat:</strong> ' + d.topThreat + '<br>' +
+      '<strong>Forecast Summary:</strong> ' + d.summary + '<br>' +
+      '<strong>Local Recent Reports:</strong> ' + d.localRecentReports + ' (last 30 days)' +
+      '</div>' +
+      '<table class="forecast-table"><thead><tr><th>Date</th><th>Max°C</th><th>Humidity</th><th>Rain</th><th>Disease Risk</th></tr></thead><tbody>' +
+      (d.forecasts||[]).map(f =>
+        '<tr><td>' + f.date + '</td><td>' + f.tempMax + '</td><td>' + f.humidity + '%</td><td>' + f.rain + 'mm</td>' +
+        '<td><span style="font-weight:700;color:' + (f.risk==='High'?'#e74c3c':f.risk==='Medium'?'#f39c12':'#27ae60') + '">' + f.risk + '</span></td></tr>'
+      ).join('') +
+      '</tbody></table>';
+  } catch(e) { el.innerHTML = '<div style="color:#e74c3c;">Forecast failed — check connection</div>'; }
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+
+// Init
+document.getElementById('admin-key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
