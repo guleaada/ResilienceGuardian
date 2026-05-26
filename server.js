@@ -164,6 +164,19 @@ function requireAdminKey(req, res) {
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
+
+// ── SECURITY HEADERS (no helmet dep — manual best-practice headers) ──
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');           // prevents MIME sniffing attacks
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');               // prevents clickjacking via iframes
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin'); // limits referrer leakage
+  res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(self), camera=(self)'); // explicit permission scopes
+  res.setHeader('X-XSS-Protection', '0');                       // disable old XSS auditor (now harmful)
+  // NOTE: We don't set Content-Security-Policy because the app uses inline scripts
+  // and CDN scripts; adding CSP would require comprehensive refactor first.
+  next();
+});
+
 // Serve static files from root directory (files are at repo root, not in /public)
 app.use(express.static(__dirname));
 // Also try public/ as fallback if it exists
@@ -189,10 +202,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const NDVI_THRESHOLDS = {
   enset:   { low: 0.45, medium: 0.65, good: 0.75 },
   teff:    { low: 0.40, medium: 0.60, good: 0.70 },
+  noug:    { low: 0.38, medium: 0.58, good: 0.68 },
   wheat:   { low: 0.35, medium: 0.55, good: 0.65 },
   maize:   { low: 0.50, medium: 0.70, good: 0.80 },
   coffee:  { low: 0.55, medium: 0.75, good: 0.85 },
   potato:  { low: 0.45, medium: 0.65, good: 0.75 },
+  tomato:  { low: 0.50, medium: 0.70, good: 0.80 },
+  onion:   { low: 0.42, medium: 0.62, good: 0.72 },
   barley:  { low: 0.40, medium: 0.60, good: 0.70 },
   sorghum: { low: 0.42, medium: 0.62, good: 0.72 },
   default: { low: 0.45, medium: 0.65, good: 0.75 }
@@ -419,6 +435,63 @@ app.post('/api/drone-upload', express.raw({type: '*/*', limit: '20mb'}), async (
 });
 
 // ── ENHANCE PROMPT WITH SATELLITE DATA ───────────────────
+// ── ETHIOPIAN CROP CONTEXT FOR AI (research-grounded) ────
+const ETHIOPIAN_CROP_CONTEXT = {
+  tomato: 'CROP CONTEXT (Tomato / Timaatimii / ቲማቲም): Major Ethiopian vegetable crop, ~9,768 ha annually, ' +
+    'main production zone Central Rift Valley (Adama, Meki, Ziway — Melkassa ARC region). ' +
+    'KNOWN ETHIOPIAN DISEASES/PESTS per EIAR Melkassa 2024 Technical Manual (Yitayih Gedefaw et al.): ' +
+    '1) TUTA ABSOLUTA (Tomato Leafminer) — HIGHEST PRIORITY invasive pest since 2012, can cause 80-100% yield loss. ' +
+    'Symptoms: irregular mines/tunnels in leaves, blackish frass, bored fruits and stems. ' +
+    'Management: Spinosad (Tracer 480 SC at 150ml/ha) + pheromone mass trapping (integrated reduced larvae 83%+ per Jabamo et al. 2023 Melkassa trial). ' +
+    'Earthing-up 2-3 times reduces soil-emerging adults. ' +
+    '2) Late Blight (Phytophthora infestans) — water-soaked lesions, white mold underside, dark brown leaf spots. ' +
+    'Yield loss 63.7-100% in Arbaminch areas. Management: Ridomil MZ 68%WP / Mancozeb; resistant varieties Melkashola, Melkasalsa, Bisholla. ' +
+    '3) Early Blight (Alternaria solani) — dark concentric ring lesions on leaves, stem cankers. ' +
+    'Manage with Pseudomonas fluorescens biocontrol (Berihun et al. 2026 North Wollo) or Mancozeb. ' +
+    '4) Bacterial Wilt (Ralstonia solanacearum) — sudden wilting, vascular browning. No cure; use clean seedlings + 3-year rotation. ' +
+    '5) Powdery Mildew — white powdery growth on leaf surface. ' +
+    '6) Fusarium Wilt — one-sided yellowing/wilting, vascular discoloration. ' +
+    'OTHER PESTS: Whiteflies, African Bollworm, Spider Mites, Aphids, Thrips. ' +
+    'BIOCONTROL OPTIONS: Beauveria bassiana, Metarhizium anisopliae, Trichoderma asperellum, neem extract. ' +
+    'OPTIMAL: 21-24°C, well-drained soil. ' +
+    'Cite Ethiopian research where possible: EIAR Melkassa 2024 Technical Manual; Jabamo et al. 2023; Lemma Desalegn 2002 (EIAR Research Report 43); Berihun et al. 2026 Woldia.',
+  onion: 'CROP CONTEXT (Onion / Shunkurtii / ሽንኩርት): Major Ethiopian vegetable, grown in Central Rift Valley + Amhara (Fogera Plains). ' +
+    'Common varieties: Bombay Red, Adama Red, improved EIAR releases. ' +
+    'KNOWN ETHIOPIAN DISEASES/PESTS per Bahir Dar / EIAR / Arba Minch research: ' +
+    '1) PURPLE BLOTCH (Alternaria porri) — MOST IMPORTANT disease, up to 100% prevalence in some Fogera areas. ' +
+    'Symptoms: small whitish sunken lesions becoming purple-brown elliptical blotches with concentric rings on leaves and scapes; ' +
+    'high humidity (>75% RH) + temp 20-30°C favors disease. Severity peaks at bulbing/maturity stage. ' +
+    'Management per Genet & Yalew 2022 Fogera trial: 2-3 sprays of Tebuconazole (Natura 250 EW) or Difenoconazole (Diprocon 33 EC); ' +
+    'cultural: early transplanting (early December), plant after cereals, frequent plowing (>4 times), smaller fields ≤0.25 ha. ' +
+    '2) Downy Mildew (Peronospora destructor) — pale yellow patches, grey-purple velvet mold, up to 80% yield loss. ' +
+    '3) Stemphylium Leaf Blight (Stemphylium vesicarium) — often co-occurs with purple blotch (purple blotch complex). ' +
+    '4) White Rot (Sclerotium cepivorum) — yellowing leaves, white fluffy mycelium on bulb base. ' +
+    '5) Basal Rot (Fusarium oxysporum f.sp. cepae). ' +
+    '6) Neck Rot — postharvest storage rot. ' +
+    'KEY PEST: 7) Onion Thrips (Thrips tabaci) — MOST COMMON pest, silver streaks on leaves, vectors viruses. ' +
+    'Economic threshold: 5-10 thrips per plant → intervene. Botanicals (neem, Datura) effective; rotate with chemicals to avoid resistance. ' +
+    '8) Cutworms, Onion Fly/Maggot — minor pests. ' +
+    'FERTILIZER: 100 kg/ha NPS + 100 kg/ha UREA recommended (Amhara). ' +
+    'Cite Ethiopian research where possible: Genet & Yalew 2022 (Bahir Dar/Fogera); Arba Minch integrated management trials; EIAR thrips trials.',
+  noug: 'CROP CONTEXT (Noug / Guizotia abyssinica / Nigerseed): Indigenous Ethiopian oilseed crop, ' +
+    'grown in highlands 1600-2200 masl, mainly in Amhara, Oromia, SNNPR and Tigray. ' +
+    'KNOWN ETHIOPIAN DISEASES (per Dagnachew Yirgou 1964, Holetta ARC research, EIAR studies): ' +
+    '1) Alternaria Leaf Spot (Alternaria alternata, A. spp.) — most common, brown circular spots with concentric rings, ' +
+    'severe during wet seasons especially for early-maturing accessions. ' +
+    '2) Cercospora Leaf Spot (Cercospora guizoticola) — small angular spots, foliar damage. ' +
+    '3) Stem & Leaf Blight (Alternaria spp.) — devastating for early-maturing types in wet seasons. ' +
+    '4) Root Rot (Macrophomina phaseolina) — wilting and root decay. ' +
+    '5) Bacterial Blight (Pseudomonas spp.) — minor but occurs. ' +
+    '6) Sclerotinia Wilt — observed at Holetta. ' +
+    'PESTS: Niger Leaf Miner (Sphaeroderma guizotiae) — indigenous Ethiopian pest, NW Ethiopia. ' +
+    'TREATMENT: Carbendazim + Mancozeb (0.2%) sprays effective per Gupta KN 2017 and South Gujarat trials. ' +
+    'Cite Ethiopian research where possible: Dagnachew Yirgou (1964) Plant Disease Reporter; EIAR Oilseed Strategy 2016-2023; Holeta ARC studies.',
+  enset: 'CROP CONTEXT (Enset / Ensete ventricosum / False Banana): Indigenous Ethiopian crop feeding 20M+ people. ' +
+    'KEY DISEASES per Ethiopian research (Fekadu et al. 2021, Werabe ARC): ' +
+    'Bacterial Wilt (Xanthomonas campestris pv. musacearum / EBW) — most devastating, leaf yellowing/wilting; ' +
+    'Kocho Xanthomonas — corm rot; Root Rot. Werabe ARC community rouging reduced EBW from 65.7% to 5.6% in Siltie Zone.',
+};
+
 function enhancePrompt(parts, satContext) {
   const hasImage = parts.some(p => p.inline_data);
   return parts.map(p => {
@@ -426,6 +499,14 @@ function enhancePrompt(parts, satContext) {
       let prefix = '';
       if (hasImage) prefix = 'IMPORTANT: An image of the plant has been provided. Carefully examine it for visual disease symptoms: discoloration, lesions, spots, wilting, rust, fungal growth.\n\n';
       if (satContext) prefix += `SATELLITE DATA: NDVI=${satContext.ndvi} (${satContext.risk_level} risk) — ${satContext.alert}\n\n`;
+      // Add Ethiopian crop context if relevant crop detected
+      const cropMatch = p.text.match(/CROP:\s*(\w+)/i);
+      if (cropMatch) {
+        const cropKey = cropMatch[1].toLowerCase();
+        if (ETHIOPIAN_CROP_CONTEXT[cropKey]) {
+          prefix += ETHIOPIAN_CROP_CONTEXT[cropKey] + '\n\n';
+        }
+      }
       return { text: prefix + p.text };
     }
     return p;
@@ -1149,10 +1230,13 @@ app.get('/api/forecast', async (req, res) => {
     const riskRules = {
       enset:   { humidityThresh: 75, tempMin: 18, tempMax: 30, rainThresh: 5 },
       teff:    { humidityThresh: 70, tempMin: 15, tempMax: 28, rainThresh: 3 },
+      noug:    { humidityThresh: 72, tempMin: 15, tempMax: 25, rainThresh: 4 },
       wheat:   { humidityThresh: 65, tempMin: 10, tempMax: 22, rainThresh: 4 },
       maize:   { humidityThresh: 72, tempMin: 20, tempMax: 35, rainThresh: 6 },
       coffee:  { humidityThresh: 70, tempMin: 18, tempMax: 28, rainThresh: 8 },
       potato:  { humidityThresh: 75, tempMin: 10, tempMax: 22, rainThresh: 5 },
+      tomato:  { humidityThresh: 80, tempMin: 18, tempMax: 28, rainThresh: 6 },
+      onion:   { humidityThresh: 75, tempMin: 13, tempMax: 25, rainThresh: 4 },
       barley:  { humidityThresh: 65, tempMin: 8,  tempMax: 20, rainThresh: 3 },
       sorghum: { humidityThresh: 70, tempMin: 22, tempMax: 38, rainThresh: 4 },
     };
@@ -1177,8 +1261,9 @@ app.get('/api/forecast', async (req, res) => {
 
     // Top disease risk for this crop based on forecast
     const cropDiseaseMap = {
-      enset: 'Bacterial Wilt (EBW)', teff: 'Head Blight', wheat: 'Stripe Rust (Yr)',
+      enset: 'Bacterial Wilt (EBW)', teff: 'Head Blight', noug: 'Alternaria Leaf Spot', wheat: 'Stripe Rust (Yr)',
       maize: 'Fall Armyworm', coffee: 'Coffee Berry Disease', potato: 'Late Blight',
+      tomato: 'Tuta absoluta / Late Blight', onion: 'Purple Blotch',
       barley: 'Scald', sorghum: 'Striga / Head Smut'
     };
 
@@ -1368,6 +1453,8 @@ const SEASONAL_CALENDAR = {
              diseases:['Bacterial Wilt (EBW)','Kocho Xanthomonas','Root Rot'] },
   teff:    { plantingMonths:[6,7], harvestMonths:[10,11], peakDiseaseMonths:[7,8,9],
              diseases:['Head Blight','Zuri Rust','Blast'] },
+  noug:    { plantingMonths:[6,7,8], harvestMonths:[12,1], peakDiseaseMonths:[8,9,10],
+             diseases:['Alternaria Leaf Spot','Cercospora Leaf Spot','Stem & Leaf Blight'] },
   wheat:   { plantingMonths:[6,7,8], harvestMonths:[10,11], peakDiseaseMonths:[8,9,10],
              diseases:['Stripe Rust (Yr)','Stem Rust (Sr)','Septoria Blotch'] },
   maize:   { plantingMonths:[3,4,5,6], harvestMonths:[9,10], peakDiseaseMonths:[6,7,8],
@@ -1376,6 +1463,10 @@ const SEASONAL_CALENDAR = {
              diseases:['Coffee Berry Disease (CBD)','Coffee Wilt (CWD)','Leaf Rust'] },
   potato:  { plantingMonths:[2,3,9,10], harvestMonths:[5,6,12,1], peakDiseaseMonths:[3,4,5,10,11],
              diseases:['Late Blight (P. infestans)','Bacterial Wilt','Black Scurf'] },
+  tomato:  { plantingMonths:[10,11,12,1], harvestMonths:[2,3,4,5], peakDiseaseMonths:[11,12,1,2,3],
+             diseases:['Tuta absoluta','Late Blight','Early Blight','Bacterial Wilt','Powdery Mildew'] },
+  onion:   { plantingMonths:[10,11,12], harvestMonths:[3,4,5], peakDiseaseMonths:[12,1,2,3],
+             diseases:['Purple Blotch (Alternaria porri)','Downy Mildew','Thrips','White Rot'] },
   barley:  { plantingMonths:[6,7], harvestMonths:[10,11], peakDiseaseMonths:[8,9],
              diseases:['Scald','Net Blotch','Powdery Mildew'] },
   sorghum: { plantingMonths:[5,6], harvestMonths:[10,11], peakDiseaseMonths:[7,8,9],
@@ -1424,12 +1515,15 @@ app.get('/api/seasonal-alerts', (req, res) => {
 // ECX prices updated manually — can be automated via scraping in production
 const ECX_PRICES = {
   teff:    { price: 5400,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
+  noug:    { price: 5800,  unit: 'quintal', market: 'Holeta / Addis Ababa', updated: '2026-05', note: 'Indigenous Ethiopian oilseed — Ethiopia produces ~50% of world supply' },
   wheat:   { price: 4600,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
   maize:   { price: 3500,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
   sorghum: { price: 2800,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
   barley:  { price: 3800,  unit: 'quintal', market: 'Addis Ababa ECX', updated: '2026-05' },
   coffee:  { price: 112000, unit: 'quintal', market: 'Jimma ECX', updated: '2026-05' },
   potato:  { price: 2200,  unit: 'quintal', market: 'Addis Ababa', updated: '2026-05' },
+  tomato:  { price: 2000,  unit: 'quintal', market: 'Addis Ababa / Adama', updated: '2026-05', note: 'Central Rift Valley is main production zone — prices vary 1800-3500 ETB seasonally' },
+  onion:   { price: 3200,  unit: 'quintal', market: 'Addis Ababa / Meki', updated: '2026-05', note: 'Bombay Red / Adama Red varieties — prices peak Apr-Jun before main harvest' },
   enset:   { price: 1900,  unit: 'quintal', market: 'Southern Markets', updated: '2026-05' },
 };
 
