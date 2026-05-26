@@ -2,3 +2,7 @@ node_modules/
 .env
 *.log
 .DS_Store
+sebilai.db
+sebilai.db-journal
+sebilai.db-wal
+sebilai.db-shm

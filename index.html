@@ -9268,10 +9268,6 @@ async function sendChatMessage() {
   conversationHistory.push({ role: 'user', content: msg });
 
   try {
-    // Check online first
-    // Check offline via browser — reliable without pre-flight request
-    if (!navigator.onLine) throw new Error('offline');
-
     const langInstruction = currentLang === 'am' ? 'Respond in Amharic (አማርኛ).' :
                             currentLang === 'om' ? 'Respond in Afaan Oromo.' :
                             currentLang === 'ti' ? 'Respond in Tigrinya (ትግርኛ).' : 'Respond in English.';
@@ -9297,7 +9293,7 @@ Keep answers under 4 sentences. Use simple language the farmer can understand.`;
     clearTimeout(chatTimeout);
 
     const data    = await response.json();
-    const aiReply = data.candidates?.[0]?.(content && content.parts)?.[0]?.text || 'Sorry, I could not get a response.';
+    const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
 
     // Remove thinking indicator
     const thinkingEl = document.getElementById(thinkingId);
@@ -9314,11 +9310,22 @@ Keep answers under 4 sentences. Use simple language the farmer can understand.`;
   } catch (err) {
     const thinkingEl = document.getElementById(thinkingId);
     if (thinkingEl) thinkingEl.remove();
-
-    const offlineMsg = currentLang === 'am'
-      ? 'ኢንተርኔት አይገኝም። ለዚህ ጥያቄ ኢንተርኔት ያስፈልጋል።'
-      : 'No internet connection. Follow-up questions require internet access.';
-    addChatMessage(offlineMsg, 'ai');
+    let errorMsg;
+    const isNetworkError = (err.name === 'TypeError' && err.message.includes('fetch'))
+                          || err.name === 'AbortError'
+                          || err.message === 'Failed to fetch'
+                          || !navigator.onLine;
+    if (isNetworkError) {
+      errorMsg = currentLang === 'am'
+        ? 'ኢንተርኔት አይገኝም። እባክዎ እንደገና ይሞክሩ።'
+        : 'Network issue — please check your connection and try again.';
+    } else {
+      errorMsg = currentLang === 'am'
+        ? 'ችግር ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።'
+        : 'Sorry, something went wrong. Please try again.';
+      console.error('[ChatError]', err);
+    }
+    addChatMessage(errorMsg, 'ai');
   } finally {
     sendBtn.disabled = false;
     input.focus();

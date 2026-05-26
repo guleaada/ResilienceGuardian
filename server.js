@@ -6,6 +6,21 @@ const path    = require('path');
 const app  = express();
 const fs   = require('fs');
 
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { z } = require('zod');
+const JWT_SECRET = process.env.JWT_SECRET || 'sebilai-dev-secret-CHANGE-IN-PROD';
+if (JWT_SECRET === 'sebilai-dev-secret-CHANGE-IN-PROD') {
+  console.warn('⚠️  WARNING: Using default JWT_SECRET. Set JWT_SECRET env var in production!');
+}
+
+// Separate async sqlite3 connection (the existing `db` above is better-sqlite3
+// with a synchronous API — different package, incompatible call signatures).
+// The new /api/v2/* endpoints use this async connection. SQLite handles
+// multiple connections to the same file fine, especially with WAL mode.
+const sqlite3 = require('sqlite3').verbose();
+const dbAsync = new sqlite3.Database(path.join(__dirname, 'sebilai.db'));
+
 // ── SQLITE PERSISTENCE ────────────────────────────────────
 // Replaces flat JSON files in /tmp — survives restarts and deploys.
 // Uses better-sqlite3 (synchronous API — no promise hell, WAL for speed).
@@ -164,6 +179,32 @@ function requireAdminKey(req, res) {
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
+
+const DiagnosisSchema = z.object({
+  farmer_id: z.string().optional(),
+  crop_id: z.number().int().positive(),
+  disease_id: z.number().int().positive().optional(),
+  disease_name: z.string().min(2),
+  severity: z.enum(['Low', 'Medium', 'High', 'Very High']),
+  confidence: z.number().min(0).max(1),
+  photo_url: z.string().url().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  region: z.string().min(2),
+  notes: z.string().max(1000).optional(),
+  impact_etb: z.number().int().min(0).optional()
+});
+
+const authenticateJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Access token required' });
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
 
 // ── SECURITY HEADERS (no helmet dep — manual best-practice headers) ──
 app.use((req, res, next) => {
@@ -1555,6 +1596,161 @@ app.get('/icons/icon-512.png', (req, res) => {
 });
 app.get('/icon-192.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-192.svg')) ? path.join(__dirname, 'public', 'icon-192.svg') : path.join(__dirname, 'icon-192.svg'))));
 app.get('/icon-512.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-512.svg')) ? path.join(__dirname, 'public', 'icon-512.svg') : path.join(__dirname, 'icon-512.svg'))));
+
+// ====================== AUTH ROUTES ======================
+// First user automatically becomes admin. After that, only admins can create users.
+app.post('/api/v2/auth/register', async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+    if (!username || !password || password.length < 8) {
+      return res.status(400).json({ error: 'Username and password (min 8 chars) required' });
+    }
+    dbAsync.get("SELECT COUNT(*) as count FROM users", [], async (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const isFirstUser = row.count === 0;
+      const userRole = isFirstUser ? 'admin' : (role || 'agronomist');
+      if (!isFirstUser) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Only admins can create new users' });
+        try {
+          const token = authHeader.split(' ')[1];
+          const decoded = jwt.verify(token, JWT_SECRET);
+          if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can create new users' });
+          }
+        } catch (e) {
+          return res.status(403).json({ error: 'Invalid admin token' });
+        }
+      }
+      const hashed = await bcrypt.hash(password, 10);
+      dbAsync.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+        [username, hashed, userRole],
+        function(err) {
+          if (err) {
+            if (err.message.includes('UNIQUE')) {
+              return res.status(409).json({ error: 'Username already exists' });
+            }
+            return res.status(500).json({ error: err.message });
+          }
+          res.status(201).json({
+            success: true,
+            user_id: this.lastID,
+            role: userRole,
+            message: isFirstUser ? 'First admin user created!' : 'User created'
+          });
+        });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/v2/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+  dbAsync.get("SELECT * FROM users WHERE username = ?", [username], async (err, user) => {
+    if (err || !user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ success: true, token, role: user.role, username: user.username });
+  });
+});
+
+// ====================== CROPS & DISEASES (DB-backed) ======================
+app.get('/api/v2/crops', (req, res) => {
+  dbAsync.all("SELECT * FROM crops ORDER BY name", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.get('/api/v2/crops/:cropId/diseases', (req, res) => {
+  dbAsync.all("SELECT * FROM diseases WHERE crop_id = ?",
+    [req.params.cropId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    });
+});
+
+// ====================== STATS ======================
+app.get('/api/v2/stats', (req, res) => {
+  dbAsync.get("SELECT * FROM stats_cache WHERE id = 1", [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(row || { total_diagnoses: 0, total_impact_etb: 0 });
+  });
+});
+
+// ====================== DIAGNOSES ======================
+app.post('/api/v2/diagnoses', (req, res) => {
+  const result = DiagnosisSchema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ error: 'Validation failed', details: result.error.errors });
+  }
+  const d = result.data;
+  dbAsync.run(`
+    INSERT INTO diagnoses
+    (farmer_id, crop_id, disease_id, disease_name, severity, confidence,
+     photo_url, latitude, longitude, region, notes, impact_etb)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    d.farmer_id || 'anonymous', d.crop_id, d.disease_id || null, d.disease_name,
+    d.severity, d.confidence, d.photo_url || null, d.latitude || null,
+    d.longitude || null, d.region, d.notes || null, d.impact_etb || 0
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    dbAsync.run(`UPDATE stats_cache SET total_diagnoses = total_diagnoses + 1,
+            total_impact_etb = total_impact_etb + ?, last_updated = CURRENT_TIMESTAMP`,
+           [d.impact_etb || 0]);
+    res.json({ success: true, diagnosis_id: this.lastID });
+  });
+});
+
+// Admin-only: full diagnosis list
+app.get('/api/v2/diagnoses', authenticateJWT, (req, res) => {
+  dbAsync.all("SELECT * FROM diagnoses ORDER BY created_at DESC LIMIT 100", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// ====================== OUTBREAK MAP (with privacy rounding) ======================
+// Latitude/longitude rounded to 2 decimals (~1km precision) for farmer privacy.
+app.get('/api/v2/outbreaks/map', (req, res) => {
+  dbAsync.all(`
+    SELECT region,
+           ROUND(latitude, 2) as latitude,
+           ROUND(longitude, 2) as longitude,
+           disease_name,
+           COUNT(*) as report_count
+    FROM diagnoses
+    WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+    GROUP BY disease_name, region, ROUND(latitude, 2), ROUND(longitude, 2)
+    HAVING report_count >= 3
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      type: "FeatureCollection",
+      features: (rows || []).map(r => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [r.longitude, r.latitude] },
+        properties: {
+          disease: r.disease_name,
+          region: r.region,
+          reports: r.report_count,
+          risk: r.report_count > 10 ? "High" : "Medium"
+        }
+      }))
+    });
+  });
+});
 
 app.get('*', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public', 'index.html') : path.join(__dirname, 'index.html'))));
 
