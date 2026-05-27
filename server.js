@@ -144,6 +144,7 @@ let diseaseReports = (() => {
 console.log(`🗄️  SQLite DB: ${DB_PATH}`);
 console.log(`📂 Loaded: ${stmts.countFeedback.get().n} feedback, ${pushSubscriptions.size} push, ${smsSubscribers.size} SMS subscribers`);
 
+const SERVER_BOOT_TS = Date.now();
 const PORT = process.env.PORT || 3000;
 const GROQ_KEY       = process.env.GROQ_API_KEY;
 const GEMINI_KEY     = process.env.GEMINI_API_KEY;
@@ -1015,9 +1016,16 @@ app.post('/api/sync-feedback', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+  // DB connectivity probe — never throws, surfaces failure in body
+  let dbOk = false, dbError = null;
+  try { dbOk = !!stmts.countFeedback.get(); }
+  catch (e) { dbError = e.message; }
   res.json({
-    status: 'ok', version: '3.1',
-    timestamp: new Date().toISOString(),
+    status:     dbOk ? 'ok' : 'degraded',
+    version:    (require('./package.json').version || '3.1'),
+    uptime_seconds: Math.floor((Date.now() - SERVER_BOOT_TS) / 1000),
+    timestamp:  new Date().toISOString(),
+    db:         dbOk ? '✅ ok' : `❌ ${dbError}`,
     groq:       GROQ_KEY       ? '✅' : '❌',
     openrouter: OPENROUTER_KEY ? '✅' : '❌',
     gemini:     GEMINI_KEY     ? '✅' : '❌',
@@ -1579,12 +1587,22 @@ app.get('/api/market-price', (req, res) => {
   });
 });
 
+// Resolve a static file by preferring the ROOT copy (the live, actively edited
+// version) and only falling back to the public/ duplicate if root is missing.
+// Earlier code had this reversed, which silently shipped a stale public/ copy
+// to anyone landing on a deep link (~285KB of recent features were invisible).
+function preferRoot(filename) {
+  const rootPath   = path.join(__dirname, filename);
+  const publicPath = path.join(__dirname, 'public', filename);
+  return require('fs').existsSync(rootPath) ? rootPath : publicPath;
+}
+
 // Admin & Agronomist PWA pages + manifests
-app.get('/agronomist', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'agronomist-dashboard.html')) ? path.join(__dirname, 'public', 'agronomist-dashboard.html') : path.join(__dirname, 'agronomist-dashboard.html'))));
-app.get('/admin', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'admin-feedback.html')) ? path.join(__dirname, 'public', 'admin-feedback.html') : path.join(__dirname, 'admin-feedback.html'))));
-app.get('/admin-feedback.html', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'admin-feedback.html')) ? path.join(__dirname, 'public', 'admin-feedback.html') : path.join(__dirname, 'admin-feedback.html'))));
-app.get('/manifest-admin.json', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'manifest-admin.json')) ? path.join(__dirname, 'public', 'manifest-admin.json') : path.join(__dirname, 'manifest-admin.json'))));
-app.get('/manifest-agro.json',  (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'manifest-agro.json')) ? path.join(__dirname, 'public', 'manifest-agro.json') : path.join(__dirname, 'manifest-agro.json'))));
+app.get('/agronomist', (req, res) => res.sendFile(preferRoot('agronomist-dashboard.html')));
+app.get('/admin', (req, res) => res.sendFile(preferRoot('admin-feedback.html')));
+app.get('/admin-feedback.html', (req, res) => res.sendFile(preferRoot('admin-feedback.html')));
+app.get('/manifest-admin.json', (req, res) => res.sendFile(preferRoot('manifest-admin.json')));
+app.get('/manifest-agro.json',  (req, res) => res.sendFile(preferRoot('manifest-agro.json')));
 // PWA icons — served as SVG with correct Content-Type
 app.get('/icons/icon-192.png', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
@@ -1594,8 +1612,50 @@ app.get('/icons/icon-512.png', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
   res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-512.svg')) ? path.join(__dirname, 'public', 'icon-512.svg') : path.join(__dirname, 'icon-512.svg')));
 });
-app.get('/icon-192.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-192.svg')) ? path.join(__dirname, 'public', 'icon-192.svg') : path.join(__dirname, 'icon-192.svg'))));
-app.get('/icon-512.svg', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'icon-512.svg')) ? path.join(__dirname, 'public', 'icon-512.svg') : path.join(__dirname, 'icon-512.svg'))));
+app.get('/icon-192.svg', (req, res) => res.sendFile(preferRoot('icon-192.svg')));
+app.get('/icon-512.svg', (req, res) => res.sendFile(preferRoot('icon-512.svg')));
+
+// SEO: robots.txt + sitemap.xml. These dramatically help Google index the
+// app and surface it to farmers searching "crop disease ethiopia", etc.
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    'User-agent: *\n' +
+    'Allow: /\n' +
+    'Disallow: /api/\n' +
+    'Disallow: /admin\n' +
+    'Disallow: /agronomist\n' +
+    'Sitemap: https://sebilai.com/sitemap.xml\n'
+  );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  res.type('application/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' +
+    '  <url>\n' +
+    '    <loc>https://sebilai.com/</loc>\n' +
+    `    <lastmod>${today}</lastmod>\n` +
+    '    <changefreq>weekly</changefreq>\n' +
+    '    <priority>1.0</priority>\n' +
+    '    <xhtml:link rel="alternate" hreflang="en" href="https://sebilai.com/?lang=en"/>\n' +
+    '    <xhtml:link rel="alternate" hreflang="am" href="https://sebilai.com/?lang=am"/>\n' +
+    '    <xhtml:link rel="alternate" hreflang="om" href="https://sebilai.com/?lang=om"/>\n' +
+    '    <xhtml:link rel="alternate" hreflang="ti" href="https://sebilai.com/?lang=ti"/>\n' +
+    '  </url>\n' +
+    '</urlset>\n'
+  );
+});
+
+// ====================== VERSION ENDPOINT ======================
+// (The existing /api/health above was enriched with DB probe + uptime_seconds.)
+app.get('/api/v2/version', (req, res) => {
+  res.json({
+    version: (require('./package.json').version || '0.0.0'),
+    build_time: new Date(SERVER_BOOT_TS).toISOString(),
+    uptime_seconds: Math.floor((Date.now() - SERVER_BOOT_TS) / 1000)
+  });
+});
 
 // ====================== AUTH ROUTES ======================
 // First user automatically becomes admin. After that, only admins can create users.
@@ -1752,7 +1812,7 @@ app.get('/api/v2/outbreaks/map', (req, res) => {
   });
 });
 
-app.get('*', (req, res) => res.sendFile((require('fs').existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public', 'index.html') : path.join(__dirname, 'index.html'))));
+app.get('*', (req, res) => res.sendFile(preferRoot('index.html')));
 
 app.listen(PORT, () => {
   console.log(`\n🌿 SebilAI v3.0`);

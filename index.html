@@ -130,6 +130,75 @@ window.addEventListener('unhandledrejection', function(e) {
 
 <meta name="theme-color" content="#2D6A0A">
 
+<!-- ============ INTERNATIONAL SEO: hreflang ============ -->
+<link rel="alternate" hreflang="en" href="https://sebilai.com/?lang=en">
+<link rel="alternate" hreflang="am" href="https://sebilai.com/?lang=am">
+<link rel="alternate" hreflang="om" href="https://sebilai.com/?lang=om">
+<link rel="alternate" hreflang="ti" href="https://sebilai.com/?lang=ti">
+<link rel="alternate" hreflang="x-default" href="https://sebilai.com/">
+<link rel="canonical" href="https://sebilai.com/">
+
+<!-- ============ STRUCTURED DATA (JSON-LD) — Rich Google results ============ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "SebilAI",
+      "alternateName": "ሰብሊAI",
+      "applicationCategory": "Agriculture",
+      "operatingSystem": "Any (Progressive Web App)",
+      "description": "Free, offline-capable AI crop disease advisor for Ethiopian smallholder farmers. Covers 11 crops including indigenous Enset, Teff and Noug in 6 Ethiopian languages. Built on 42+ peer-reviewed Ethiopian agricultural research papers.",
+      "url": "https://sebilai.com",
+      "inLanguage": ["en", "am", "om", "ti"],
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "Photo-based AI disease diagnosis",
+        "Works offline (Progressive Web App)",
+        "6 Ethiopian languages",
+        "Voice-first interface",
+        "Cooperative sharing",
+        "14-day disease forecast",
+        "Outbreak map",
+        "SMS alerts for feature-phone users",
+        "ECX market price reference"
+      ],
+      "audience": { "@type": "Audience", "audienceType": "Smallholder farmers in Ethiopia" }
+    },
+    {
+      "@type": "Organization",
+      "name": "SebilAI",
+      "url": "https://sebilai.com",
+      "logo": "https://sebilai.com/icons/icon-512.png",
+      "sameAs": ["https://github.com/guleaada/SebilAI"],
+      "founder": { "@type": "Person", "name": "Gulilat Kasiye Worku" },
+      "address": { "@type": "PostalAddress", "addressCountry": "ET", "addressRegion": "Hawassa" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Does SebilAI work without internet?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. SebilAI is a Progressive Web App that caches the disease database on the device, so farmers can run symptom-based diagnosis offline. Photo-based AI diagnosis requires internet." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which Ethiopian crops does SebilAI cover?",
+          "acceptedAnswer": { "@type": "Answer", "text": "11 crops: Enset, Teff, Noug, Coffee, Maize, Wheat, Barley, Sorghum, Potato, Tomato and Onion — including indigenous crops rarely covered by generic crop AI tools." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which languages does SebilAI support?",
+          "acceptedAnswer": { "@type": "Answer", "text": "English, Amharic (አማርኛ), Afaan Oromo, Tigrinya (ትግርኛ), Somali, and Sidama — covering the major Ethiopian language groups." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
 <!-- PWA Manifest & Icons -->
 <link rel="manifest" href="/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">

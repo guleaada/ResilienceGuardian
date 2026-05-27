@@ -1,7 +1,10 @@
 // ================================================================
-// RESILIENCE GUARDIAN — Service Worker v4 + Push Notifications
+// SebilAI — Service Worker v5 + Push Notifications
+// Cache version bumped to force-refresh stale clients (the old SW
+// was cache-first with no version-busting, so users on `rg-v4`
+// would never see new features until the SW file itself changed).
 // ================================================================
-const CACHE_NAME = 'rg-v4';
+const CACHE_NAME = 'sebilai-v5';
 const PUSH_ICON  = '/icons/icon-192.png';
 
 // ── INSTALL ──────────────────────────────────────────────────────
