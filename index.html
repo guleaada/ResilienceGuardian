@@ -2513,8 +2513,11 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 <!-- Update toast notification -->
 <div id="update-toast" class="update-toast">✅ App updated to latest version!</div>
 
-<!-- New-version-available banner (populated by version poll) -->
+<!-- New-version-available banner (populated by version poll). Click anywhere
+     on the pill triggers forceUpdateApp(); the ✕ dismiss span uses
+     stopPropagation so it only hides the banner without refreshing. -->
 <div id="new-version-banner" role="status" aria-live="polite"
+     onclick="forceUpdateApp()"
      style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
             z-index:9999;background:#2D6A0A;color:white;padding:10px 18px;border-radius:24px;
             font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.25);
@@ -5881,6 +5884,35 @@ function refreshApp() {
   }
 }
 
+// Nuclear refresh: used by the "New version available — tap to refresh"
+// banner. Tells any waiting SW to activate, deletes all caches, then
+// unregisters every SW so the next load fetches everything fresh.
+async function forceUpdateApp() {
+  try {
+    // 1. Tell any waiting service worker to take over immediately
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }
+    // 2. Clear all caches
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    // 3. Unregister all service workers (forces a fresh install on next load)
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (e) {
+    console.warn('[ForceUpdate] error during cache clear:', e);
+  }
+  // 4. Hard reload, bypassing browser HTTP cache
+  window.location.reload();
+}
+
 function showUpdateToast() {
   const toast = document.getElementById('update-toast');
   if (!toast) return;
@@ -7517,7 +7549,7 @@ function exportAllCitations() {
 
   text += "=".repeat(60) + "\n";
   text += "Developed by Gulilat Kasiye Worku\n";
-  text += "© 2025 All rights reserved. CC BY-NC-ND 4.0";
+  text += "© 2025 All rights reserved. Source-Available License — see LICENSE";
 
   var blob = new Blob([text], { type: "text/plain" });
   var url = URL.createObjectURL(blob);
@@ -8610,7 +8642,7 @@ var PRIVACY_TEXTS = {
     deleteTitle:'🗑️ Delete Your Data',
     deleteText:'Go to Profile, clear your info, then Save. Or clear site data in your browser settings.',
     contactTitle:'📧 Contact',
-    standards:'GDPR Compliant · No Cookies · No Tracking · CC BY-NC-ND 4.0',
+    standards:'GDPR Compliant · No Cookies · No Tracking · Source-Available License',
     closeBtn:'✓ I Understand'
   },
   am: {
@@ -8627,7 +8659,7 @@ var PRIVACY_TEXTS = {
     deleteTitle:'🗑️ ውሂብዎን ያጥፉ',
     deleteText:'መገለጫ ሂዱ፣ መረጃ አጥፉ፣ ቀምጥ። ወይም ሰርጉ ቅንብሮቻ ለ ሰረዝ ጣቢያ ዳታ።',
     contactTitle:'📧 ያግኙን',
-    standards:'GDPR ተስማሚ · ኩኪ የለም · ክትትል የለም · CC BY-NC-ND 4.0',
+    standards:'GDPR ተስማሚ · ኩኪ የለም · ክትትል የለም · Source-Available License',
     closeBtn:'✓ ተረዳሁ'
   },
   om: {
@@ -10858,7 +10890,7 @@ function closeIOSPopup() {
 
 
       <div style="background:#f5f5f5;border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:11px;color:#666;" id="pp-standards">GDPR Compliant · No Cookies · No Tracking · CC BY-NC-ND 4.0</div>
+        <div style="font-size:11px;color:#666;" id="pp-standards">GDPR Compliant · No Cookies · No Tracking · Source-Available License</div>
       </div>
 
     </div>
@@ -11805,16 +11837,10 @@ setTimeout(function() {
     var lang = (typeof currentLang === 'string') ? currentLang : 'en';
     if (lbl) lbl.textContent = (labels[lang] || labels.en).replace(/^🎉 /, '');
     b.style.display = 'flex';
-    b.onclick = function() {
-      // Clear all SW caches then reload — gets the fresh HTML and assets.
-      if ('serviceWorker' in navigator && 'caches' in window) {
-        caches.keys().then(function(keys) {
-          return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-        }).then(function() { location.reload(true); });
-      } else {
-        location.reload(true);
-      }
-    };
+    // Click is wired in markup via onclick="forceUpdateApp()" — robust
+    // nuclear-refresh path. The legacy inline cache-only handler was
+    // removed because it didn't SKIP_WAITING or unregister the SW, so
+    // users stayed on the stale version after tapping.
   }
 
   function pollVersion() {

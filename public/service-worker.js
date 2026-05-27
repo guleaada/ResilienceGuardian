@@ -1,11 +1,22 @@
 // ================================================================
-// SebilAI — Service Worker v5 + Push Notifications
-// Cache version bumped to force-refresh stale clients (the old SW
-// was cache-first with no version-busting, so users on `rg-v4`
-// would never see new features until the SW file itself changed).
+// SebilAI — Service Worker v6 + Push Notifications
+// v6 bumps the cache key so clients on v5 reinstall on next visit,
+// and adds an explicit SKIP_WAITING message handler so the in-page
+// "New version available — tap to refresh" banner can force a
+// waiting SW to activate immediately via forceUpdateApp().
 // ================================================================
-const CACHE_NAME = 'sebilai-v5';
+const CACHE_NAME = 'sebilai-v6';
 const PUSH_ICON  = '/icons/icon-192.png';
+
+// ── MESSAGE HANDLER: SKIP_WAITING ────────────────────────────────
+// The page sends { type: 'SKIP_WAITING' } when the user taps the
+// "tap to refresh" banner; we let the new SW activate without
+// waiting for all clients to close.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 // ── INSTALL ──────────────────────────────────────────────────────
 self.addEventListener('install', e => {
@@ -18,13 +29,16 @@ self.addEventListener('install', e => {
 });
 
 // ── ACTIVATE ─────────────────────────────────────────────────────
+// clients.claim() is inside waitUntil so the new SW takes control of
+// open tabs before the event completes — without this, the first
+// fetch after activation could still be served by the old SW.
 self.addEventListener('activate', e => {
-  e.waitUntil(
+  e.waitUntil(Promise.all([
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+    ),
+    self.clients.claim()
+  ]));
 });
 
 // ── FETCH ─────────────────────────────────────────────────────────
