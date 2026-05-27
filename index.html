@@ -2400,6 +2400,89 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   font-weight: 600;
   margin: 3px 3px 3px 0;
 }
+
+/* ─── OFFLINE SYMPTOM-BUTTON PICKER ─── */
+.symptom-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.symptom-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 8px;
+  min-height: 84px;
+  background: #fff;
+  border: 2px solid var(--mist);
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bark);
+  text-align: center;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.symptom-btn:hover { border-color: var(--sprout); }
+.symptom-btn.selected {
+  background: var(--leaf);
+  color: #fff;
+  border-color: var(--leaf);
+  transform: scale(0.97);
+}
+.symptom-btn .symptom-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+.symptom-picker-cta {
+  width: 100%;
+  padding: 14px;
+  background: var(--leaf);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.symptom-picker-cta:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+.symptom-picker-hint {
+  font-size: 13px;
+  color: var(--bark);
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+/* ─── WHATSAPP SHARE BUTTON ─── */
+.whatsapp-share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  background: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.whatsapp-share-btn:hover { background: #1ebe5b; }
+.whatsapp-share-btn .wa-icon {
+  font-size: 20px;
+}
 </style>
 </head>
 <body>
@@ -2579,7 +2662,12 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   <p class="slabel" id="label-symptoms">Visible Symptoms</p>
   <div class="sym-grid" id="symgrid"></div>
 
-  
+  <!-- Offline symptom-button picker — visible only when offline OR when
+       user has explicitly chosen offline analysis mode. Populated by
+       renderOfflineSymptomPicker(). Falls back to the free-text input below. -->
+  <div id="offline-symptom-picker" style="display:none;" role="region"
+       aria-label="Offline symptom picker — tap symptoms you observe"></div>
+
   <p class="slabel" id="label-context">Additional Context <span style="font-size:9px;opacity:0.6;text-transform:none;letter-spacing:0;">(optional)</span></p>
   <textarea id="ctx" placeholder="e.g. Symptoms appeared after heavy rain 3 days ago, affecting roughly 30% of plants..."></textarea>
 
@@ -5959,6 +6047,8 @@ function setLanguage(lang) {
 
   // Re-render symptoms in new language
   if (typeof renderSymptoms === 'function') renderSymptoms();
+  // Re-render offline symptom picker so its labels follow the new language too.
+  if (typeof renderOfflineSymptomPicker === 'function') renderOfflineSymptomPicker();
 
   // Update Research modal section headings
   const rEnset = document.getElementById('res-section-enset');
@@ -6277,6 +6367,164 @@ function renderSymptoms() {
     };
     container.appendChild(btn);
   });
+}
+
+// ==================== OFFLINE SYMPTOM-BUTTON PICKER ====================
+// Tap-based picker for low-literacy farmers. Lives ABOVE the free-text
+// input. Shown only when offline (or when forceOfflineMode is set), so
+// it doesn't duplicate the main #symgrid in the normal online path.
+let selectedSymptomKeys = new Set();
+
+function renderOfflineSymptomPicker() {
+  const container = document.getElementById('offline-symptom-picker');
+  if (!container) return;
+  const symptoms = (typeof SYMPTOMS !== 'undefined' && SYMPTOMS[currentCrop]) || [];
+  if (!symptoms.length) {
+    container.innerHTML = '';
+    return;
+  }
+  const hintText = currentLang === 'am' ? 'የሰብልዎን ምልክቶች ይምረጡ' :
+                   currentLang === 'om' ? 'Mallattoolee biqiltuu kee filadhu' :
+                   currentLang === 'ti' ? 'ምልክታት ምህዳርካ ምረጽ' :
+                   currentLang === 'so' ? 'Dooro calaamadaha dalagga' :
+                   currentLang === 'aa' ? 'Magarsaay-allaa dorisi' :
+                   'Tap the symptoms you see on your crop';
+  const diagnoseText = currentLang === 'am' ? '🔍 ምርምር' :
+                       currentLang === 'om' ? '🔍 Sakatta\'i' :
+                       currentLang === 'ti' ? '🔍 ምርምር' :
+                       currentLang === 'so' ? '🔍 Baar' :
+                       currentLang === 'aa' ? '🔍 Baar' :
+                       '🔍 Diagnose';
+  let html = '<div class="symptom-picker-hint">' + hintText + '</div>';
+  html += '<div class="symptom-picker">';
+  symptoms.forEach((s, idx) => {
+    const label = s[currentLang] || s.en || s.l || '';
+    const icon = s.i || '🌿';
+    const key = 'sym-' + idx;
+    const isSelected = selectedSymptomKeys.has(key);
+    html += '<button type="button" class="symptom-btn' + (isSelected ? ' selected' : '') +
+            '" data-key="' + key + '" data-label="' + label.replace(/"/g, '&quot;') +
+            '" aria-pressed="' + (isSelected ? 'true' : 'false') +
+            '" onclick="toggleSymptomBtn(this)">' +
+            '<span class="symptom-icon" aria-hidden="true">' + icon + '</span>' +
+            '<span>' + label + '</span></button>';
+  });
+  html += '</div>';
+  html += '<button type="button" class="symptom-picker-cta" id="symptom-diagnose-btn" onclick="diagnoseFromSelectedSymptoms()" ' +
+          (selectedSymptomKeys.size === 0 ? 'disabled' : '') + '>' + diagnoseText + '</button>';
+  container.innerHTML = html;
+}
+
+function toggleSymptomBtn(btn) {
+  const key = btn.dataset.key;
+  if (selectedSymptomKeys.has(key)) {
+    selectedSymptomKeys.delete(key);
+    btn.classList.remove('selected');
+    btn.setAttribute('aria-pressed', 'false');
+  } else {
+    selectedSymptomKeys.add(key);
+    btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
+  }
+  const diagnoseBtn = document.getElementById('symptom-diagnose-btn');
+  if (diagnoseBtn) diagnoseBtn.disabled = selectedSymptomKeys.size === 0;
+}
+
+function diagnoseFromSelectedSymptoms() {
+  const selectedLabels = [];
+  document.querySelectorAll('.symptom-btn.selected').forEach(b => {
+    if (b.dataset.label) selectedLabels.push(b.dataset.label);
+  });
+  if (!selectedLabels.length) return;
+  const query = selectedLabels.join(' ');
+
+  // Existing searchLocalDisease() signature is (crop, symptoms) — call it
+  // correctly so we get real results instead of an empty array.
+  let results = [];
+  try {
+    if (typeof searchLocalDisease === 'function') {
+      results = searchLocalDisease(currentCrop, query) || [];
+    }
+  } catch(e) { console.warn('[symptom-picker] searchLocalDisease threw', e); }
+
+  // Mirror selections into the existing selectedSymptoms set so a follow-up
+  // tap on the main Analyze button also benefits.
+  try {
+    if (typeof selectedSymptoms !== 'undefined' && selectedSymptoms.add) {
+      selectedLabels.forEach(l => selectedSymptoms.add(l));
+    }
+  } catch(e) {}
+
+  // Render top match inline so the farmer sees an answer immediately.
+  // Falls back to a friendly "no match" message.
+  const top = results[0];
+  const out = document.getElementById('offline-symptom-picker');
+  if (!out) return;
+  if (!top) {
+    const noMatch = currentLang === 'am' ? 'ምንም ተዛማጅ በሽታ አልተገኘም። ጽሑፍ ይጨምሩ ወይም ፎቶ ይውሰዱ።' :
+                    currentLang === 'om' ? 'Dhukkubni walfaakkaatu hin argamne. Barreeffama dabaluu yookaan suuraa fudhachuu yaali.' :
+                    currentLang === 'ti' ? 'ምንም ዝምሳሳል ሕማም ኣይተረኽበን። ጽሑፍ ወስኽ ወይ ስእሊ ውሰድ።' :
+                    currentLang === 'so' ? 'Cudur la mid ah lama helin. Qoraal ku dar ama sawir qaado.' :
+                    currentLang === 'aa' ? 'Cudur la mid ah ma helin. Qoraal ku dar ama sawir qaado.' :
+                    'No matching disease found. Add free-text context below or take a photo.';
+    const div = document.createElement('div');
+    div.style.cssText = 'background:#FFF8EC;border:1px solid #F0D080;border-radius:10px;padding:12px;margin-top:10px;font-size:13px;color:#7A5A00;';
+    div.setAttribute('role', 'status');
+    div.setAttribute('aria-live', 'polite');
+    div.textContent = noMatch;
+    out.appendChild(div);
+  } else {
+    const sevMap = { 'Very High': 'high', 'High': 'high', 'Medium': 'medium', 'Low': 'low' };
+    const offlineResult = {
+      disease_name: top.name,
+      severity: sevMap[top.severity] || 'medium',
+      confidence: top.confidence || 70,
+      diagnosis: top.diagnosis || '',
+      immediate_actions: Array.isArray(top.immediate_actions) ? top.immediate_actions : (top.treatment ? [top.treatment] : []),
+      preventive_measures: Array.isArray(top.preventive_measures) ? top.preventive_measures : [],
+      local_summary: '📴 ' + (currentLang === 'am'
+        ? 'ያለ ኢንተርኔት ውጤት — ' + top.name + ' (ምንጭ: ' + (top.source || 'Ethiopian ARC') + ')'
+        : 'Offline result. Source: ' + (top.source || 'Ethiopian ARC Research') + '.')
+    };
+    if (typeof renderResult === 'function') {
+      try { renderResult(offlineResult); } catch(e) { console.warn('[symptom-picker] renderResult threw', e); }
+    }
+    // Smoothly scroll the user down to the result card.
+    setTimeout(function() {
+      const rcrd = document.getElementById('rcrd');
+      if (rcrd) rcrd.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+
+  // Reset selection for next round.
+  selectedSymptomKeys.clear();
+  document.querySelectorAll('.symptom-btn.selected').forEach(b => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  const diagnoseBtn = document.getElementById('symptom-diagnose-btn');
+  if (diagnoseBtn) diagnoseBtn.disabled = true;
+}
+
+// Show the picker only in offline contexts (no internet OR user toggled
+// offline analysis mode). Re-evaluated on online/offline events.
+function updateOfflinePickerVisibility() {
+  const container = document.getElementById('offline-symptom-picker');
+  if (!container) return;
+  const offline = (!navigator.onLine) || (typeof forceOfflineMode !== 'undefined' && forceOfflineMode);
+  if (offline) {
+    container.style.display = 'block';
+    renderOfflineSymptomPicker();
+  } else {
+    container.style.display = 'none';
+  }
+}
+window.addEventListener('online',  updateOfflinePickerVisibility);
+window.addEventListener('offline', updateOfflinePickerVisibility);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', updateOfflinePickerVisibility);
+} else {
+  setTimeout(updateOfflinePickerVisibility, 400);
 }
 
 // ==================== PHOTO ====================
@@ -7141,7 +7389,31 @@ function renderResult(r) {
         <div id="sustainability-content"></div>
       </div>
 
-      <!-- WHATSAPP SHARE -->
+      <!-- WHATSAPP SHARE — full-width 6-language CTA (uses shareDiagnosisToWhatsApp).
+           The 2-button grid below remains as a secondary row for the
+           SMS path and the legacy 2-language wrapper. -->
+      ${(function(){
+        const waBtnText = currentLang === 'am' ? 'በWhatsApp አጋራ' :
+                          currentLang === 'om' ? 'WhatsApp irratti qoodi' :
+                          currentLang === 'ti' ? 'ኣብ WhatsApp ኣካፍል' :
+                          currentLang === 'so' ? 'Ku wadaag WhatsApp' :
+                          currentLang === 'aa' ? 'WhatsApp adda' :
+                          'Share on WhatsApp';
+        const diseaseName = r.disease_name || '';
+        const severity    = (r.severity || '').toString();
+        const acts        = Array.isArray(r.immediate_actions) ? r.immediate_actions.slice(0, 3) : [];
+        const treatmentSummary = acts.length ? acts.join('\n') : (r.local_treatment || r.diagnosis || '');
+        return '<button class="whatsapp-share-btn" type="button" aria-label="' + waBtnText + '" ' +
+               'onclick=\'shareDiagnosisToWhatsApp(' +
+                   JSON.stringify(diseaseName) + ', ' +
+                   JSON.stringify(severity) + ', ' +
+                   JSON.stringify(treatmentSummary) +
+               ')\'>' +
+               '<span class="wa-icon" aria-hidden="true">📱</span>' +
+               '<span>' + waBtnText + '</span>' +
+               '</button>';
+      })()}
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
         <button onclick="shareWhatsApp()" style="background:#25D366;color:white;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">
           📱 WhatsApp
@@ -7385,6 +7657,29 @@ function generateSustainabilityScore(r) {
 }
 
 // ==================== WHATSAPP SHARE ====================
+// 6-language WhatsApp share — used by the new green button in the
+// diagnosis result card. Universal wa.me/?text= URL works on iOS Safari
+// (where the whatsapp:// scheme is unreliable), Android, and desktop.
+function shareDiagnosisToWhatsApp(diseaseName, severity, treatmentSummary) {
+  const labels = {
+    en: { title: '🌿 SebilAI Diagnosis', disease: 'Disease', severity: 'Severity', treatment: 'What to do', cta: 'Get your own free diagnosis at' },
+    am: { title: '🌿 ሰብሊAI ምርመራ',  disease: 'በሽታ', severity: 'ክብደት', treatment: 'መውሰድ ያለበት እርምጃ', cta: 'የራስዎን ነፃ ምርመራ ያግኙ' },
+    om: { title: '🌿 SebilAI Qorannoo', disease: 'Dhukkuba', severity: 'Cimina', treatment: 'Maal gochuu qabna', cta: 'Qorannoo bilisaa argachuuf' },
+    ti: { title: '🌿 ሰብሊAI ምርመራ',  disease: 'ሕማም', severity: 'ብርታት', treatment: 'እንታይ ይግበር', cta: 'ናጻ ምርመራ ይርከቡ' },
+    so: { title: '🌿 SebilAI Baaritaan', disease: 'Cudur', severity: 'Darajada', treatment: 'Maxaa la samaynayaa', cta: 'Hel baaritaankaaga bilaashka ah' },
+    aa: { title: '🌿 SebilAI Baartaa', disease: 'Cudur', severity: 'Darajada', treatment: 'Maxa amna', cta: 'Baartaa bilaashka ah hel' }
+  };
+  const L = labels[currentLang] || labels.en;
+  const msg =
+    L.title + '\n\n' +
+    L.disease + ': ' + (diseaseName || '—') + '\n' +
+    L.severity + ': ' + (severity || '—') + '\n\n' +
+    L.treatment + ':\n' + (treatmentSummary || '—') + '\n\n' +
+    L.cta + ': https://sebilai.com';
+  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
 function shareWhatsApp() {
   var r = window._lastResult;
   if (!r) { alert('No diagnosis to share yet.'); return; }
@@ -9193,11 +9488,14 @@ function syncPending() {
 function showOfflineBanner() {
   const b = document.getElementById('offlineBanner');
   if (b) b.style.display = 'flex';
+  // Reveal the tap-based symptom picker as soon as we know we're offline.
+  try { if (typeof updateOfflinePickerVisibility === 'function') updateOfflinePickerVisibility(); } catch(e) {}
 }
 
 function hideOfflineBanner() {
   const b = document.getElementById('offlineBanner');
   if (b) b.style.display = 'none';
+  try { if (typeof updateOfflinePickerVisibility === 'function') updateOfflinePickerVisibility(); } catch(e) {}
 }
 
 window.addEventListener('offline', showOfflineBanner);
@@ -9853,6 +10151,8 @@ function setAnalysisMode(mode) {
     if (btnOn) { btnOn.style.background = '#2D6A0A'; btnOn.style.color = 'white'; btnOn.style.borderColor = '#2D6A0A'; }
     if (btnOff) { btnOff.style.background = 'white'; btnOff.style.color = '#666'; btnOff.style.borderColor = '#aaa'; }
   }
+  // Toggle the tap-based offline symptom picker visibility to match the new mode.
+  try { if (typeof updateOfflinePickerVisibility === 'function') updateOfflinePickerVisibility(); } catch(e) {}
 }
 
 function updateModeIndicator() {
