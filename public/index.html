@@ -2354,7 +2354,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   <div class="weather-section" id="weather-section">
     <div class="weather-title">🌤️ Weather & Disease Risk</div>
     <div class="weather-controls-row" id="weather-controls-row">
-      <select class="weather-region-select" id="region-select" onchange="loadSelectedRegion()">
+      <select class="weather-region-select" id="region-select" onchange="loadSelectedRegion()" aria-label="Select your region">
         <option value="">🗺️ Select Your Region</option>
         <option value="9.03,38.74">Addis Ababa</option>
         <optgroup label="── Oromia ──">
@@ -2528,7 +2528,7 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <h3>💰 Personal Impact Calculator</h3>
     <div class="impact-calc">
       <label>Crop Type</label>
-      <select id="calc-crop">
+      <select id="calc-crop" aria-label="Choose your crop">
         <option value="enset">Enset / እንሰት</option>
         <option value="teff">Teff / ጤፍ</option>
         <option value="wheat">Wheat / ስንዴ</option>
@@ -4997,7 +4997,7 @@ function renderMultiPreview() {
     <div class="multi-img-item">
       <img src="data:image/jpeg;base64,${img.base64}" alt="preview">
       <button class="multi-img-remove" onclick="removeMultiImage(${i})">✕</button>
-      <select onchange="multiImages[${i}].part = this.value">
+      <select onchange="multiImages[${i}].part = this.value" aria-label="Image part type">
         <option value="leaf" ${img.part==='leaf'?'selected':''}>🍃 Leaf</option>
         <option value="stem" ${img.part==='stem'?'selected':''}>🌿 Stem</option>
         <option value="root" ${img.part==='root'?'selected':''}>🌱 Root</option>
@@ -9169,7 +9169,7 @@ function switchTab(tab) {
       </div>
       <div class="profile-field">
         <label>Region</label>
-        <select id="prof-region">
+        <select id="prof-region" aria-label="Choose your region">
           <option value="">Select Region</option>
           <option>Oromia</option><option>Amhara</option><option>SNNPR</option>
           <option>Tigray</option><option>Sidama</option><option>Afar</option>
@@ -9765,7 +9765,7 @@ function closeIOSPopup() {
       <input type="number" id="yield-ha" value="0.5" min="0.1" step="0.1"
              style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;font-size:14px;margin-bottom:12px;">
       <label style="font-size:12px;font-weight:700;color:var(--bark);display:block;margin-bottom:4px;">Region</label>
-      <select id="yield-region" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;font-size:14px;margin-bottom:14px;">
+      <select id="yield-region" style="width:100%;padding:10px;border:1.5px solid var(--mist);border-radius:8px;font-size:14px;margin-bottom:14px;" aria-label="Region for yield prediction">
         <option value="Oromia">Oromia</option>
         <option value="Amhara">Amhara</option>
         <option value="SNNPR">SNNPR</option>
