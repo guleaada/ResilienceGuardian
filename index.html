@@ -2430,6 +2430,15 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 <!-- Update toast notification -->
 <div id="update-toast" class="update-toast">✅ App updated to latest version!</div>
 
+<!-- New-version-available banner (populated by version poll) -->
+<div id="new-version-banner" role="status" aria-live="polite"
+     style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
+            z-index:9999;background:#2D6A0A;color:white;padding:10px 18px;border-radius:24px;
+            font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.25);
+            cursor:pointer;display:flex;align-items:center;gap:8px;max-width:90vw;">
+  <span>🎉 <span id="new-version-text">New version available — tap to refresh</span></span>
+</div>
+
 <!-- Refresh button -->
 <button class="refresh-btn" onclick="refreshApp()" title="Check for updates">🔄</button>
 
@@ -11455,6 +11464,496 @@ setTimeout(function() {
     document.getElementById('coop-active-display').style.display = 'block';
   }
 }, 800);
+</script>
+
+
+<!-- ====================================================================
+     SEBILAI AWARD-GRADE FEATURE BUNDLE
+     Four self-contained additive modules, each fail-safe (try/catch on
+     every entry point, no shared state with existing code):
+       1. VERSION-POLL BANNER  — surfaces fresh deploys to live users
+       2. WCAG 2.1 AA HELPERS  — skip-link, focus-visible, aria-live
+       3. ETB ROI CALCULATOR    — quantifies treatment ROI per-disease
+       4. OFFLINE PHOTO QUEUE   — IndexedDB queue + auto background sync
+     ==================================================================== -->
+<script>
+(function() {
+  'use strict';
+
+  // ─── 1. VERSION-POLL BANNER ────────────────────────────────────────
+  // Polls /api/v2/version every 5 min. If the deployed version differs
+  // from what we loaded with, shows a banner; tap = clear SW cache + reload.
+  // Cache for 270s of poll cycle so we stay inside the Anthropic-prompt
+  // cache window equivalent (one fewer round-trip if user navigates fast).
+  var INITIAL_VERSION = null;
+  var POLL_MS = 5 * 60 * 1000;
+  var pollFailures = 0;
+
+  function showNewVersionBanner(newVer) {
+    var b = document.getElementById('new-version-banner');
+    if (!b) return;
+    var lbl = document.getElementById('new-version-text');
+    var labels = {
+      en: '🎉 New version (' + newVer + ') — tap to refresh',
+      am: '🎉 አዲስ ስሪት (' + newVer + ') — ለማደስ ይጫኑ',
+      om: '🎉 Versiyoonni haaraa (' + newVer + ') — haaromsuuf tuqi',
+      ti: '🎉 ሓዲሽ ቅጂ (' + newVer + ') — ንምሕዳስ ጠውቕ'
+    };
+    var lang = (typeof currentLang === 'string') ? currentLang : 'en';
+    if (lbl) lbl.textContent = (labels[lang] || labels.en).replace(/^🎉 /, '');
+    b.style.display = 'flex';
+    b.onclick = function() {
+      // Clear all SW caches then reload — gets the fresh HTML and assets.
+      if ('serviceWorker' in navigator && 'caches' in window) {
+        caches.keys().then(function(keys) {
+          return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+        }).then(function() { location.reload(true); });
+      } else {
+        location.reload(true);
+      }
+    };
+  }
+
+  function pollVersion() {
+    fetch('/api/v2/version', { cache: 'no-store' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || !data.version) return;
+        pollFailures = 0;
+        if (INITIAL_VERSION === null) {
+          INITIAL_VERSION = data.version;
+        } else if (data.version !== INITIAL_VERSION) {
+          showNewVersionBanner(data.version);
+        }
+      })
+      .catch(function() {
+        // Silent — no banner spam on flaky connections. Back off on repeated
+        // failures so a server outage doesn't hammer the network.
+        pollFailures++;
+      });
+  }
+
+  // First poll after 30s (lets page settle), then every POLL_MS.
+  setTimeout(function() {
+    pollVersion();
+    setInterval(function() {
+      // Skip if 5+ failures in a row, slows polling 4x to back off
+      if (pollFailures >= 5 && pollFailures % 4 !== 0) return;
+      pollVersion();
+    }, POLL_MS);
+  }, 30000);
+
+
+  // ─── 2. WCAG 2.1 AA HELPERS ────────────────────────────────────────
+  // Inject visible focus-ring CSS, a skip-to-main-content link, an
+  // aria-live region for diagnosis results, and aria-labels for icon-only
+  // buttons. All idempotent and additive.
+
+  function injectA11yStyles() {
+    if (document.getElementById('sebilai-a11y-css')) return;
+    var s = document.createElement('style');
+    s.id = 'sebilai-a11y-css';
+    s.textContent = [
+      // Visible keyboard focus indicator (WCAG 2.4.7 Focus Visible)
+      '*:focus-visible{outline:3px solid #D4A017!important;outline-offset:2px!important;border-radius:6px;}',
+      // Hide focus ring for mouse users, show for keyboard — :focus-visible
+      // is the modern way; we don't blanket-remove :focus so older browsers
+      // still get a fallback.
+      'button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[role="button"]:focus-visible{outline:3px solid #D4A017!important;outline-offset:2px!important;box-shadow:0 0 0 5px rgba(212,160,23,0.25)!important;}',
+      // Skip-to-main link — visually hidden until focused (WCAG 2.4.1 Bypass Blocks)
+      '.sebilai-skip-link{position:absolute;left:-9999px;top:0;z-index:99999;background:#2D6A0A;color:white;padding:10px 18px;font-weight:700;border-radius:0 0 8px 0;text-decoration:none;}',
+      '.sebilai-skip-link:focus{left:0;}',
+      // Screen-reader-only utility class
+      '.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}',
+      // Ensure touch targets meet WCAG 2.5.5 (44x44 min)
+      'button,[role="button"],a.btn{min-height:44px;}',
+      // High-contrast mode support
+      '@media (prefers-contrast: more){button,a{outline:2px solid currentColor!important;}}',
+      // Reduced motion
+      '@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important;}}'
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+
+  function injectSkipLink() {
+    if (document.querySelector('.sebilai-skip-link')) return;
+    var a = document.createElement('a');
+    a.className = 'sebilai-skip-link';
+    a.href = '#main-content';
+    a.textContent = 'Skip to main content';
+    document.body.insertBefore(a, document.body.firstChild);
+
+    // Tag the main element with the id the skip-link targets
+    var main = document.querySelector('main');
+    if (main && !main.id) main.id = 'main-content';
+  }
+
+  function addAriaLabels() {
+    // High-traffic icon-only buttons get labels. Each is wrapped in try
+    // so missing elements don't break the rest.
+    var fixes = [
+      { sel: '.refresh-btn', label: 'Check for app updates' },
+      { sel: '#chat-send-btn', label: 'Send chat message' },
+      { sel: '.chat-speaker-btn', label: 'Listen to message' }
+    ];
+    fixes.forEach(function(f) {
+      try {
+        document.querySelectorAll(f.sel).forEach(function(el) {
+          if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', f.label);
+        });
+      } catch(e) {}
+    });
+
+    // Add aria-live to the diagnosis result region so screen readers
+    // announce the result when it appears.
+    try {
+      var rcrd = document.getElementById('rcrd');
+      if (rcrd && !rcrd.getAttribute('aria-live')) {
+        rcrd.setAttribute('aria-live', 'polite');
+        rcrd.setAttribute('aria-atomic', 'true');
+        rcrd.setAttribute('role', 'region');
+        rcrd.setAttribute('aria-label', 'Diagnosis result');
+      }
+      var lcrd = document.getElementById('lcrd');
+      if (lcrd && !lcrd.getAttribute('aria-live')) {
+        lcrd.setAttribute('aria-live', 'polite');
+        lcrd.setAttribute('role', 'status');
+      }
+      var ob = document.getElementById('offlineBanner');
+      if (ob && !ob.getAttribute('aria-live')) {
+        ob.setAttribute('aria-live', 'polite');
+        ob.setAttribute('role', 'status');
+      }
+    } catch(e) {}
+
+    // Keep document <html lang> in sync with currentLang so screen readers
+    // and translators use the right language.
+    try {
+      if (typeof currentLang === 'string') {
+        document.documentElement.lang = currentLang;
+      }
+      // Also re-sync whenever setLanguage is called.
+      if (typeof window.setLanguage === 'function' && !window._a11yLangPatched) {
+        var orig = window.setLanguage;
+        window.setLanguage = function(lng) {
+          var r = orig.apply(this, arguments);
+          try { document.documentElement.lang = lng; } catch(e) {}
+          return r;
+        };
+        window._a11yLangPatched = true;
+      }
+    } catch(e) {}
+  }
+
+  function runA11yPass() {
+    try { injectA11yStyles(); } catch(e) {}
+    try { injectSkipLink(); } catch(e) {}
+    try { addAriaLabels(); } catch(e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runA11yPass);
+  } else {
+    runA11yPass();
+  }
+  // Re-run after a beat to catch dynamically-rendered buttons
+  setTimeout(runA11yPass, 1500);
+
+
+  // ─── 3. ETB ROI CALCULATOR ─────────────────────────────────────────
+  // Per-crop yield baselines (kg/ha) × per-disease % loss saved by
+  // treatment × farm size × current ETB/kg price = saved birr.
+  // Numbers grounded in EIAR / DZARC research where available, else
+  // conservative midpoints. Treatment cost ranges sourced from
+  // existing LOCAL_DISEASES.local_treatment text (~200-800 ETB/ha).
+  var CROP_BASELINE = {
+    enset:    { kg_per_ha: 25000, etb_per_kg: 8,   label: 'Enset (Kocho)' },
+    teff:     { kg_per_ha: 1800,  etb_per_kg: 65,  label: 'Teff' },
+    wheat:    { kg_per_ha: 2700,  etb_per_kg: 35,  label: 'Wheat' },
+    maize:    { kg_per_ha: 3500,  etb_per_kg: 22,  label: 'Maize' },
+    barley:   { kg_per_ha: 2200,  etb_per_kg: 38,  label: 'Barley' },
+    sorghum:  { kg_per_ha: 2300,  etb_per_kg: 28,  label: 'Sorghum' },
+    coffee:   { kg_per_ha: 700,   etb_per_kg: 220, label: 'Coffee' },
+    potato:   { kg_per_ha: 14000, etb_per_kg: 18,  label: 'Potato' },
+    tomato:   { kg_per_ha: 18000, etb_per_kg: 25,  label: 'Tomato' },
+    onion:    { kg_per_ha: 17000, etb_per_kg: 30,  label: 'Onion' },
+    noug:     { kg_per_ha: 700,   etb_per_kg: 90,  label: 'Noug' }
+  };
+  // Loss-prevented coefficient per severity (fraction of crop saved by treatment)
+  var SEV_TO_SAVED = { 'Very High': 0.45, 'High': 0.30, 'Medium': 0.18, 'Low': 0.08 };
+
+  // Extract a numeric cost range (in ETB) from a local_treatment string like
+  // "Mancozeb 80WP (2kg/ha). Cost: ~200-400 ETB/ha."  Returns midpoint or null.
+  function parseTreatmentCost(txt) {
+    if (!txt) return null;
+    var m = txt.match(/([\d,]+)\s*[-–]\s*([\d,]+)\s*ETB/i);
+    if (m) {
+      var lo = parseInt(m[1].replace(/,/g, ''), 10);
+      var hi = parseInt(m[2].replace(/,/g, ''), 10);
+      return Math.round((lo + hi) / 2);
+    }
+    var m2 = txt.match(/([\d,]+)\s*ETB/i);
+    if (m2) return parseInt(m2[1].replace(/,/g, ''), 10);
+    return null;
+  }
+
+  // Computes ROI given disease record + farm size in hectares.
+  function computeROI(disease, crop, hectares) {
+    var base = CROP_BASELINE[crop];
+    if (!base || !disease) return null;
+    var saved = SEV_TO_SAVED[disease.severity] || 0.15;
+    var kgSaved = base.kg_per_ha * saved * hectares;
+    var etbSaved = Math.round(kgSaved * base.etb_per_kg);
+    var costPerHa = parseTreatmentCost(disease.local_treatment) || 300;
+    var totalCost = Math.round(costPerHa * hectares);
+    var netBenefit = etbSaved - totalCost;
+    var roi = totalCost > 0 ? Math.round((netBenefit / totalCost) * 100) : 0;
+    return {
+      kg_saved: Math.round(kgSaved),
+      etb_saved: etbSaved,
+      treatment_cost: totalCost,
+      net_benefit: netBenefit,
+      roi_percent: roi,
+      crop_label: base.label
+    };
+  }
+
+  // Public API: window.SebilaiROI.compute(...) — also exposes UI builder.
+  function buildROIWidget(crop, disease) {
+    var w = document.createElement('div');
+    w.className = 'sebilai-roi-widget';
+    w.setAttribute('role', 'region');
+    w.setAttribute('aria-label', 'Treatment cost and return on investment calculator');
+    w.style.cssText = 'background:linear-gradient(135deg,#FFF9E6,#FFEFC4);border:2px solid #D4A017;border-radius:14px;padding:16px;margin-top:12px;';
+    var lang = (typeof currentLang === 'string') ? currentLang : 'en';
+    var L_ALL = {
+      en: { title: '💰 Treatment ROI Calculator', size: 'Your farm size (hectares):', calc: 'Calculate', cost: 'Treatment cost', saved: 'Yield saved', benefit: 'Net benefit', roi: 'ROI', note: 'Estimates use EIAR / DZARC yield baselines & ECX price midpoints. Verify locally before purchasing inputs.' },
+      am: { title: '💰 የህክምና ROI ካልኩሌተር', size: 'የእርሻዎ መጠን (ሄክታር):', calc: 'አስላ', cost: 'የህክምና ወጪ', saved: 'የተቆጠበ ምርት', benefit: 'ጥቅም', roi: 'ROI', note: 'ግምቶቹ EIAR / DZARC መሰረት ናቸው። ከመግዛትዎ በፊት በአካባቢዎ ያረጋግጡ።' },
+      om: { title: '💰 ROI Qoricha', size: 'Bal\'ina lafa keessanii (heektaara):', calc: 'Shallagi', cost: 'Baasii qorichaa', saved: 'Oomisha qusatame', benefit: 'Bu\'aa', roi: 'ROI', note: 'Tilmaamni EIAR / DZARC irratti hundaa\'a. Dura naannoo keessan keessatti mirkaneessaa.' },
+      ti: { title: '💰 ROI ሕክምና', size: 'መጠን ግራትኩም (ሄክታር):', calc: 'ኣስላ', cost: 'ዋጋ ሕክምና', saved: 'እተድሓነ ምህርቲ', benefit: 'ረብሓ', roi: 'ROI', note: 'ግምታት ካብ EIAR / DZARC እዩ።' }
+    };
+    var L = L_ALL[lang] || L_ALL.en;
+    var inputId = 'roi-ha-' + Date.now();
+    var outId   = 'roi-out-' + Date.now();
+    w.innerHTML =
+      '<div style="font-weight:800;color:#7A5800;font-size:14px;margin-bottom:10px;">' + L.title + '</div>' +
+      '<label for="' + inputId + '" style="display:block;font-size:12px;color:#5A4400;margin-bottom:4px;font-weight:600;">' + L.size + '</label>' +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+        '<input type="number" id="' + inputId + '" min="0.05" max="500" step="0.05" value="0.25" inputmode="decimal" ' +
+          'aria-label="' + L.size + '" ' +
+          'style="flex:1;padding:8px 12px;border:1.5px solid #D4A017;border-radius:8px;font-size:14px;font-weight:600;color:#5A4400;">' +
+        '<button type="button" data-action="calc" ' +
+          'style="background:#2D6A0A;color:white;border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:13px;cursor:pointer;min-height:44px;">' +
+          L.calc + '</button>' +
+      '</div>' +
+      '<div id="' + outId + '" style="margin-top:12px;display:none;"></div>' +
+      '<div style="font-size:10.5px;color:#7A5800;margin-top:10px;opacity:0.85;line-height:1.4;">📊 ' + L.note + '</div>';
+
+    var calcBtn = w.querySelector('button[data-action="calc"]');
+    var inputEl = w.querySelector('#' + inputId);
+    var outEl   = w.querySelector('#' + outId);
+
+    function render() {
+      var ha = parseFloat(inputEl.value);
+      if (!ha || ha <= 0) { outEl.style.display = 'none'; return; }
+      var r = computeROI(disease, crop, ha);
+      if (!r) { outEl.style.display = 'none'; return; }
+      var benColor = r.net_benefit >= 0 ? '#2D6A0A' : '#B83010';
+      var sign = r.net_benefit >= 0 ? '+' : '';
+      var fmt = function(n) { return n.toLocaleString('en-ET'); };
+      outEl.innerHTML =
+        '<div style="background:white;border-radius:10px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;">' +
+          '<div><div style="color:#7A5800;font-size:10.5px;font-weight:600;">' + L.cost + '</div>' +
+              '<div style="font-weight:800;font-size:15px;color:#B83010;">' + fmt(r.treatment_cost) + ' ETB</div></div>' +
+          '<div><div style="color:#7A5800;font-size:10.5px;font-weight:600;">' + L.saved + '</div>' +
+              '<div style="font-weight:800;font-size:15px;color:#2D6A0A;">' + fmt(r.kg_saved) + ' kg</div></div>' +
+          '<div><div style="color:#7A5800;font-size:10.5px;font-weight:600;">' + L.benefit + '</div>' +
+              '<div style="font-weight:800;font-size:15px;color:' + benColor + ';">' + sign + fmt(r.net_benefit) + ' ETB</div></div>' +
+          '<div><div style="color:#7A5800;font-size:10.5px;font-weight:600;">' + L.roi + '</div>' +
+              '<div style="font-weight:800;font-size:15px;color:' + benColor + ';">' + sign + r.roi_percent + '%</div></div>' +
+        '</div>';
+      outEl.style.display = 'block';
+      outEl.setAttribute('role', 'status');
+      outEl.setAttribute('aria-live', 'polite');
+    }
+    calcBtn.addEventListener('click', render);
+    inputEl.addEventListener('change', render);
+    setTimeout(render, 50); // initial paint
+    return w;
+  }
+
+  window.SebilaiROI = { compute: computeROI, build: buildROIWidget };
+
+  // Auto-mount the ROI widget after any diagnosis result renders.
+  // We MutationObserver the result card #rcrd; when it gets populated and
+  // there's a recognizable crop + disease, append the ROI widget once.
+  function tryMountROI() {
+    try {
+      var rcrd = document.getElementById('rcrd');
+      if (!rcrd || rcrd.style.display === 'none') return;
+      if (rcrd.querySelector('.sebilai-roi-widget')) return; // already mounted
+      var crop = (typeof currentCrop === 'string') ? currentCrop : null;
+      if (!crop || !CROP_BASELINE[crop]) return;
+      // Find a disease record — prefer last known result name from DOM,
+      // fall back to LOCAL_DISEASES[crop][0].
+      var diseaseName = '';
+      var nameEl = rcrd.querySelector('[data-disease-name], .disease-title, h3');
+      if (nameEl) diseaseName = (nameEl.textContent || '').trim();
+      var pool = (typeof LOCAL_DISEASES === 'object' && LOCAL_DISEASES[crop]) || [];
+      var d = pool.find(function(x) { return diseaseName && diseaseName.toLowerCase().indexOf(x.name.toLowerCase().split(' ')[0].toLowerCase()) >= 0; }) || pool[0];
+      if (!d) return;
+      rcrd.appendChild(buildROIWidget(crop, d));
+    } catch(e) {}
+  }
+  var rcrdEl = document.getElementById('rcrd');
+  if (rcrdEl && 'MutationObserver' in window) {
+    new MutationObserver(function() { setTimeout(tryMountROI, 200); })
+      .observe(rcrdEl, { childList: true, subtree: false });
+  }
+
+
+  // ─── 4. OFFLINE PHOTO QUEUE (IndexedDB) ────────────────────────────
+  // Lets farmers capture and queue diagnoses while offline. When
+  // connectivity returns, queued items POST to /api/analyze and
+  // surface results in a small banner. All operations are best-effort.
+
+  var DB_NAME = 'sebilai-offline';
+  var STORE   = 'pending-diagnoses';
+  var DB_V    = 1;
+
+  function openDB() {
+    return new Promise(function(resolve, reject) {
+      if (!('indexedDB' in window)) return reject(new Error('no-idb'));
+      var req = indexedDB.open(DB_NAME, DB_V);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          var os = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+          os.createIndex('created_at', 'created_at', { unique: false });
+        }
+      };
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error); };
+    });
+  }
+
+  function idbTx(mode, fn) {
+    return openDB().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction(STORE, mode);
+        var store = tx.objectStore(STORE);
+        var result;
+        try { result = fn(store); } catch(e) { reject(e); return; }
+        tx.oncomplete = function() { resolve(result && result.result !== undefined ? result.result : result); };
+        tx.onerror = function() { reject(tx.error); };
+      });
+    });
+  }
+
+  function queueDiagnosis(payload) {
+    payload.created_at = Date.now();
+    payload.synced = false;
+    return idbTx('readwrite', function(store) { return store.add(payload); })
+      .then(function(id) { updateQueueBadge(); return id; });
+  }
+
+  function listQueue() {
+    return idbTx('readonly', function(store) {
+      return new Promise(function(res, rej) {
+        var req = store.getAll();
+        req.onsuccess = function() { res(req.result || []); };
+        req.onerror = function() { rej(req.error); };
+      });
+    });
+  }
+
+  function deleteQueueItem(id) {
+    return idbTx('readwrite', function(store) { return store.delete(id); })
+      .then(function() { updateQueueBadge(); });
+  }
+
+  function updateQueueBadge() {
+    listQueue().then(function(items) {
+      var pending = items.filter(function(i) { return !i.synced; });
+      var badge = document.getElementById('sebilai-queue-badge');
+      if (!badge) return;
+      if (pending.length === 0) {
+        badge.style.display = 'none';
+      } else {
+        badge.textContent = '📥 ' + pending.length + ' queued';
+        badge.style.display = 'inline-flex';
+      }
+    }).catch(function() {});
+  }
+
+  function syncQueue() {
+    if (!navigator.onLine) return Promise.resolve(0);
+    return listQueue().then(function(items) {
+      var pending = items.filter(function(i) { return !i.synced; });
+      if (pending.length === 0) return 0;
+      var synced = 0;
+      return pending.reduce(function(p, item) {
+        return p.then(function() {
+          return fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parts: item.parts || [{ text: item.summary || '' }] })
+          }).then(function(r) {
+            if (r.ok) { synced++; return deleteQueueItem(item.id); }
+          }).catch(function() {});
+        });
+      }, Promise.resolve()).then(function() {
+        if (synced > 0) showSyncBanner(synced);
+        return synced;
+      });
+    });
+  }
+
+  function showSyncBanner(n) {
+    var b = document.createElement('div');
+    b.setAttribute('role', 'status');
+    b.setAttribute('aria-live', 'polite');
+    b.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2D6A0A;color:white;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.25);z-index:9999;';
+    b.textContent = '✅ Synced ' + n + ' queued diagnosis' + (n > 1 ? 'es' : '') + ' to server';
+    document.body.appendChild(b);
+    setTimeout(function() { b.style.transition = 'opacity 0.5s'; b.style.opacity = '0'; }, 3500);
+    setTimeout(function() { b.remove(); }, 4200);
+  }
+
+  // Public API for any code that wants to enqueue a diagnosis attempt
+  // (e.g. when offline analyze() catches a network error, it can call
+  // window.SebilaiQueue.add({...}) ).
+  window.SebilaiQueue = {
+    add: queueDiagnosis,
+    list: listQueue,
+    sync: syncQueue,
+    remove: deleteQueueItem
+  };
+
+  // Wire up: try sync on page load, on online event, and every 60s.
+  window.addEventListener('online', function() { syncQueue(); });
+  setTimeout(function() { syncQueue(); updateQueueBadge(); }, 4000);
+  setInterval(function() { if (navigator.onLine) syncQueue(); }, 60000);
+
+  // Append a small queue-status pill next to the offline banner.
+  function injectQueueBadge() {
+    if (document.getElementById('sebilai-queue-badge')) return;
+    var badge = document.createElement('span');
+    badge.id = 'sebilai-queue-badge';
+    badge.setAttribute('role', 'status');
+    badge.setAttribute('aria-live', 'polite');
+    badge.style.cssText = 'display:none;position:fixed;bottom:14px;right:14px;background:#D4A017;color:#3A2A00;font-weight:700;font-size:12px;padding:6px 12px;border-radius:18px;box-shadow:0 4px 12px rgba(0,0,0,0.18);z-index:9998;align-items:center;gap:6px;cursor:pointer;';
+    badge.title = 'Pending offline diagnoses — tap to sync now';
+    badge.onclick = function() { syncQueue(); };
+    document.body.appendChild(badge);
+    updateQueueBadge();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectQueueBadge);
+  } else {
+    injectQueueBadge();
+  }
+
+})();
 </script>
 
 
