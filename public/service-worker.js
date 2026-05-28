@@ -1,12 +1,34 @@
 // ================================================================
-// SebilAI — Service Worker v6 + Push Notifications
-// v6 bumps the cache key so clients on v5 reinstall on next visit,
-// and adds an explicit SKIP_WAITING message handler so the in-page
-// "New version available — tap to refresh" banner can force a
-// waiting SW to activate immediately via forceUpdateApp().
+// SebilAI — Service Worker v7 + Push Notifications
+// v7 bumps the cache key so clients on v6 reinstall on next visit
+// (necessary because the prior v6 build embedded ~1MB of base64
+// crop images inside index.html; v7 splits them out to separate
+// /icons/crops/*.jpg files and the new HTML is ~656KB).
+// The SKIP_WAITING handler stays so the in-page "New version
+// available — tap to refresh" banner can force a waiting SW to
+// activate immediately via forceUpdateApp().
 // ================================================================
-const CACHE_NAME = 'sebilai-v6';
+const CACHE_NAME = 'sebilai-v7';
 const PUSH_ICON  = '/icons/icon-192.png';
+
+// v7: crop preview images extracted from index.html base64. Precaching
+// them keeps offline mode working — the previous v6 had them inlined,
+// so this list re-establishes parity. The fetch handler below ALSO
+// dynamically caches every successful GET, so missing entries here are
+// not fatal; this list just primes the cache on install.
+const CROP_IMAGES = [
+  '/icons/crops/enset.jpg',          '/icons/crops/enset-preview.jpg',
+  '/icons/crops/teff.jpg',           '/icons/crops/teff-preview.jpg',
+  '/icons/crops/noug.jpg',
+  '/icons/crops/wheat.jpg',          '/icons/crops/wheat-preview.jpg',
+  '/icons/crops/maize.jpg',          '/icons/crops/maize-preview.jpg',
+  '/icons/crops/coffee.jpg',         '/icons/crops/coffee-preview.jpg',
+  '/icons/crops/potato.jpg',         '/icons/crops/potato-preview.jpg',
+  '/icons/crops/tomato.jpg',
+  '/icons/crops/onion.jpg',
+  '/icons/crops/barley.jpg',         '/icons/crops/barley-preview.jpg',
+  '/icons/crops/sorghum.jpg',        '/icons/crops/sorghum-preview.jpg'
+];
 
 // ── MESSAGE HANDLER: SKIP_WAITING ────────────────────────────────
 // The page sends { type: 'SKIP_WAITING' } when the user taps the
@@ -22,9 +44,9 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll([
-      '/', '/index.html', '/privacy.html'
-    ]).catch(() => {}))
+    caches.open(CACHE_NAME).then(c => c.addAll(
+      ['/', '/index.html', '/privacy.html'].concat(CROP_IMAGES)
+    ).catch(() => {}))
   );
 });
 
