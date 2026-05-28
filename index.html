@@ -2483,6 +2483,119 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 .whatsapp-share-btn .wa-icon {
   font-size: 20px;
 }
+
+/* ====================== v6: AddisAI Voice Input + Action Plan ====================== */
+.voice-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+/* .voice-btn-v2 — namespaced to avoid colliding with the older .voice-btn rule above */
+.voice-btn-v2 {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--leaf, #1F5F2E);
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.voice-btn-v2:hover { background: #2D7741; }
+.voice-btn-v2.listening {
+  background: #C8102E;
+  animation: pulse-mic 1.2s infinite;
+}
+.voice-btn-v2.processing {
+  background: #888;
+  cursor: wait;
+}
+.voice-btn-v2:disabled { opacity: 0.5; cursor: not-allowed; }
+@keyframes pulse-mic {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(200,16,46,0.6); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 12px rgba(200,16,46,0); }
+}
+.voice-status-text {
+  font-size: 13px;
+  color: var(--bark, #5A6E5A);
+  min-height: 18px;
+}
+.voice-transcript-preview {
+  background: #f5f5f0;
+  border: 1px solid #d8d6cb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #1A2F1A;
+  display: none;
+}
+.voice-transcript-preview.show { display: block; }
+.tts-btn {
+  background: #2D7741;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.tts-btn:hover { background: #1F5F2E; }
+.tts-btn:disabled { opacity: 0.5; cursor: wait; }
+
+.action-plan {
+  margin-top: 18px;
+  padding: 14px;
+  background: #f5f5f0;
+  border-radius: 14px;
+  border: 1px solid #d8d6cb;
+}
+.action-plan-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--leaf, #1F5F2E);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-day {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-left: 4px solid var(--leaf, #1F5F2E);
+}
+.plan-day-header {
+  font-weight: 700;
+  color: #1A2F1A;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.plan-day-body {
+  font-size: 13px;
+  color: #1A2F1A;
+  line-height: 1.45;
+}
+.plan-day ul { margin: 4px 0 0 18px; padding: 0; }
+.plan-fallback {
+  font-size: 13px;
+  color: #5A6E5A;
+  font-style: italic;
+}
 </style>
 </head>
 <body>
@@ -2683,6 +2796,20 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
     <div class="voice-hint">
       <strong id="voice-hint-main">Tap to speak</strong><br>
       <span id="voice-hint-sub">Describe symptoms in your language</span>
+    </div>
+  </div>
+
+  <!-- v6: AddisAI voice input (am/en/om). Stacks below existing voice-row.
+       Transcript populates #ctx so it flows into the same diagnosis pipeline. -->
+  <div class="voice-input-wrap" id="voice-input-wrap">
+    <button id="main-voice-btn" class="voice-btn-v2" type="button"
+      onclick="handleVoicePress(function(text){ var c=document.getElementById('ctx'); if(c){ c.value=(c.value?c.value+' ':'')+text; } var p=document.getElementById('voice-transcript-preview'); if(p){ p.textContent=text; p.classList.add('show'); } })"
+      title="Tap to speak (AddisAI)">
+      🎤
+    </button>
+    <div style="flex:1;min-width:0;">
+      <div class="voice-status-text" id="voice-status-v2"></div>
+      <div class="voice-transcript-preview" id="voice-transcript-preview"></div>
     </div>
   </div>
 
@@ -6085,6 +6212,12 @@ function setLanguage(lang) {
   // Re-render offline symptom picker so its labels follow the new language too.
   if (typeof renderOfflineSymptomPicker === 'function') renderOfflineSymptomPicker();
 
+  // v6: AddisAI voice button title follows current language
+  try {
+    const vbtn = document.getElementById('main-voice-btn');
+    if (vbtn && typeof voiceStr === 'function') vbtn.title = voiceStr('tap_to_speak');
+  } catch (e) {}
+
   // Update Research modal section headings
   const rEnset = document.getElementById('res-section-enset');
   const rTeff  = document.getElementById('res-section-teff');
@@ -7217,10 +7350,26 @@ function renderResult(r) {
       </div>
     </div>`).join('');
 
+  // v6: find the LOCAL_DISEASES entry for the matched diagnosis so we can
+  // ground the 7-day plan in real research data (no AI fabrication).
+  const _matchedDisease = (typeof findLocalDiseaseEntry === 'function')
+    ? findLocalDiseaseEntry(currentCrop, r.disease_name || '')
+    : null;
+  window._lastMatchedDisease = _matchedDisease;
+
+  // v6: build sanitized data-text strings for TTS buttons (no double-quotes
+  // can leak out and break the attribute).
+  const _ttsNameText = String(r.disease_name || '').replace(/"/g, '&quot;');
+  const _ttsActionsText = (function() {
+    var acts = Array.isArray(r.immediate_actions) ? r.immediate_actions : [];
+    var combined = (r.disease_name || '') + '. ' + acts.join('. ');
+    return combined.replace(/"/g, '&quot;');
+  })();
+
   div.innerHTML = `
     <div class="result-header">
       <div class="result-badge">${t.resAIDiagnosis || 'AI Diagnosis'}</div>
-      <div class="result-title">${r.disease_name || 'Analysis Complete'}</div>
+      <div class="result-title">${r.disease_name || 'Analysis Complete'}<button class="tts-btn" type="button" onclick="ttsV2Speak(this.dataset.text, this)" data-text="${_ttsNameText}" title="${(typeof voiceStr === 'function' ? voiceStr('read_aloud') : 'Read aloud')}">🔊</button></div>
       <div class="result-meta">
         ${currentCrop.toUpperCase()} &bull; ${r.confidence || 75}% ${t.resConfidence || 'confidence'}
       </div>
@@ -7292,12 +7441,12 @@ function renderResult(r) {
 
       <div class="result-section">
         <h4 data-i18n="resDiagnosis">${t.resDiagnosis || 'Diagnosis'}</h4>
-        <p>${r.diagnosis || r.disease_name || ''}</p>
+        <p>${(typeof smartGround === 'function' ? smartGround(r.diagnosis || r.disease_name || '') : (r.diagnosis || r.disease_name || ''))}</p>
       </div>
 
       ${(Array.isArray(r.immediate_actions) && r.immediate_actions.length > 0) ? `
       <div class="result-section">
-        <h4 data-i18n="resImmediateActions" style="margin-bottom:10px;">${t.resImmediateActions || '⚡ Immediate Actions'}</h4>
+        <h4 data-i18n="resImmediateActions" style="margin-bottom:10px;">${t.resImmediateActions || '⚡ Immediate Actions'}<button class="tts-btn" type="button" onclick="ttsV2Speak(this.dataset.text, this)" data-text="${_ttsActionsText}" title="${(typeof voiceStr === 'function' ? voiceStr('read_aloud') : 'Read aloud')}">🔊</button></h4>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${r.immediate_actions.map(function(a,i){
             var urgency = i===0 ? '#B83010' : i===1 ? '#D4A017' : '#2D6A0A';
@@ -7418,6 +7567,9 @@ function renderResult(r) {
         </div>
       </div>
 
+      <!-- v6: real-data 7-day action plan grounded in LOCAL_DISEASES -->
+      <div id="action-plan-container"></div>
+
       <!-- SUSTAINABILITY SCORE -->
       <div style="margin-top:12px;background:#f8fdf2;border:1.5px solid #B8DC7A;border-radius:14px;padding:14px;">
         <div style="font-weight:700;color:#2D6A0A;margin-bottom:10px;font-size:14px;">🌱 ${currentLang==='am'?'ዘላቂነት ውጤት':'Sustainability Score'}</div>
@@ -7488,6 +7640,12 @@ function renderResult(r) {
     logFarmerActivity('diagnosis', { crop: currentCrop, disease: r.disease_name, severity: r.severity, confidence: r.confidence });
     recordImpact(r); // Track impact metrics
     saveDiagnosis({ result: r }); // Auto-save last diagnosis
+    // v6: render real-data 7-day plan grounded in LOCAL_DISEASES (no fabrication)
+    try {
+      if (typeof renderActionPlan === 'function') {
+        renderActionPlan(window._lastMatchedDisease, document.getElementById('action-plan-container'));
+      }
+    } catch(e) { console.warn('[v6 renderActionPlan]', e); }
   }, 50);
 }
 
@@ -9704,7 +9862,9 @@ Keep answers under 4 sentences. Use simple language the farmer can understand.`;
     clearTimeout(chatTimeout);
 
     const data    = await response.json();
-    const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
+    const aiReplyRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not get a response.';
+    // v6: append multilingual chemical-safety footer when relevant
+    const aiReply = (typeof smartGround === 'function') ? smartGround(aiReplyRaw) : aiReplyRaw;
 
     // Remove thinking indicator
     const thinkingEl = document.getElementById(thinkingId);
@@ -10318,6 +10478,449 @@ function switchTab(tab) {
     showProfile();
   }
 }
+
+// ====================== v6: ADDIS AI VOICE INPUT (vanilla JS) ======================
+// Third input method that sits next to existing free-text + symptom picker.
+// Uses browser SpeechRecognition for English/Amharic when available, else
+// MediaRecorder → /api/v2/voice/transcribe (server proxies to Addis AI).
+const VOICE_SUPPORTED_LANGS = ['am-ET', 'en-US', 'om-ET'];
+
+function mapLangToVoice(appLang) {
+  const m = { am: 'am-ET', en: 'en-US', om: 'om-ET', ti: 'ti-ET', so: 'so-SO', aa: 'aa-ET' };
+  return m[appLang] || 'en-US';
+}
+
+const VOICE_STRINGS = {
+  am: {
+    tap_to_speak: 'ለመናገር ይጫኑ',
+    listening:    'እያዳመጥኩ ነው…',
+    processing:   'እያስኬድኩ ነው…',
+    no_mic:       'ማይክሮፎን ፍቃድ ያስፈልጋል።',
+    no_support:   'ድምጽ ማወቂያ በዚህ መሣሪያ አይሰራም።',
+    lang_unsupported: 'የድምጽ ግቤት ለዚህ ቋንቋ በቅርቡ ይመጣል። እባክዎ በመተግበሪያው ይተይቡ።',
+    network:      'የኢንተርኔት ችግር። እባክዎ እንደገና ይሞክሩ።',
+    unknown:      'ስህተት ተከስቷል። እባክዎ እንደገና ይሞክሩ።',
+    read_aloud:   'ጮክ ብለህ አንብብ'
+  },
+  en: {
+    tap_to_speak: 'Tap to speak',
+    listening:    'Listening…',
+    processing:   'Processing…',
+    no_mic:       'Microphone permission required.',
+    no_support:   'Voice input not supported on this device.',
+    lang_unsupported: 'Voice input for this language is coming soon. Please type instead.',
+    network:      'Network problem. Please try again.',
+    unknown:      'Something went wrong. Please try again.',
+    read_aloud:   'Read aloud'
+  },
+  om: {
+    tap_to_speak: 'Dubbachuuf cuqaasi',
+    listening:    'Dhaggeeffachaa jira…',
+    processing:   'Hojjechaa jira…',
+    no_mic:       'Hayyamni maaykiroofoonii barbaachisaa dha.',
+    no_support:   'Galmee sagalee meeshaa kana irratti hin deeggaramu.',
+    lang_unsupported: 'Galmeen sagalee afaan kanaaf dhiyootti dhufa. Maaloo barreessi.',
+    network:      'Rakkoo intarneetii. Maaloo irra deebi\'i yaali.',
+    unknown:      'Dogoggorri uumamuu. Maaloo irra deebi\'i yaali.',
+    read_aloud:   'Sagaleen dubbisi'
+  },
+  ti: {
+    tap_to_speak: 'ድምጽ ኣእትዉ', listening: 'ይሰምዕ…', processing: 'ኣብ ስራሕ…',
+    no_mic: 'ናይ ማይክሮፎን ፍቓድ የድልየና።',
+    no_support: 'ድምጺ ኣብዚ መሳርሒ ኣይምልከትን።',
+    lang_unsupported: 'ናይ ድምጺ ግቤት ድሕሪ ቅንዕ ይመጽእ። እባኹም ጽሓፉ።',
+    network: 'ናይ ኢንተርነት ጸገም።', unknown: 'ጌጋ ኣጋጢሙ።', read_aloud: 'ኣንብብ'
+  },
+  so: {
+    tap_to_speak: 'Riix si aad u hadasho', listening: 'Dhageysanaya…', processing: 'Hawl…',
+    no_mic: 'Macluumaadka makarafoonka ayaa loo baahan yahay.',
+    no_support: 'Cod-galinta laguma taageero qalabkan.',
+    lang_unsupported: 'Cod-galinta luqaddan dhowaan ayey iman doontaa. Fadlan qor.',
+    network: 'Dhibaato shabakad.', unknown: 'Khalad ayaa dhacay.', read_aloud: 'Codka akhri'
+  },
+  aa: {
+    tap_to_speak: 'Sagalee aybe', listening: 'Yaab abak…', processing: 'Iggimak…',
+    no_mic: 'Maykrofoon idini iyyaaminaak.', no_support: 'Sagalee gaadiiy fanaay aagim.',
+    lang_unsupported: 'Sagalee galmaay ah luqaadak yameetey. Maaloo qor.',
+    network: 'Internet tugak.', unknown: 'Galat tameeteh.', read_aloud: 'Sagalee akhri'
+  }
+};
+
+function voiceStr(key) {
+  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+  return (VOICE_STRINGS[lang] && VOICE_STRINGS[lang][key]) || VOICE_STRINGS.en[key];
+}
+
+let _voiceState = {
+  listening: false,
+  processing: false,
+  recognition: null,
+  mediaRecorder: null,
+  audioChunks: [],
+  stream: null,
+  onResultCallback: null
+};
+
+function setVoiceUI(state, statusText) {
+  const btn = document.getElementById('main-voice-btn');
+  const status = document.getElementById('voice-status');
+  if (btn) {
+    btn.classList.remove('listening', 'processing');
+    if (state === 'listening') btn.classList.add('listening');
+    if (state === 'processing') btn.classList.add('processing');
+    btn.disabled = (state === 'processing');
+  }
+  if (status) status.textContent = statusText || '';
+}
+
+async function handleVoicePress(onResult) {
+  if (_voiceState.listening || _voiceState.processing) {
+    stopVoiceCapture();
+    return;
+  }
+
+  const voiceLang = mapLangToVoice(currentLang || 'en');
+
+  if (!VOICE_SUPPORTED_LANGS.includes(voiceLang)) {
+    alert(voiceStr('lang_unsupported'));
+    return;
+  }
+
+  _voiceState.onResultCallback = onResult;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const tryBrowserFirst = (voiceLang === 'am-ET' || voiceLang === 'en-US') && SR;
+
+  if (tryBrowserFirst) {
+    try {
+      const recognition = new SR();
+      recognition.lang = voiceLang;
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      let finalText = '';
+
+      recognition.onstart = () => {
+        _voiceState.listening = true;
+        setVoiceUI('listening', voiceStr('listening'));
+      };
+      recognition.onresult = (e) => {
+        let interim = '';
+        for (let i = 0; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) finalText += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        const preview = document.getElementById('voice-transcript-preview');
+        if (preview) {
+          preview.textContent = finalText + interim;
+          preview.classList.add('show');
+        }
+      };
+      recognition.onerror = (e) => {
+        console.warn('[Browser SR error]', e.error);
+        stopBrowserRecognition();
+        fallbackToAddisAI(voiceLang);
+      };
+      recognition.onend = () => {
+        _voiceState.listening = false;
+        if (finalText && _voiceState.onResultCallback) {
+          _voiceState.onResultCallback(finalText.trim());
+        }
+        setVoiceUI('idle', '');
+        _voiceState.recognition = null;
+      };
+
+      _voiceState.recognition = recognition;
+      recognition.start();
+      return;
+    } catch (err) {
+      console.warn('[Browser SR setup failed]', err);
+    }
+  }
+
+  await fallbackToAddisAI(voiceLang);
+}
+
+async function fallbackToAddisAI(voiceLang) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    _voiceState.stream = stream;
+    _voiceState.mediaRecorder = mr;
+    _voiceState.audioChunks = [];
+
+    mr.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) _voiceState.audioChunks.push(e.data);
+    };
+    mr.onstop = async () => {
+      _voiceState.listening = false;
+      setVoiceUI('processing', voiceStr('processing'));
+      _voiceState.processing = true;
+
+      const blob = new Blob(_voiceState.audioChunks, { type: 'audio/webm' });
+      try {
+        const fd = new FormData();
+        fd.append('audio', blob, 'voice.webm');
+        fd.append('language', voiceLang);
+        const r = await fetch('/api/v2/voice/transcribe', { method: 'POST', body: fd });
+        if (!r.ok) throw new Error('transcribe http ' + r.status);
+        const data = await r.json();
+        if (data.transcript && _voiceState.onResultCallback) {
+          _voiceState.onResultCallback(data.transcript.trim());
+        } else {
+          alert(voiceStr('unknown'));
+        }
+      } catch (err) {
+        console.error('[AddisAI transcribe failed]', err);
+        alert(voiceStr('network'));
+      } finally {
+        _voiceState.processing = false;
+        setVoiceUI('idle', '');
+        _voiceState.audioChunks = [];
+      }
+    };
+
+    _voiceState.listening = true;
+    setVoiceUI('listening', voiceStr('listening'));
+    mr.start();
+
+    setTimeout(() => {
+      if (_voiceState.listening) stopVoiceCapture();
+    }, 12000);
+  } catch (err) {
+    console.error('[Mic permission denied]', err);
+    const msg = err && err.name === 'NotAllowedError' ? voiceStr('no_mic') : voiceStr('no_support');
+    alert(msg);
+    setVoiceUI('idle', '');
+  }
+}
+
+function stopBrowserRecognition() {
+  try {
+    if (_voiceState.recognition) {
+      _voiceState.recognition.stop();
+    }
+  } catch (e) {}
+  _voiceState.recognition = null;
+}
+
+function stopVoiceCapture() {
+  try {
+    if (_voiceState.mediaRecorder && _voiceState.mediaRecorder.state !== 'inactive') {
+      _voiceState.mediaRecorder.stop();
+    }
+    if (_voiceState.stream) {
+      _voiceState.stream.getTracks().forEach(t => t.stop());
+      _voiceState.stream = null;
+    }
+  } catch (e) {}
+  stopBrowserRecognition();
+}
+
+// ====================== v6: TEXT-TO-SPEECH (Addis AI for am/om) ======================
+// Named ttsV2Speak to avoid colliding with the existing browser-only speakText().
+async function ttsV2Speak(text, btnEl) {
+  if (!text) return;
+  const voiceLang = mapLangToVoice(currentLang || 'en');
+
+  if (voiceLang === 'en-US' && 'speechSynthesis' in window) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = voiceLang;
+    window.speechSynthesis.speak(u);
+    return;
+  }
+
+  if (!VOICE_SUPPORTED_LANGS.includes(voiceLang)) {
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = voiceLang;
+      window.speechSynthesis.speak(u);
+    }
+    return;
+  }
+
+  if (btnEl) btnEl.disabled = true;
+  try {
+    const r = await fetch('/api/v2/voice/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 1800), language: voiceLang })
+    });
+    if (!r.ok) throw new Error('tts http ' + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    await audio.play();
+  } catch (err) {
+    console.warn('[TTS via Addis AI failed, falling back to browser]', err);
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = voiceLang;
+      window.speechSynthesis.speak(u);
+    }
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+
+// ====================== v6: 7-DAY ACTION PLAN (real, grounded) ======================
+function buildActionPlan(disease) {
+  if (!disease || typeof disease !== 'object') return null;
+
+  const immediate = Array.isArray(disease.immediate_actions) ? disease.immediate_actions : [];
+  const cultural  = Array.isArray(disease.management_cultural)   ? disease.management_cultural   : [];
+  const biological= Array.isArray(disease.management_biological) ? disease.management_biological : [];
+  const chemical  = Array.isArray(disease.management_chemical)   ? disease.management_chemical   : [];
+  const prevention= Array.isArray(disease.prevention)            ? disease.prevention            : [];
+
+  if (!immediate.length && !cultural.length && !biological.length && !chemical.length) {
+    return null;
+  }
+
+  return [
+    {
+      day: 1,
+      titleKey: 'plan_d1_title',
+      actions: [
+        ...(immediate.slice(0, 2)),
+        ...(cultural.slice(0, 1))
+      ].filter(Boolean)
+    },
+    {
+      day: 2,
+      titleKey: 'plan_d2_title',
+      actions: [
+        ...(cultural.slice(1, 3)),
+        ...(biological.slice(0, 1))
+      ].filter(Boolean)
+    },
+    {
+      day: 3,
+      titleKey: 'plan_d3_title',
+      actions: [
+        ...(biological.slice(0, 2)),
+        ...(chemical.length ? [chemical[0]] : [])
+      ].filter(Boolean)
+    },
+    {
+      day: 5,
+      titleKey: 'plan_d5_title',
+      actions: [
+        'Monitor leaves for new symptoms',
+        ...(chemical.slice(1, 2))
+      ].filter(Boolean)
+    },
+    {
+      day: 7,
+      titleKey: 'plan_d7_title',
+      actions: [
+        'Reassess overall plant health',
+        ...(prevention.slice(0, 2))
+      ].filter(Boolean)
+    }
+  ];
+}
+
+const PLAN_TITLES = {
+  en: { plan_header: '7-Day Action Plan',  plan_d1_title: 'Day 1 — Immediate response',   plan_d2_title: 'Day 2 — Cultural controls',   plan_d3_title: 'Day 3 — Biological treatment', plan_d5_title: 'Day 5 — Monitor & re-treat',  plan_d7_title: 'Day 7 — Reassess & prevent',  no_plan: 'No detailed plan available for this diagnosis. Consult a local agronomist.' },
+  am: { plan_header: 'የ7 ቀን የተግባር እቅድ', plan_d1_title: 'ቀን 1 — ፈጣን ምላሽ',          plan_d2_title: 'ቀን 2 — ባህላዊ ቁጥጥር',          plan_d3_title: 'ቀን 3 — ባዮሎጂካዊ ሕክምና',          plan_d5_title: 'ቀን 5 — ክትትል እና ድጋሚ ሕክምና',  plan_d7_title: 'ቀን 7 — ግምገማ እና መከላከል',     no_plan: 'ለዚህ ምርመራ ዝርዝር እቅድ የለም። የአካባቢውን የግብርና ባለሙያ ያማክሩ።' },
+  om: { plan_header: 'Karoora Hojii Guyyaa 7', plan_d1_title: 'Guyyaa 1 — Deebii ariifachiisaa', plan_d2_title: 'Guyyaa 2 — Too\'annoo aadaa', plan_d3_title: 'Guyyaa 3 — Wal\'aansa biyoolojii', plan_d5_title: 'Guyyaa 5 — Hordoffii fi irra deebii', plan_d7_title: 'Guyyaa 7 — Madaaluu fi ittisuu', no_plan: 'Karoorri bal\'aan dhukkuba kanaaf hin jiru. Ogeessa qonnaa naannootti dubbisi.' },
+  ti: { plan_header: '7 ምዓልታት ናይ ስራሕ ውጥን', plan_d1_title: 'ምዓልቲ 1 — ቅልጡፍ ምላሽ', plan_d2_title: 'ምዓልቲ 2 — ባህላዊ ቁጽጽር', plan_d3_title: 'ምዓልቲ 3 — ባዮሎጂያዊ ፍታሕ', plan_d5_title: 'ምዓልቲ 5 — ምክትታል', plan_d7_title: 'ምዓልቲ 7 — ግምገማ', no_plan: 'ዝርዝር ውጥን የለን። ናይ ግብርና ሰብ ሞያ ኣማኽሩ።' },
+  so: { plan_header: 'Qorshe Tallaalka 7-Maalmood ah', plan_d1_title: 'Maalin 1 — Jawaab degdeg ah', plan_d2_title: 'Maalin 2 — Xakamayn dhaqameed', plan_d3_title: 'Maalin 3 — Daawayn bayooloji', plan_d5_title: 'Maalin 5 — Kormeer', plan_d7_title: 'Maalin 7 — Dib u eegis', no_plan: 'Qorshe faahfaahsan ma jiro. La tashi khabiir beeraha.' },
+  aa: { plan_header: '7-Ayyam Tallaalka Qorshe',     plan_d1_title: 'Ayyam 1 — Jawaab degdeg',   plan_d2_title: 'Ayyam 2 — Xakamayn dhaqameed', plan_d3_title: 'Ayyam 3 — Daawayn bayooloji', plan_d5_title: 'Ayyam 5 — Kormeer',   plan_d7_title: 'Ayyam 7 — Dib u eegis',   no_plan: 'Qorshe faahfaahsan ma jiro.' }
+};
+
+function planStr(key) {
+  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+  return (PLAN_TITLES[lang] && PLAN_TITLES[lang][key]) || PLAN_TITLES.en[key] || key;
+}
+
+function renderActionPlan(disease, containerEl) {
+  if (!containerEl) return;
+  const plan = buildActionPlan(disease);
+
+  if (!plan) {
+    containerEl.innerHTML = `
+      <div class="action-plan">
+        <div class="action-plan-title">🗓 ${planStr('plan_header')}</div>
+        <div class="plan-fallback">${planStr('no_plan')}</div>
+      </div>`;
+    return;
+  }
+
+  let summaryText = planStr('plan_header') + ': ' + plan.map(d => planStr(d.titleKey) + '. ' + d.actions.join('. ')).join(' ');
+  // Escape quotes for safe embedding in data-text attribute
+  summaryText = summaryText.replace(/"/g, '&quot;');
+  let html = `<div class="action-plan"><div class="action-plan-title">🗓 ${planStr('plan_header')}
+      <button class="tts-btn" type="button" onclick="ttsV2Speak(this.dataset.text, this)" data-text="${summaryText}" title="${(typeof voiceStr === 'function' ? voiceStr('read_aloud') : 'Read aloud')}">🔊</button>
+    </div>`;
+  plan.forEach(d => {
+    html += `<div class="plan-day">
+      <div class="plan-day-header">${planStr(d.titleKey)}</div>
+      <div class="plan-day-body"><ul>${d.actions.map(a => '<li>' + a + '</li>').join('')}</ul></div>
+    </div>`;
+  });
+  html += `</div>`;
+  containerEl.innerHTML = html;
+}
+
+// Find the matching LOCAL_DISEASES entry for a diagnosed disease_name.
+// Used to ground the action plan in real research data (not AI fabrication).
+function findLocalDiseaseEntry(crop, diseaseName) {
+  if (!diseaseName || typeof LOCAL_DISEASES === 'undefined') return null;
+  const list = LOCAL_DISEASES[crop] || [];
+  const lower = diseaseName.toLowerCase();
+  // Try exact match first, then partial
+  let hit = list.find(d => d.name && d.name.toLowerCase() === lower);
+  if (!hit) hit = list.find(d => d.name && (lower.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(lower)));
+  return hit || null;
+}
+
+// ====================== v6: SMART GROUNDING SAFETY LAYER ======================
+const GROUNDING_KEYWORDS = ['pesticide', 'fungicide', 'insecticide', 'herbicide', 'spray', 'chemical', 'dose', 'dosage', 'ml/l', 'g/l', 'kg/ha', 'ኬሚካል', 'መድሃኒት', 'ርጭት', 'ቶን'];
+
+const GROUNDING_SAFETY_NOTE = {
+  en: '⚠️ Before applying any chemical or pesticide, consult a local agronomist or Development Agent (DA). Dosages vary by region, season, and crop stage.',
+  am: '⚠️ ኬሚካሎችን ወይም ፀረ-ተባይ ከመጠቀምዎ በፊት የአካባቢውን የግብርና ባለሙያ ወይም ልማት አጋር (DA) ያማክሩ። መጠኖች በክልል፣ በወቅት እና በሰብል ደረጃ ይለያያሉ።',
+  om: '⚠️ Keemikaala ykn farra ilbiisotaa fayyadamuu kee dura ogeessa qonnaa naannoo ykn Hojjetaa Misooma (DA) dubbisi. Hammi naannoo, yeroo fi sadarkaa midhaaniin ni jijjiirama.',
+  ti: '⚠️ ኬሚካል ወይ ፀረ-ተባይ ቅድሚ ምጥቃምካ ናይ ግብርና ሰብ ሞያ ኣማኽር።',
+  so: '⚠️ Ka hor inta aadan isticmaalin kiimikoyin ama sunta cayayaanka, la tashi khabiir beeraha.',
+  aa: '⚠️ Keemikaal yoo isticmaalin, la tashi khabiir beeraha.'
+};
+
+function groundingStr(key) {
+  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+  return (key === 'safety') ? (GROUNDING_SAFETY_NOTE[lang] || GROUNDING_SAFETY_NOTE.en) : '';
+}
+
+function smartGround(aiText) {
+  if (!aiText || typeof aiText !== 'string') return aiText;
+  const lower = aiText.toLowerCase();
+  const hasChemicalMention = GROUNDING_KEYWORDS.some(k => lower.includes(k.toLowerCase()));
+  if (!hasChemicalMention) return aiText;
+  return aiText + '\n\n' + groundingStr('safety');
+}
+
+// ====================== v6: AGENT NUDGES (feature-flagged OFF) ======================
+// Flip AGENT_NUDGES_ENABLED to true ONLY after we have 100+ active users.
+// Anchored on real user data + permission, not a hardcoded timer.
+const AGENT_NUDGES_ENABLED = false;
+
+function maybeRequestNotifPermission() {
+  if (!AGENT_NUDGES_ENABLED) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    // Wait for explicit user action (future "Enable reminders" toggle).
+  }
+}
+
+function scheduleAgentNudges() {
+  if (!AGENT_NUDGES_ENABLED) return;
+  if (Notification.permission !== 'granted') return;
+  console.info('[Agent Nudges] enabled but no scheduler implemented yet — by design.');
+}
+// Intentionally NOT called on page load — gated by the flag.
 </script>
 
 

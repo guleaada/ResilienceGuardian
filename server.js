@@ -165,6 +165,19 @@ if (!ADMIN_KEY) {
   console.warn('   All admin endpoints (/api/feedback GET, /api/review-requests, /api/review-verify) will return 503 until it is configured.');
 }
 
+// ── ADDIS AI VOICE PROXY (Amharic / English / Oromo STT + TTS) ──
+const ADDIS_AI_API_KEY = process.env.ADDIS_AI_API_KEY || '';
+if (!ADDIS_AI_API_KEY) {
+  console.warn('⚠️  ADDIS_AI_API_KEY not set. Voice features will return 503.');
+}
+const ADDIS_AI_BASE_URL = 'https://api.addisassistant.com/v1';
+
+const multer = require('multer');
+const upload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  storage: multer.memoryStorage()
+});
+
 function requireAdminKey(req, res) {
   if (!ADMIN_KEY) {
     res.status(503).json({ error: 'Admin access is disabled: ADMIN_KEY is not configured on this server.' });
@@ -1810,6 +1823,85 @@ app.get('/api/v2/outbreaks/map', (req, res) => {
       }))
     });
   });
+});
+
+// ====================== VOICE: SPEECH-TO-TEXT (Addis AI proxy) ======================
+app.post('/api/v2/voice/transcribe', upload.single('audio'), async (req, res) => {
+  if (!ADDIS_AI_API_KEY) {
+    return res.status(503).json({ error: 'Voice service not configured' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: 'No audio file provided' });
+  }
+  const language = req.body.language || 'am-ET';
+  const supported = ['am-ET', 'en-US', 'om-ET'];
+  if (!supported.includes(language)) {
+    return res.status(400).json({ error: 'Language not supported for voice yet', language });
+  }
+
+  try {
+    const formData = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype || 'audio/webm' });
+    formData.append('file', blob, 'audio.webm');
+    formData.append('language', language);
+
+    const r = await fetch(`${ADDIS_AI_BASE_URL}/speech-to-text`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${ADDIS_AI_API_KEY}` },
+      body: formData
+    });
+
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('[AddisAI STT error]', r.status, errText);
+      return res.status(502).json({ error: 'Addis AI transcription failed', status: r.status });
+    }
+    const data = await r.json();
+    res.json({ transcript: data.transcript || '', language });
+  } catch (err) {
+    console.error('[STT route error]', err);
+    res.status(500).json({ error: 'Transcription failed', detail: err.message });
+  }
+});
+
+// ====================== VOICE: TEXT-TO-SPEECH (Addis AI proxy) ======================
+app.post('/api/v2/voice/speak', express.json(), async (req, res) => {
+  if (!ADDIS_AI_API_KEY) {
+    return res.status(503).json({ error: 'Voice service not configured' });
+  }
+  const { text, language } = req.body || {};
+  if (!text || typeof text !== 'string' || text.length > 2000) {
+    return res.status(400).json({ error: 'Text must be a string under 2000 chars' });
+  }
+  const lang = language || 'am-ET';
+  const supported = ['am-ET', 'en-US', 'om-ET'];
+  if (!supported.includes(lang)) {
+    return res.status(400).json({ error: 'Language not supported for voice yet', language: lang });
+  }
+
+  try {
+    const r = await fetch(`${ADDIS_AI_BASE_URL}/text-to-speech`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ADDIS_AI_API_KEY}`
+      },
+      body: JSON.stringify({ text, language: lang, speed: 1.0 })
+    });
+
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('[AddisAI TTS error]', r.status, errText);
+      return res.status(502).json({ error: 'Addis AI TTS failed', status: r.status });
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.send(buf);
+  } catch (err) {
+    console.error('[TTS route error]', err);
+    res.status(500).json({ error: 'TTS failed', detail: err.message });
+  }
 });
 
 app.get('*', (req, res) => res.sendFile(preferRoot('index.html')));
