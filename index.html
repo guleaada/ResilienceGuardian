@@ -2851,8 +2851,12 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
   <textarea id="ctx" placeholder="e.g. Symptoms appeared after heavy rain 3 days ago, affecting roughly 30% of plants..."></textarea>
 
   
-  <div class="voice-row">
-    <button class="voice-btn" id="voiceBtn" title="Tap to record voice note">🎤</button>
+  <!-- v10: legacy .voice-row (old #voiceBtn) hidden — superseded by
+       #main-voice-btn below which uses the AddisAI flow. Kept in DOM
+       (not deleted) so initVoice() / setLanguage() can still find the
+       referenced text spans without throwing. -->
+  <div class="voice-row" style="display:none" aria-hidden="true">
+    <button class="voice-btn" id="voiceBtn" title="Tap to record voice note" style="display:none">🎤</button>
     <div class="voice-hint">
       <strong id="voice-hint-main">Tap to speak</strong><br>
       <span id="voice-hint-sub">Describe symptoms in your language</span>
@@ -3876,11 +3880,13 @@ textarea:focus { outline: none; border-color: var(--leaf-mid); }
 <div class="modal-overlay" id="aboutModal" onclick="handleModalClick(event)">
   <div class="modal-box">
     <div class="modal-header" style="background: linear-gradient(135deg, #1a3a05, #2D6A0A); text-align:center; padding: 32px 22px 24px;">
+      <!-- v10: language pill — setLanguage() rewrites textContent per lang -->
+      <div id="about-lang-pill" style="display:inline-block;font-size:11px;font-weight:600;background:rgba(255,255,255,0.18);color:#fff;border-radius:14px;padding:4px 12px;margin-bottom:10px;letter-spacing:0.02em;">🇬🇧 English</div>
       <div style="font-size:56px;margin-bottom:12px;">👨‍💻</div>
-      <h2 style="font-size:20px;">SebilAI</h2>
+      <h2 id="about-brand" style="font-size:20px;">SebilAI</h2>
       <div id="about-dev-name" style="font-size:16px;font-weight:700;color:var(--sprout);margin:4px 0;">Gulilat Kasiye Worku</div>
-      <p id="about-job-title" style="font-size:13px;opacity:0.8;">Ethiopian AI Developer &amp; Entrepreneur</p>
-      <p style="font-size:13px;margin-top:12px;line-height:1.6;opacity:0.9;">Gulilat Kasiye Worku is an Ethiopian AI developer and entrepreneur who identified a critical gap — smallholder farmers growing Enset, Teff, Noug, Wheat, Maize, Coffee, Potato, Tomato, Onion, Barley, and Sorghum had no AI tool that spoke their language, used local Ethiopian research, and gave advice grounded in their specific crops, zones, and farming conditions.</p>
+      <p id="about-job-title" style="font-size:13px;opacity:0.8;font-style:italic;">Ethiopian AI Developer &amp; Entrepreneur</p>
+      <p id="about-bio" style="font-size:13px;margin-top:12px;line-height:1.6;opacity:0.9;">Gulilat Kasiye Worku is an Ethiopian Artificial Intelligence (AI) specialist and entrepreneur who identified a critical gap — smallholder farmers growing Enset, Teff, Noug, Wheat, Maize, Coffee, Potato, Tomato, Onion, Barley and Sorghum had no AI tool that speaks their language, is grounded in Ethiopian research, and gives advice matched to their specific crop, zone, and field conditions.</p>
     </div>
     <div class="modal-body">
 
@@ -4045,6 +4051,9 @@ const T = {
     // About modal
     aboutTitle: "SebilAI",
     aboutJobTitle: "Ethiopian AI Developer & Entrepreneur",
+    aboutBrand: "SebilAI",
+    aboutLangPill: "🇬🇧 English",
+    aboutBio: "Gulilat Kasiye Worku is an Ethiopian Artificial Intelligence (AI) specialist and entrepreneur who identified a critical gap — smallholder farmers growing Enset, Teff, Noug, Wheat, Maize, Coffee, Potato, Tomato, Onion, Barley and Sorghum had no AI tool that speaks their language, is grounded in Ethiopian research, and gives advice matched to their specific crop, zone, and field conditions.",
     aboutWhyTitle: "Why This Was Built",
     aboutDiffTitle: "What Makes It Different",
     aboutVersionTitle: "Current Version",
@@ -4121,6 +4130,9 @@ const T = {
     aboutTitle: "SebilAI",
     aboutJobTitle: "የኢትዮጵያ AI ገንቢ እና ሥራ ፈጣሪ",
     aboutDevName: "ጉልላት ካስዬ ወርቁ",
+    aboutBrand: "ሰቢል AI",
+    aboutLangPill: "🇪🇹 አማርኛ — Amharic",
+    aboutBio: "ጉልላት ካስዬ ወርቁ ኢትዮጵያዊ የሰው ሰራሽ ብልሃት (AI) ባለሙያ እና ሥራ ፈጣሪ ሲሆን፣ አንድ ወሳኝ ክፍተት ለይተዋል — እንሰት፣ ጤፍ፣ ኑግ፣ ስንዴ፣ በቆሎ፣ ቡና፣ ድንች፣ ቲማቲም፣ ሽንኩርት፣ ገብስ እና ማሽላ የሚያለሙ ታናናሽ አርሶ አደሮች በቋንቋቸው የሚናገር፣ የኢትዮጵያ ምርምርን መሠረት ያደረገ፣ እና ለየትኛውም ሰብል፣ ዞን እና የእርሻ ሁኔታቸው ተስማሚ የሆነ ምክር የሚሰጥ AI መሣሪያ አልነበራቸውም።",
     aboutWhyTitle: "ለምን ተሰራ",
     aboutDiffTitle: "ከሌሎች ምን ይለየዋል",
     aboutVersionTitle: "አሁናዊ ስሪት",
@@ -4194,6 +4206,9 @@ const T = {
     resHowTitle: "Qorannoon Akkamitti Gorsa Taha",
     aboutTitle: "SebilAI",
     aboutJobTitle: "Hojjetaa AI fi Udaatessaa Itoophiyaa",
+    aboutBrand: "SebilAI",
+    aboutLangPill: "🇪🇹 Afaan Oromoo — Oromo",
+    aboutBio: "Gulilat Kasiye Worku ogeessa Sammuu Naamusaa (AI) Itoophiyaa fi udaatessaa dha. Hanqina guddaa argate — qonnaan bultoonni xixiqqoon Ensete, Xaafii, Nuugii, Qamadii, Boqqolloo, Bunaa, Dinnicha, Timaatima, Shunkurta, Garbuu fi Misingaa qotan, meeshaa AI afaan isaanii dubbatu, qorannoo Itoophiyaa irratti hundaa'e, fi midhaan, naannoo fi haala lafa qonnaa isaanii kan ilaalu hin qaban turan.",
     aboutWhyTitle: "Maaliif Ijaarame",
     aboutDiffTitle: "Maal Adda Godha",
     aboutVersionTitle: "Vershinii Ammaa",
@@ -4267,8 +4282,11 @@ const T = {
     resWheat: "🌿 መጽናዕቲ ስንዴ — 1 ወረቐት",
     resHowTitle: "መጽናዕቲ ናብ ምኽሪ ከመይ ይቕየር",
     aboutTitle: "SebilAI",
-    aboutJobTitle: "ናይ ኢትዮጵያ AI ሰራሒን ኢንተርፕረነርን",
+    aboutJobTitle: "ናይ ኢትዮጵያ AI ዲቨሎፐርን ወሃቢ ስራሕን",
     aboutDevName: "ጉልላት ካስዬ ወርቁ",
+    aboutBrand: "ሰቢል AI",
+    aboutLangPill: "🇪🇹 ትግርኛ — Tigrinya",
+    aboutBio: "ጉልላት ካስዬ ወርቁ ናይ ኢትዮጵያ ናይ ሰብ ሰራሕ ብልሓት (AI) ክኢላን ወሃቢ ስራሕን እዩ — ሓደ ኣገዳሲ ጎደሎ ለቒቊል። ንእሽቶ ሓረስቶት ዝህልዉ — እንሰት፣ ጤፍ፣ ኑግ፣ ስርናይ፣ ቆሎ፣ ቡን፣ ድንሽ፣ ቲማቲም፣ ሽንኩርቲ፣ ስገም እና ማሽላ ዝዘርኡ — ብቋንቋኦም ዝዛረብ፣ ንናይ ኢትዮጵያ መጽናዕቲ መሰረት ዝገብር፣ ምስ ናቶም ሰብል፣ ዞንን ናይ ሕርሻ ኩነታትን ዝሰማማዕ ምኽሪ ዝህብ AI መሳርሒ ኣይነበሮምን።",
     aboutWhyTitle: "ስለምንታይ ተሃኒጹ",
     aboutDiffTitle: "እንታይ ይፈልዮ",
     aboutVersionTitle: "ናይ ሕጂ ቨርሽን",
@@ -4376,6 +4394,9 @@ const T = {
       resWheat:"Cilmi-baarista Sarreen",
       resHowTitle:"SebilAI sidee u shaqeysaa",
       aboutJobTitle:"Horumariye AI Itoobiyaanka",
+      aboutBrand:"SebilAI",
+      aboutLangPill:"🇸🇴 Soomaali — Somali",
+      aboutBio:"Gulilat Kasiye Worku waa khabiir Sirta Macquul-galinta (AI) Itoobiyaan ah iyo ganacsade. Wuxuu aqoonsaday daldal weyn — beeralayda yaryar ee beerta Enset, Teff, Noug, Sarreen, Galley, Bun, Bataato, Yaanyo, Basal, Shaciir iyo Masago ma haystaan qalab AI oo ku hadla afkooda, ku salaysan cilmi-baadhista Itoobiya, oo siiya talo ku habboon dalagga, gobolka iyo xaaladaha goobtooda.",
       aboutWhyTitle:"Sababta la dhisay",
       aboutDiffTitle:"Waxa kala duwaneeya",
       aboutVersionTitle:"Nooca hadda",
@@ -4479,6 +4500,9 @@ const T = {
       resWheat:"Cilmi-baadhis Sarreen",
       resHowTitle:"SebilAI sidee shaqeeysaa",
       aboutJobTitle:"AI Horumariye Itoobiyaanka",
+      aboutBrand:"SebilAI",
+      aboutLangPill:"🇪🇹 Qafar af — Afar",
+      aboutBio:"Gulilat Kasiye Worku waa khabiir AI Itoobiyaan ah. Wuxuu aqoonsaday daldal weyn — beeralayda yaryar ee beerta Enset, Teff, Noug, Sarreen, Galley, Bun, Bataato, Yaanyo, Basal, Shaciir iyo Masago ma haystaan qalab AI oo ku hadla afkooda, ku salaysan cilmi-baadhista Itoobiya.",
       aboutWhyTitle:"Sababta la dhisay",
       aboutDiffTitle:"Waxa kala duwan",
       aboutVersionTitle:"Nooca",
@@ -5345,6 +5369,10 @@ function setLanguage(lang) {
     setText('about-dev-name', t.aboutDevName || 'Gulilat Kasiye Worku');
   }
   setText('about-job-title', t.aboutJobTitle || 'Ethiopian AI Developer & Entrepreneur');
+  // v10: brand line + language pill + full bio paragraph follow language.
+  setText('about-brand',     t.aboutBrand    || 'SebilAI');
+  setText('about-lang-pill', t.aboutLangPill || '🇬🇧 English');
+  setText('about-bio',       t.aboutBio      || (T.en && T.en.aboutBio) || '');
 
   // Re-render symptoms in new language
   if (typeof renderSymptoms === 'function') renderSymptoms();
@@ -6682,8 +6710,12 @@ function renderResult(r) {
         </div>
       </div>
 
-      <!-- 7-DAY ACTION PLAN -->
-      <div id="action-plan-section" style="margin-top:16px;background:linear-gradient(135deg,#1a3a05,#2D6A0A);border-radius:14px;padding:16px;color:white;">
+      <!-- 7-DAY ACTION PLAN
+           v10: hidden — superseded by the 📅 Plan tab inside the 6-tab advisor
+           (rendered via renderAdvisorTabs → renderActionPlan → #action-plan-container-tabbed).
+           generateActionPlan(r) still runs and fills this slot, but it's
+           display:none so the farmer sees the plan in exactly ONE place. -->
+      <div id="action-plan-section" style="display:none;margin-top:16px;background:linear-gradient(135deg,#1a3a05,#2D6A0A);border-radius:14px;padding:16px;color:white;">
         <div style="font-weight:800;font-size:15px;margin-bottom:12px;">📋 ${currentLang==='am'?'7 ቀን የድርጊት እቅድ':'7-Day Action Plan'}</div>
         <div id="action-plan-content"></div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -6958,7 +6990,11 @@ function generateActionPlan(r) {
 }
 
 function speakActionPlan() {
-  if (_lastActionPlan) speakText(_lastActionPlan);
+  if (!_lastActionPlan) return;
+  // v10: route to Addis AI TTS for supported langs; fall back to browser TTS otherwise.
+  (['am','om','en'].includes(currentLang) && typeof ttsV2Speak === 'function')
+    ? ttsV2Speak(_lastActionPlan)
+    : speakText(_lastActionPlan);
 }
 
 // ==================== SUSTAINABILITY SCORE ====================
@@ -7245,7 +7281,12 @@ function speakPhrase(key) {
   var lang = currentLang === 'am' ? 'am' : 'en';
   var phrases = PRELOAD_PHRASES[lang] || PRELOAD_PHRASES.en;
   var phrase = phrases.find(function(p) { return p.toLowerCase().includes(key.toLowerCase()); });
-  if (phrase) speakText(phrase);
+  // v10: prefer Addis AI for am/om/en, else browser TTS.
+  if (phrase) {
+    (['am','om','en'].includes(currentLang) && typeof ttsV2Speak === 'function')
+      ? ttsV2Speak(phrase)
+      : speakText(phrase);
+  }
 }
 
 // Voice status check
@@ -9084,9 +9125,18 @@ function addChatMessage(text, role, id) {
     spk.className = 'chat-speaker-btn';
     spk.title = 'Listen';
     spk.textContent = '🔊';
-    spk.onclick = function() { speakText(text); };
+    // v10: chat speaker + auto-speak route to Addis AI for am/om/en.
+    spk.onclick = function() {
+      (['am','om','en'].includes(currentLang) && typeof ttsV2Speak === 'function')
+        ? ttsV2Speak(text, spk)
+        : speakText(text);
+    };
     div.appendChild(spk);
-    if (window.chatAutoSpeak) speakText(text);
+    if (window.chatAutoSpeak) {
+      (['am','om','en'].includes(currentLang) && typeof ttsV2Speak === 'function')
+        ? ttsV2Speak(text)
+        : speakText(text);
+    }
   } else {
     div.textContent = text;
   }
