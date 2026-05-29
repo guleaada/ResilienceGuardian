@@ -4120,7 +4120,7 @@ const T = {
     resHowTitle: "ምርምር ወደ ምክር እንዴት ይለወጣል",
     aboutTitle: "SebilAI",
     aboutJobTitle: "የኢትዮጵያ AI ገንቢ እና ሥራ ፈጣሪ",
-    aboutDevName: "Gulilat Kasiye Worku",
+    aboutDevName: "ጉልላት ካስዬ ወርቁ",
     aboutWhyTitle: "ለምን ተሰራ",
     aboutDiffTitle: "ከሌሎች ምን ይለየዋል",
     aboutVersionTitle: "አሁናዊ ስሪት",
@@ -4268,6 +4268,7 @@ const T = {
     resHowTitle: "መጽናዕቲ ናብ ምኽሪ ከመይ ይቕየር",
     aboutTitle: "SebilAI",
     aboutJobTitle: "ናይ ኢትዮጵያ AI ሰራሒን ኢንተርፕረነርን",
+    aboutDevName: "ጉልላት ካስዬ ወርቁ",
     aboutWhyTitle: "ስለምንታይ ተሃኒጹ",
     aboutDiffTitle: "እንታይ ይፈልዮ",
     aboutVersionTitle: "ናይ ሕጂ ቨርሽን",
@@ -5335,6 +5336,15 @@ function setLanguage(lang) {
   setText('about-close-btn',   t.histModalClose);
   setText('research-close-btn', t.histModalClose);
   setText('help-modal-close', t.histModalClose);
+
+  // v12: founder name follows language — Amharic + Tigrinya users see
+  // ጉልላት ካስዬ ወርቁ; other languages keep the Latin spelling.
+  if (lang === 'am' || lang === 'ti') {
+    setText('about-dev-name', 'ጉልላት ካስዬ ወርቁ');
+  } else {
+    setText('about-dev-name', t.aboutDevName || 'Gulilat Kasiye Worku');
+  }
+  setText('about-job-title', t.aboutJobTitle || 'Ethiopian AI Developer & Entrepreneur');
 
   // Re-render symptoms in new language
   if (typeof renderSymptoms === 'function') renderSymptoms();
@@ -6767,10 +6777,35 @@ function renderResult(r) {
     // place (no more duplicate render).
     try {
       if (typeof window.renderAdvisorTabs === 'function') {
-        var diseaseForTabs = window._lastMatchedDisease || {
-          immediate_actions: r.immediate_actions,
-          prevention:        r.preventive_measures,
-          source:            ''
+        // v12: merge LOCAL_DISEASES entry (if matched) with any extra fields
+        // the AI returned. AI path often has no LOCAL match, so r.* must
+        // also flow through. Source comes from the matched entry first,
+        // then falls back to whatever AI gave us, then a per-crop default
+        // citation block already used elsewhere in renderResult.
+        var matched = window._lastMatchedDisease || {};
+        var fallbackCitations = {
+          enset: 'Negash et al. (2023), Bonga University — Integrated EBW Management',
+          noug: 'Dagnachew Yirgou (1964) Plant Disease Reporter; EIAR Oilseed Strategy 2016-2023',
+          tomato: 'EIAR Melkassa 2024 Technical Manual; Jabamo et al. 2023 Crop Protection',
+          onion: 'Genet & Yalew 2022 (Bahir Dar / Fogera); Arba Minch integrated trials',
+          teff: 'Bekele et al. (2021), EIAR Debre Zeit — Major Tef Diseases',
+          wheat: 'Maccaferri et al. (2019), CIMMYT/EIAR — Wheat Rust Early Warning',
+          maize: 'Beyene et al. (2020), FAO Ethiopia — Maize Disease Management',
+          coffee: 'Jimma ARC (2021) — Coffee Berry Disease Management',
+          potato: 'CIP/HARC (2022) — Late Blight Management, Ethiopian Highlands',
+          barley: 'ICARDA/Adet ARC (2020) — Barley Disease Survey',
+          sorghum: 'ICRISAT/Melkassa ARC (2021) — Sorghum Disease Management'
+        };
+        var diseaseForTabs = {
+          immediate_actions:  matched.immediate_actions  || r.immediate_actions  || [],
+          preventive_measures: matched.preventive_measures || r.preventive_measures || [],
+          local_treatment:    matched.local_treatment    || r.local_treatment    || r.local_summary || '',
+          source:             matched.source             || r.source             || r.citation || fallbackCitations[currentCrop] || '',
+          // Forward-compat: pass through any structured management_* arrays
+          // if a future LOCAL_DISEASES schema adds them.
+          management_cultural:   matched.management_cultural   || [],
+          management_biological: matched.management_biological || [],
+          management_chemical:   matched.management_chemical   || []
         };
         window.renderAdvisorTabs(
           diseaseForTabs,
@@ -9902,13 +9937,20 @@ async function ttsV2Speak(text, btnEl) {
 function buildActionPlan(disease) {
   if (!disease || typeof disease !== 'object') return null;
 
-  const immediate = Array.isArray(disease.immediate_actions) ? disease.immediate_actions : [];
-  const cultural  = Array.isArray(disease.management_cultural)   ? disease.management_cultural   : [];
-  const biological= Array.isArray(disease.management_biological) ? disease.management_biological : [];
-  const chemical  = Array.isArray(disease.management_chemical)   ? disease.management_chemical   : [];
-  const prevention= Array.isArray(disease.prevention)            ? disease.prevention            : [];
+  // v12: real LOCAL_DISEASES schema is { immediate_actions[], preventive_measures[],
+  // local_treatment(string), source(string) }. The earlier management_* keys
+  // never existed, so the plan rendered empty days. Map to what actually exists.
+  const immediate  = Array.isArray(disease.immediate_actions)   ? disease.immediate_actions   : [];
+  const prevention = Array.isArray(disease.preventive_measures) ? disease.preventive_measures
+                    : (Array.isArray(disease.prevention) ? disease.prevention : []);
+  const treatment  = (typeof disease.local_treatment === 'string' && disease.local_treatment.trim())
+                    ? disease.local_treatment.trim() : '';
+  // Forward-compat (kept for future structured schema)
+  const cultural   = Array.isArray(disease.management_cultural)   ? disease.management_cultural   : [];
+  const biological = Array.isArray(disease.management_biological) ? disease.management_biological : [];
+  const chemical   = Array.isArray(disease.management_chemical)   ? disease.management_chemical   : [];
 
-  if (!immediate.length && !cultural.length && !biological.length && !chemical.length) {
+  if (!immediate.length && !prevention.length && !treatment && !cultural.length && !biological.length && !chemical.length) {
     return null;
   }
 
@@ -9925,6 +9967,7 @@ function buildActionPlan(disease) {
       day: 2,
       titleKey: 'plan_d2_title',
       actions: [
+        ...(immediate.slice(2, 4)),
         ...(cultural.slice(1, 3)),
         ...(biological.slice(0, 1))
       ].filter(Boolean)
@@ -9934,7 +9977,8 @@ function buildActionPlan(disease) {
       titleKey: 'plan_d3_title',
       actions: [
         ...(biological.slice(0, 2)),
-        ...(chemical.length ? [chemical[0]] : [])
+        ...(chemical.length ? [chemical[0]] : []),
+        ...(treatment ? [treatment] : [])
       ].filter(Boolean)
     },
     {
@@ -10130,16 +10174,34 @@ function renderAdvisorTabs(disease, cropName, containerEl) {
         ${ul(disease.immediate_actions, 'empty_now')}
       </div>
       <div class="advisor-panel-content" data-panel="treat">
-        <h4>${s('h_cultural')}</h4>${ul(disease.management_cultural, 'empty_treat')}
-        <h4>${s('h_biological')}</h4>${ul(disease.management_biological, 'empty_treat')}
-        <h4>${s('h_chemical')}</h4>${ul(disease.management_chemical, 'empty_treat')}
+        ${(function(){
+          // v12: LOCAL_DISEASES schema only has `local_treatment` (string) +
+          // `immediate_actions` (array) — not the hypothetical management_*
+          // arrays we originally coded for. Render whatever shape we get.
+          var lt = disease.local_treatment || '';
+          var hasArrays = (Array.isArray(disease.management_cultural)   && disease.management_cultural.length)
+                       || (Array.isArray(disease.management_biological) && disease.management_biological.length)
+                       || (Array.isArray(disease.management_chemical)   && disease.management_chemical.length);
+          var out = '';
+          if (hasArrays) {
+            out += '<h4>' + s('h_cultural')   + '</h4>' + ul(disease.management_cultural,   'empty_treat');
+            out += '<h4>' + s('h_biological') + '</h4>' + ul(disease.management_biological, 'empty_treat');
+            out += '<h4>' + s('h_chemical')   + '</h4>' + ul(disease.management_chemical,   'empty_treat');
+          }
+          if (lt) {
+            out += '<h4>' + s('h_chemical') + '</h4>'
+                +  '<div style="font-size:14px;color:#1A2F1A;line-height:1.55;">' + lt + '</div>';
+          }
+          if (!out) out = '<div class="panel-empty">' + s('empty_treat') + '</div>';
+          return out;
+        })()}
       </div>
       <div class="advisor-panel-content" data-panel="plan">
         <div id="action-plan-container-tabbed"></div>
       </div>
       <div class="advisor-panel-content" data-panel="prevent">
         <h4>${s('h_prevention')}</h4>
-        ${ul(disease.prevention, 'empty_prevent')}
+        ${ul(disease.preventive_measures || disease.prevention, 'empty_prevent')}
       </div>
       <div class="advisor-panel-content" data-panel="market">
         ${marketHtml}
@@ -10771,8 +10833,36 @@ function closeIOSPopup() {
 
 <!-- jsPDF for Impact Report generation -->
 
-<!-- ── VOICE-ONLY MODE OVERLAY ───────────────────── -->
-<button class="voice-mode-btn" id="voice-mode-btn" onclick="toggleVoiceMode()" title="Voice-Only Mode">🎤</button>
+<!-- ── VOICE-ONLY MODE OVERLAY ─────────────────────
+     v12: floating mic now delegates to the SAME handleVoicePress flow
+     the main inline mic uses, so users get one consistent path:
+     mic → transcript into #ctx → analyze() → 6-tab advisor with
+     safety grounding. No more parallel one-shot overlay flow that
+     bypassed the new UI. The overlay + toggleVoiceMode helpers stay
+     defined (in case other features call them) but this button no
+     longer fires them, so there is no double-trigger.
+-->
+<button class="voice-mode-btn" id="voice-mode-btn" type="button" title="Tap to speak"
+  onclick="(function(){
+    if (typeof window.handleVoicePress !== 'function') {
+      console.warn('[FloatingMic] handleVoicePress not loaded yet');
+      return;
+    }
+    var mainBtn = document.getElementById('main-voice-btn');
+    if (mainBtn) { try { mainBtn.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e) {} }
+    window.handleVoicePress(function(text){
+      var inputEl = document.getElementById('ctx');
+      if (inputEl) {
+        inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + text;
+        try { inputEl.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
+      }
+      var preview = document.getElementById('voice-transcript-preview');
+      if (preview) { preview.textContent = text; preview.classList.add('show'); }
+      if (typeof window.analyze === 'function') {
+        try { window.analyze(text); } catch(e) { console.warn('[FloatingMic] analyze() threw', e); }
+      }
+    });
+  })()">🎤</button>
 
 <div class="voice-overlay" id="voice-overlay">
   <div class="voice-orb" id="voice-orb" onclick="startVoiceListen()">🎤</div>

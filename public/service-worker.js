@@ -1,14 +1,16 @@
 // ================================================================
-// SebilAI — Service Worker v7 + Push Notifications
-// v7 bumps the cache key so clients on v6 reinstall on next visit
-// (necessary because the prior v6 build embedded ~1MB of base64
-// crop images inside index.html; v7 splits them out to separate
-// /icons/crops/*.jpg files and the new HTML is ~656KB).
-// The SKIP_WAITING handler stays so the in-page "New version
+// SebilAI — Service Worker v9 + Push Notifications
+// v9 bumps the cache key because the v12 release renames the PWA
+// from "Resilience Guardian" to "SebilAI" (manifest.json name +
+// short_name), and the manifest is cached on install — without a
+// cache-key bump, existing installs would keep the old PWA name
+// in the launcher. v9 also picks up the fixed Treat/Source tab
+// renderer and the rebranded service-worker comment header.
+// SKIP_WAITING handler stays so the in-page "New version
 // available — tap to refresh" banner can force a waiting SW to
 // activate immediately via forceUpdateApp().
 // ================================================================
-const CACHE_NAME = 'sebilai-v7';
+const CACHE_NAME = 'sebilai-v9';
 const PUSH_ICON  = '/icons/icon-192.png';
 
 // v7: crop preview images extracted from index.html base64. Precaching
@@ -45,7 +47,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then(c => c.addAll(
-      ['/', '/index.html', '/privacy.html'].concat(CROP_IMAGES)
+      ['/', '/index.html', '/privacy.html', '/manifest.json', '/local-diseases.js'].concat(CROP_IMAGES)
     ).catch(() => {}))
   );
 });
