@@ -1866,17 +1866,26 @@ app.post('/api/v2/voice/transcribe', upload.single('audio'), async (req, res) =>
 
 // ====================== VOICE: TEXT-TO-SPEECH (Addis AI proxy) ======================
 app.post('/api/v2/voice/speak', express.json(), async (req, res) => {
+  // v11: instrumented + informative error payloads. Every non-200 path now
+  // returns a JSON shape the client can read to surface the real reason
+  // (instead of silently falling back to browser TTS that has no am/om voice).
+  console.log('[TTS] request received. ADDIS_AI_API_KEY set?', !!ADDIS_AI_API_KEY, 'lang=', (req.body && req.body.language));
+
   if (!ADDIS_AI_API_KEY) {
-    return res.status(503).json({ error: 'Voice service not configured' });
+    return res.status(503).json({
+      error: 'voice_not_configured',
+      message: 'ADDIS_AI_API_KEY env var is missing on the server',
+      lang: req.body && req.body.language
+    });
   }
   const { text, language } = req.body || {};
   if (!text || typeof text !== 'string' || text.length > 2000) {
-    return res.status(400).json({ error: 'Text must be a string under 2000 chars' });
+    return res.status(400).json({ error: 'bad_request', message: 'Text must be a string under 2000 chars', lang: language });
   }
   const lang = language || 'am-ET';
   const supported = ['am-ET', 'en-US', 'om-ET'];
   if (!supported.includes(lang)) {
-    return res.status(400).json({ error: 'Language not supported for voice yet', language: lang });
+    return res.status(400).json({ error: 'language_not_supported', message: 'Language not supported for voice yet', lang });
   }
 
   try {
@@ -1891,17 +1900,72 @@ app.post('/api/v2/voice/speak', express.json(), async (req, res) => {
 
     if (!r.ok) {
       const errText = await r.text();
-      console.error('[AddisAI TTS error]', r.status, errText);
-      return res.status(502).json({ error: 'Addis AI TTS failed', status: r.status });
+      const excerpt = (errText || '').slice(0, 400);
+      console.error('[AddisAI TTS error] status=', r.status, 'body=', excerpt);
+      return res.status(502).json({
+        error: 'addis_ai_upstream_failed',
+        upstream_status: r.status,
+        upstream_body_excerpt: excerpt,
+        lang
+      });
     }
 
     res.setHeader('Content-Type', 'audio/mpeg');
     const buf = Buffer.from(await r.arrayBuffer());
+    console.log('[TTS] success, bytes=', buf.length, 'lang=', lang);
     res.send(buf);
   } catch (err) {
-    console.error('[TTS route error]', err);
-    res.status(500).json({ error: 'TTS failed', detail: err.message });
+    console.error('[TTS route network error]', err && err.message);
+    res.status(502).json({
+      error: 'addis_ai_network_failed',
+      detail: err && err.message,
+      lang
+    });
   }
+});
+
+// v11: read-only diagnostic endpoint. Lets ops + the user verify from any
+// browser whether the Addis AI key is configured on the server AND whether
+// the upstream API is reachable + responding. Never returns the key itself —
+// only the last 4 chars as a sanity tail.
+app.get('/api/v2/voice/diag', async (req, res) => {
+  const hasKey = !!ADDIS_AI_API_KEY;
+  const keyTail = hasKey ? ('...' + String(ADDIS_AI_API_KEY).slice(-4)) : null;
+  let upstreamReachable = null;
+  let upstreamStatus = null;
+  let upstreamBodyExcerpt = null;
+  try {
+    if (hasKey) {
+      const r = await fetch(`${ADDIS_AI_BASE_URL}/text-to-speech`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ADDIS_AI_API_KEY}`
+        },
+        body: JSON.stringify({ text: 'ሰላም', language: 'am-ET', speed: 1.0 })
+      });
+      upstreamReachable = true;
+      upstreamStatus = r.status;
+      if (!r.ok) {
+        const txt = await r.text();
+        upstreamBodyExcerpt = txt.slice(0, 400);
+      } else {
+        upstreamBodyExcerpt = 'OK (audio bytes returned, not shown)';
+      }
+    }
+  } catch (err) {
+    upstreamReachable = false;
+    upstreamBodyExcerpt = err && err.message;
+  }
+  res.json({
+    addis_ai_key_present: hasKey,
+    addis_ai_key_tail: keyTail,
+    addis_ai_base_url: ADDIS_AI_BASE_URL,
+    upstream_reachable: upstreamReachable,
+    upstream_status: upstreamStatus,
+    upstream_body_excerpt: upstreamBodyExcerpt,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('*', (req, res) => res.sendFile(preferRoot('index.html')));
