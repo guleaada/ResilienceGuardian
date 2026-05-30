@@ -5310,9 +5310,20 @@ function setLanguage(lang) {
   });
   const t = T[lang] || T['en']; // Fallback to English if lang not found
   if (!t) { console.warn('No translation for:', lang); return; }
-  // Auto-fill any missing keys from English
+  // Auto-fill any missing keys from English. v12 hardening:
+  // - was `if (!t[k])` which ALSO replaced empty strings, 0, and other
+  //   falsy values that may have been intentional. Now we only fall back
+  //   when the value is genuinely undefined or null.
+  // - logs each fallback so future translation gaps surface in DevTools
+  //   instead of silently rendering as English (the suspected ti issue).
   const en = T['en'];
-  Object.keys(en).forEach(function(k) { if (!t[k]) t[k] = en[k]; });
+  const fellBack = [];
+  Object.keys(en).forEach(function(k) {
+    if (t[k] == null) { t[k] = en[k]; fellBack.push(k); }
+  });
+  if (fellBack.length && lang !== 'en') {
+    console.info('[i18n] lang=' + lang + ' falling back to en for keys:', fellBack);
+  }
 
   // Core labels
   setText('header-subtitle', t.headerSub);

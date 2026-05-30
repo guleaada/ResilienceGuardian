@@ -166,9 +166,21 @@ if (!ADMIN_KEY) {
 }
 
 // ── ADDIS AI VOICE PROXY (Amharic / English / Oromo STT + TTS) ──
+// v12: Addis AI is being discontinued (paid product wind-down); their
+// /text-to-speech and /speech-to-text routes return 404 even with a valid
+// key (confirmed via /api/v2/voice/diag: addis_ai_key_present:true,
+// upstream_status:404, "Route not found"). Until a replacement provider
+// is selected, the proxy is disabled and returns a clean 503 with a
+// machine-readable error code so the client can show the v11 toast
+// (no silent failures). English browser-speechSynthesis path is on the
+// client and is NOT affected by this flag.
+const VOICE_PROXY_ENABLED = false;
 const ADDIS_AI_API_KEY = process.env.ADDIS_AI_API_KEY || '';
 if (!ADDIS_AI_API_KEY) {
   console.warn('⚠️  ADDIS_AI_API_KEY not set. Voice features will return 503.');
+}
+if (!VOICE_PROXY_ENABLED) {
+  console.warn('🔇 VOICE_PROXY_ENABLED=false → /api/v2/voice/{speak,transcribe} will return 503 (provider unavailable). /api/v2/voice/diag still works.');
 }
 const ADDIS_AI_BASE_URL = 'https://api.addisassistant.com/v1';
 
@@ -278,6 +290,12 @@ function getRiskFromNDVI(ndvi, crop) {
 }
 
 // ── GEE SATELLITE NDVI (via REST API) ────────────────────
+// v12: GEE :computeValue endpoint currently returns 404 with Google's
+// "Route not found" HTML page. The fallback in getSatelliteNDVI()
+// already returns a synthetic NDVI so diagnosis is unaffected. This
+// flag prevents log spam by emitting the failure ONCE per process.
+// TODO: GEE endpoint returns 404 — needs correct API URL, see known-issues
+let _geeBrokenLoggedOnce = false;
 // ── GEE JWT Helper ───────────────────────────────────────
 let _geeToken = null;
 let _geeTokenExpiry = 0;
@@ -396,6 +414,10 @@ async function getSatelliteNDVI(lat, lon, crop) {
       })
     };
 
+    // TODO: GEE endpoint returns 404 — needs correct API URL, see known-issues
+    // The :computeValue REST shape changed at some point in 2024-2025; auth
+    // works, this data call doesn't. Diagnosis flow does not depend on GEE,
+    // so silently fall through to the synthetic-NDVI fallback below.
     const res = await fetch(
       `https://earthengine.googleapis.com/v1/projects/${project}:computeValue`,
       { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
@@ -403,7 +425,10 @@ async function getSatelliteNDVI(lat, lon, crop) {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error('GEE API error:', res.status, err.substring(0, 200));
+      if (!_geeBrokenLoggedOnce) {
+        console.warn('[GEE] :computeValue returned', res.status, '— using synthetic-NDVI fallback for the rest of this process. Body excerpt:', err.substring(0, 200));
+        _geeBrokenLoggedOnce = true;
+      }
       throw new Error('GEE API ' + res.status);
     }
 
@@ -420,8 +445,9 @@ async function getSatelliteNDVI(lat, lon, crop) {
     return { ndvi, risk_level, alert, crop, date: endDate, status: 'success' };
 
   } catch(e) {
-    console.error('GEE error:', e.message);
-    // Graceful fallback: compute risk from weather data instead
+    // v12: silent fallback — the one-time warn above already named the cause.
+    // Per-request `console.error` was spamming Render logs because diagnosis
+    // calls satellite for every analyze() request. Keep the graceful return.
     const fallbackNDVI = parseFloat((0.5 + (lat * 0.003 % 0.15)).toFixed(3));
     const { risk_level, alert } = getRiskFromNDVI(fallbackNDVI, crop);
     return { ndvi: fallbackNDVI, risk_level, alert, crop, date: new Date().toISOString().split('T')[0], status: 'fallback', error: e.message };
@@ -1827,6 +1853,14 @@ app.get('/api/v2/outbreaks/map', (req, res) => {
 
 // ====================== VOICE: SPEECH-TO-TEXT (Addis AI proxy) ======================
 app.post('/api/v2/voice/transcribe', upload.single('audio'), async (req, res) => {
+  // v12: gated off until a replacement STT provider is selected.
+  if (!VOICE_PROXY_ENABLED) {
+    return res.status(503).json({
+      error: 'voice_proxy_disabled',
+      message: 'Voice transcription is temporarily unavailable while we transition providers.',
+      lang: req.body && req.body.language
+    });
+  }
   if (!ADDIS_AI_API_KEY) {
     return res.status(503).json({ error: 'Voice service not configured' });
   }
@@ -1871,6 +1905,18 @@ app.post('/api/v2/voice/speak', express.json(), async (req, res) => {
   // (instead of silently falling back to browser TTS that has no am/om voice).
   console.log('[TTS] request received. ADDIS_AI_API_KEY set?', !!ADDIS_AI_API_KEY, 'lang=', (req.body && req.body.language));
 
+  // v12: gated off until a replacement TTS provider is selected.
+  // Addis AI returns 404 "Route not found" even with a valid key — the
+  // service is winding down. Return a clean 503 so the client's v11
+  // toast surfaces the "voice unavailable" message instead of trying
+  // and failing silently.
+  if (!VOICE_PROXY_ENABLED) {
+    return res.status(503).json({
+      error: 'voice_proxy_disabled',
+      message: 'Voice playback is temporarily unavailable while we transition providers.',
+      lang: req.body && req.body.language
+    });
+  }
   if (!ADDIS_AI_API_KEY) {
     return res.status(503).json({
       error: 'voice_not_configured',
